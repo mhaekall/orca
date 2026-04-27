@@ -690,27 +690,48 @@ async def admin_diagnose_episode(request: Request):
         return {"success": False, "error": "No URL provided"}
         
     import httpx
+    import urllib.parse
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url)
             if resp.status_code != 200:
-                return {"success": True, "status": f"HTTP {resp.status_code}", "healthy": False}
+                return {"success": True, "status": f"M3U8 HTTP {resp.status_code}", "healthy": False}
             
             text = resp.text
             if "#EXTM3U" not in text:
-                return {"success": True, "status": "Invalid M3U8", "healthy": False}
+                return {"success": True, "status": "Invalid M3U8 Format", "healthy": False}
                 
             duration = 0.0
-            for line in text.splitlines():
+            first_segment = None
+            lines = text.splitlines()
+            for line in lines:
                 if line.startswith("#EXTINF:"):
                     try:
                         dur_str = line.split(":")[1].split(",")[0]
                         duration += float(dur_str)
                     except: pass
+                elif line and not line.startswith("#"):
+                    if not first_segment:
+                        first_segment = line
                     
             if duration < 300:
-                return {"success": True, "status": f"Corrupt ({duration:.1f}s)", "healthy": False, "duration": duration}
-            
+                return {"success": True, "status": f"Duration Corrupt ({duration:.1f}s)", "healthy": False, "duration": duration}
+                
+            if first_segment:
+                # Check segment
+                if first_segment.startswith("http"):
+                    seg_url = first_segment
+                else:
+                    base = url.rsplit("/", 1)[0]
+                    seg_url = f"{base}/{first_segment}"
+                    
+                # A lot of proxies or telegram block HEAD, so we use GET with Range to fetch 1 byte
+                seg_resp = await client.get(seg_url, headers={"Range": "bytes=0-1"}, timeout=5.0)
+                if seg_resp.status_code not in (200, 206):
+                    return {"success": True, "status": f"Segment Error (HTTP {seg_resp.status_code})", "healthy": False, "duration": duration}
+            else:
+                return {"success": True, "status": "Empty Playlist", "healthy": False, "duration": duration}
+                
             return {"success": True, "status": "Healthy", "healthy": True, "duration": duration}
     except Exception as e:
-        return {"success": True, "status": f"Unreachable", "healthy": False, "error": str(e)}
+        return {"success": True, "status": "Unreachable/Timeout", "healthy": False, "error": str(e)}

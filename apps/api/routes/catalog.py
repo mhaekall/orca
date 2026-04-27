@@ -735,3 +735,35 @@ async def admin_diagnose_episode(request: Request):
             return {"success": True, "status": "Healthy", "healthy": True, "duration": duration}
     except Exception as e:
         return {"success": True, "status": "Unreachable/Timeout", "healthy": False, "error": str(e)}
+
+@router.post("/v2/admin/episode/{episode_id}/reingest", dependencies=[Depends(verify_admin_key)])
+async def admin_reingest_episode(episode_id: int):
+    try:
+        # Fetch episode details
+        row = await database.fetch_one('SELECT "anilistId", "episodeNumber", "episodeUrl" FROM episodes WHERE id = :id', values={"id": episode_id})
+        if not row:
+            return {"success": False, "error": "Episode not found in DB"}
+            
+        anilist_id = row["anilistId"]
+        ep_num = row["episodeNumber"]
+        
+        # Delete from episodes table so the next sync sees it as missing
+        await database.execute('DELETE FROM episodes WHERE id = :id', values={"id": episode_id})
+        
+        # Clear any potential video_cache for this url
+        await database.execute('DELETE FROM video_cache WHERE "episodeUrl" = :url', values={"url": row["episodeUrl"]})
+        
+        # Clear ingest lock from Upstash Redis
+        try:
+            from services.cache import upstash_del
+            await upstash_del(f"ingest:{anilist_id}:{ep_num}")
+        except:
+            pass
+            
+        # Trigger background sync which will scrape the provider, insert the episode, and queue ingestion
+        from services.queue import enqueue_sync
+        await enqueue_sync(anilist_id)
+        
+        return {"success": True, "message": f"Episode {ep_num} deleted and queued for re-ingestion."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

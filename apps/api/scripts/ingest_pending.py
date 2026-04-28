@@ -80,7 +80,7 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
                 if sources_response and "sources" in sources_response and len(sources_response["sources"]) > 0:
                     # Prefer 720p mp4/direct/hls
                     for s in sources_response["sources"]:
-                        if s.get("quality") == "720p" and s.get("type") in ["mp4", "direct", "hls"]:
+                        if s.get("quality") == "720p" and any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
                             direct_url = s.get("raw_url") or s.get("url", "")
                             provider_id = s.get("source", "unknown")
                             quality_picked = s.get("quality", "720p")
@@ -88,7 +88,7 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
                     
                     if not direct_url:
                         for s in sources_response["sources"]:
-                            if s.get("type") in ["mp4", "direct", "hls"]:
+                            if any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
                                 direct_url = s.get("raw_url") or s.get("url", "")
                                 provider_id = s.get("source", "unknown")
                                 quality_picked = s.get("quality", "Auto")
@@ -119,12 +119,11 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
                         await asyncio.sleep(300)
                 else:
                     logger.error(f"Could not resolve valid direct URL for retry {anilist_id} Ep {episode_num}")
+                    await upstash_del(lock_key)
             except Exception as e:
                 logger.error(f"Error during ingestion of {anilist_id} Ep {episode_num}: {e}")
+                await upstash_del(lock_key)
             finally:
-                # We do not delete the lock here immediately if it failed? 
-                # Actually IngestionEngine should clear it, but just in case:
-                # We let IngestionEngine clear it on success or let it expire
                 pass
 
     logger.info("Pending ingestion batch completed.")

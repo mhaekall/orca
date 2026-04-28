@@ -135,7 +135,8 @@ async def upsert_episode(
         ON CONFLICT ("anilistId", "providerId", "episodeNumber")
         DO UPDATE SET
             "episodeUrl"   = CASE 
-                                WHEN episodes."episodeUrl" LIKE '%tg-proxy%' AND EXCLUDED."episodeUrl" NOT LIKE '%tg-proxy%' 
+                                WHEN (episodes."episodeUrl" LIKE '%tg-proxy%' OR episodes."episodeUrl" LIKE '%workers.dev%') 
+                                     AND (EXCLUDED."episodeUrl" NOT LIKE '%tg-proxy%' AND EXCLUDED."episodeUrl" NOT LIKE '%workers.dev%') 
                                 THEN episodes."episodeUrl"
                                 ELSE EXCLUDED."episodeUrl"
                              END,
@@ -360,6 +361,16 @@ async def sync_anime_episodes(anilist_id: int) -> dict:
         print(f"[Pipeline] Another sync is already in progress for anilist_id={anilist_id}")
         errors.append("Sync already in progress")
 
+    if synced_total > 0:
+        from services.queue import enqueue_ingest_batch
+        import asyncio
+        print(f"[Pipeline] Automatically triggering batch ingestion after syncing {synced_total} episodes...")
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(enqueue_ingest_batch())
+        except RuntimeError:
+            asyncio.run(enqueue_ingest_batch())
+
     return {"synced": synced_total, "providers": providers_done, "errors": errors}
 
 
@@ -502,6 +513,8 @@ async def get_anime_detail(anilist_id: int) -> Optional[dict]:
                c.episode_count_actual as "canonicalEpisodes",
                c.genres_local as "canonicalGenres",
                c.air_schedule_wib as "canonicalSchedule",
+               (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'watching' AND ms.source_name = 'jikan_api') as "jikan_views",
+               COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'views_local'), 0) + COALESCE((SELECT SUM(views) FROM daily_anime_stats d WHERE d."anilistId" = m."anilistId"), 0) as "local_views",
                (SELECT MAX("episodeNumber") FROM episodes e2 WHERE e2."anilistId" = m."anilistId") as "latestEpisode"
         FROM anime_metadata m
         LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id
@@ -546,6 +559,15 @@ async def get_anime_detail(anilist_id: int) -> Optional[dict]:
         meta_dict["airSchedule"] = meta_dict["canonicalSchedule"]
     if meta_dict.get("localViews"):
         meta_dict["localViews"] = int(meta_dict["localViews"])
+        
+    # Calculate views similar to home
+    pop_v = meta_dict.get("popularity") or ((int(meta_dict["anilistId"]) % 900) + 100)
+    eps_v = meta_dict.get("totalEpisodes") or 12
+    base_v = int(pop_v * eps_v * 0.7)
+    local_v = meta_dict.get("local_views") or 0
+    jikan_v = meta_dict.get("jikan_views") or 0
+    meta_dict["views"] = max(int(local_v), int(jikan_v)) + base_v
+        
     if meta_dict.get("localScore"):
         val = float(meta_dict["localScore"])
         meta_dict["score"] = int(val * 10) if val <= 10 else int(val)
@@ -556,7 +578,7 @@ async def get_anime_detail(anilist_id: int) -> Optional[dict]:
         meta_dict["status"] = 'FINISHED' if 'completed' in st or 'tamat' in st else 'RELEASING'
         
     # Remove temporary keys
-    for key in ["canonicalTitle", "canonicalEpisodes", "canonicalGenres", "canonicalSchedule", "localScore", "localStudio", "localStatus"]:
+    for key in ["canonicalTitle", "canonicalEpisodes", "canonicalGenres", "canonicalSchedule", "localScore", "localStudio", "localStatus", "jikan_views", "local_views"]:
         meta_dict.pop(key, None)
     
     # Parse JSON columns since they might be returned as strings

@@ -2,10 +2,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.animescraperpro.app',
-  appName: 'Anime Scraper Pro',
+  appName: 'Orca',
   webDir: 'out',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    errorPath: 'index.html'
   },
   plugins: {
     CapacitorHttp: {

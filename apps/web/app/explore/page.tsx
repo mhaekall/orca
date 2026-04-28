@@ -1,7 +1,8 @@
 import ExploreView from "@/features/explore/ExploreView";
 import { api } from "@/core/lib/api";
 
-export const revalidate = 60;
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
 
 export default async function Page() {
   let initialResults: any[] = [];

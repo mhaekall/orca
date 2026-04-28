@@ -6,6 +6,10 @@ import { API } from "@/core/lib/api";
 export const revalidate = 3600;
 export const runtime = "edge";
 
+export async function generateStaticParams() {
+  return [{ id: 'fallback', episode: '1' }];
+}
+
 export default async function WatchPage({ params }: { params: Promise<{ id: string; episode: string }> }) {
   const { id, episode } = await params;
   const anilistId = parseInt(id, 10);

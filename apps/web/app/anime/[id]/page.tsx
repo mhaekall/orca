@@ -9,6 +9,10 @@ import DetailSkeleton from "@/features/detail/DetailSkeleton";
 export const dynamic = "force-dynamic";
 export const runtime = "edge";
 
+export async function generateStaticParams() {
+  return [{ id: 'fallback' }];
+}
+
 async function AnimeData({ id }: { id: string }) {
   let detail: any = null;
   let error: string | null = null;
@@ -35,6 +39,8 @@ async function AnimeData({ id }: { id: string }) {
           genres: a.genres ?? [],
           studios: a.studios ?? [],
           status: a.status,
+          airSchedule: a.airSchedule || null,
+          views: a.views || 0,
           totalEpisodes: a.totalEpisodes,
           season: a.season,
           seasonYear: a.year,

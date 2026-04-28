@@ -47,13 +47,16 @@ jobs:
         working-directory: ./apps/web
         run: pnpm run cap:build
 
-      - name: Ensure Output Directory Exists
-        working-directory: ./apps/web
-        run: mkdir -p out && touch out/index.html
-
       - name: Add Android Platform
         working-directory: ./apps/web
         run: npx cap add android
+
+      - name: Generate Capacitor Assets
+        working-directory: ./apps/web
+        run: |
+          pnpm add -D @capacitor/assets
+          node scripts/generate-assets.js
+          npx @capacitor/assets generate --android
 
       - name: Capacitor Sync
         working-directory: ./apps/web

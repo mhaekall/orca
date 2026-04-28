@@ -5,13 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Orca',
   webDir: 'out',
   server: {
-    androidScheme: 'https',
-    errorPath: 'index.html'
-  },
-  plugins: {
-    CapacitorHttp: {
-      enabled: true,
-    }
+    androidScheme: 'https'
   }
 };
 

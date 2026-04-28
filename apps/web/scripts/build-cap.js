@@ -16,6 +16,14 @@ function walk(dir, callback) {
   });
 }
 
+// Generate static icons untuk Capacitor (karena /api/icon tidak tersedia di static export)
+console.log('[build-cap] Generating static icons...');
+try {
+  execSync('node scripts/generate-assets.js', { stdio: 'inherit', cwd: WEB_DIR });
+} catch (e) {
+  console.warn('[build-cap] Icon generation skipped:', e.message);
+}
+
 const runtimeRegex = /export const runtime = ['"]edge['"];/g;
 const dynamicRegex = /export const dynamic = ['"]force-dynamic['"];/g;
 const revalRegex = /export const revalidate = 3600;/g;

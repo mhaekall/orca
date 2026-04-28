@@ -174,6 +174,38 @@ async def admin_get_stats():
     stats = await get_ingestion_stats()
     return {"success": True, **stats}
 
+@router.get("/v2/admin/analytics", dependencies=[Depends(verify_admin_key)])
+async def admin_get_analytics():
+    """Get real user engagement data (unmanipulated) for the admin dashboard"""
+    try:
+        real_views = await database.fetch_val('SELECT COUNT(*) FROM watch_sessions') or 0
+        real_likes = await database.fetch_val('SELECT COUNT(*) FROM episode_likes') or 0
+        real_comments = await database.fetch_val('SELECT COUNT(*) FROM comments') or 0
+        
+        # Real Users: Count distinct users from watch_history or watch_sessions
+        real_users = await database.fetch_val('SELECT COUNT(DISTINCT user_id) FROM watch_sessions') or 0
+        
+        # Top 5 Real Watched Anime
+        top_real_anime = await database.fetch_all('''
+            SELECT a."cleanTitle" as title, a."anilistId", COUNT(w.session_id) as real_views
+            FROM watch_sessions w
+            JOIN anime_metadata a ON w.anilist_id = a."anilistId"
+            GROUP BY a."anilistId", a."cleanTitle"
+            ORDER BY real_views DESC
+            LIMIT 5
+        ''')
+        
+        return {
+            "success": True,
+            "real_views": real_views,
+            "real_likes": real_likes,
+            "real_comments": real_comments,
+            "real_users": real_users,
+            "top_real_anime": [dict(r) for r in top_real_anime]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @router.post("/v2/admin/trigger-prefetch", dependencies=[Depends(verify_admin_key)])
 async def admin_trigger_prefetch():
     """Manually trigger the smart pre-fetch job instead of waiting for cron"""

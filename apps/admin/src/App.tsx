@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 
@@ -32,12 +32,14 @@ export default function App() {
   const [stats, setStats] = useState<any>(null);
   const [ingestionStats, setIngestionStats] = useState<any>(null);
   const [cacheStats, setCacheStats] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [ingestTasks, setIngestTasks] = useState<any[]>([]);
 
   // DB States
   const [dbData, setDbData] = useState<AnimeRow[]>([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const ITEMS_PER_PAGE = 50;
 
   // Modal States
@@ -72,6 +74,14 @@ export default function App() {
         }
       }).catch(console.error);
 
+    fetch(`${API}/api/v2/admin/analytics`, { headers })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.success) {
+          setAnalytics(data);
+        }
+      }).catch(console.error);
+
     fetch(`${API}/api/v2/admin/cache-stats`, { headers })
       .then(async res => {
         if (res.ok) setCacheStats(await res.json());
@@ -95,12 +105,6 @@ export default function App() {
           }
         }
       }).catch(console.error);
-
-    fetch(`${API}/api/v2/admin/database`, { headers })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.success) setDbData(data.data);
-      }).catch(console.error);
   };
 
   useEffect(() => {
@@ -109,6 +113,32 @@ export default function App() {
     const interval = setInterval(fetchData, 8000);
     return () => clearInterval(interval);
   }, [auth]);
+
+  useEffect(() => {
+    if (!auth || activeTab !== 'database') return;
+    
+    const key = localStorage.getItem("orcaSysKey") || password;
+    const headers = { 'x-admin-key': key };
+    
+    const timeoutId = setTimeout(() => {
+      const query = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+        ...(search ? { search } : {})
+      });
+      
+      fetch(`${API}/api/v2/admin/database?${query.toString()}`, { headers })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.success) {
+            setDbData(data.data);
+            setTotalPages(data.pagination?.total_pages || 1);
+          }
+        }).catch(console.error);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [auth, activeTab, currentPage, search]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,17 +235,6 @@ export default function App() {
     }
   };
 
-  const filteredData = useMemo(() => {
-    return dbData.filter(item => item.title?.toLowerCase().includes(search.toLowerCase()) || String(item.anilistId).includes(search));
-  }, [dbData, search]);
-
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredData.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredData, currentPage]);
-
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-
   if (!auth) {
     return (
       <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center font-sans text-white p-6 antialiased">
@@ -296,6 +315,38 @@ export default function App() {
                 </div>
               </section>
 
+              {/* REAL ANALYTICS SECTION */}
+              <section className="bg-gradient-to-br from-[#1C1C1E] to-black rounded-[2rem] border border-white/5 p-6 md:p-8 space-y-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#32D74B] shadow-[0_0_12px_#32D74B]" />
+                    Real-Time Telemetry (Unmanipulated Data)
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <DataWidget title="Real Views" value={analytics?.real_views || "0"} caption="Total Watch Sessions" color="border-blue-500/30" />
+                  <DataWidget title="Real Users" value={analytics?.real_users || "0"} caption="Unique Watchers" color="border-purple-500/30" />
+                  <DataWidget title="Real Likes" value={analytics?.real_likes || "0"} caption="Episode Favorites" color="border-pink-500/30" />
+                  <DataWidget title="Real Comments" value={analytics?.real_comments || "0"} caption="User Discussions" color="border-green-500/30" />
+                </div>
+                
+                {analytics?.top_real_anime && analytics.top_real_anime.length > 0 && (
+                  <div className="mt-6 bg-black/50 border border-white/5 rounded-2xl p-4">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Top 5 Most Watched (Real)</h3>
+                    <div className="space-y-2">
+                      {analytics.top_real_anime.map((a: any, i: number) => (
+                        <div key={a.anilistId} className="flex justify-between items-center bg-[#1c1c1e] px-4 py-2.5 rounded-xl border border-white/5">
+                          <span className="text-sm font-semibold text-white truncate max-w-[200px] md:max-w-[300px]">
+                            <span className="text-gray-500 mr-2">{i+1}.</span>{a.title}
+                          </span>
+                          <span className="text-xs font-bold bg-blue-500/20 text-blue-400 px-2 py-1 rounded-md">{a.real_views} views</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+
               <section className="bg-[#1C1C1E] rounded-[2rem] p-6 border border-white/5 space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold tracking-tight">Mission Control</h2>
@@ -373,10 +424,10 @@ export default function App() {
               <div className="bg-[#1C1C1E] rounded-[2rem] border border-white/5 overflow-hidden">
                 <div className="max-h-[65vh] overflow-y-auto custom-scrollbar">
                   <div className="divide-y divide-white/5">
-                    {paginatedData.length === 0 ? (
+                    {dbData.length === 0 ? (
                       <div className="p-10 text-center text-gray-500 text-sm">No records matched your criteria.</div>
                     ) : (
-                      paginatedData.map((item) => (
+                      dbData.map((item) => (
                         <div key={item.anilistId} onClick={() => fetchAnimeEpisodes(item)} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors cursor-pointer active:bg-white/10">
                           <div className="flex items-center gap-4 min-w-0">
                             <img src={item.cover} alt="" className="w-12 h-16 rounded-xl object-cover bg-black shrink-0 border border-white/5 shadow-sm" loading="lazy" />

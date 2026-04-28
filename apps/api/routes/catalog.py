@@ -407,11 +407,15 @@ async def browse_anime(
     order_clause = sort_map.get(sort, 'meta.score DESC NULLS LAST')
     
     query = f"""
-        SELECT meta.*, COUNT(e."episodeNumber") as episode_count
+        SELECT meta.*, 
+               COUNT(e."episodeNumber") as episode_count,
+               COALESCE(c.episode_count_actual, meta."totalEpisodes") as "totalEpisodes",
+               (SELECT MAX("episodeNumber") FROM episodes e2 WHERE e2."anilistId" = meta."anilistId") as "latestEpisode"
         FROM anime_metadata meta
+        LEFT JOIN canonical_anime c ON meta."anilistId" = c.anilist_id
         INNER JOIN episodes e ON meta."anilistId" = e."anilistId"
         WHERE {where_clause}
-        GROUP BY meta."anilistId"
+        GROUP BY meta."anilistId", c.id
         ORDER BY {order_clause}
         LIMIT :limit OFFSET :offset
     """

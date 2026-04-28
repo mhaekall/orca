@@ -72,6 +72,4 @@ scripts/playground/
 *.log
 
 # Capacitor
-apps/web/android/
-apps/web/ios/
 *.apk

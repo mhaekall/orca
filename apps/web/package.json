@@ -13,7 +13,10 @@
     "build:android": "pnpm run cap:build && cap sync android"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.3.1",
+    "@capacitor/screen-orientation": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@neondatabase/serverless": "^1.0.2",
     "@serwist/next": "^9.5.7",
     "better-auth": "^1.6.2",

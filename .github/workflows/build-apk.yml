@@ -53,10 +53,6 @@ jobs:
         working-directory: ./apps/web
         run: mkdir -p out && touch out/index.html
 
-      - name: Add Android Platform
-        working-directory: ./apps/web
-        run: npx cap add android
-
       - name: Generate Capacitor Assets
         working-directory: ./apps/web
         run: |

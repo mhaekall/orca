@@ -117,10 +117,21 @@ async def ingest_stats():
     import json
     from services.clients import client
     from services.config import UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+    import urllib.parse
     
     headers = {"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"}
     tasks = []
+    logs = []
     try:
+        try:
+            log_res = await client.get(f"{UPSTASH_REDIS_REST_URL}/lrange/debug_tg_log/0/49", headers=headers)
+            log_data = log_res.json()
+            if log_data and log_data.get('result'):
+                logs = [urllib.parse.unquote(str(l)) for l in log_data['result']]
+        except Exception as e:
+            print(f"[IngestStats] Logs error: {e}")
+            pass
+
         # 1. SCAN for ingest_progress keys
         scan_url = f"{UPSTASH_REDIS_REST_URL}/scan/0?MATCH=ingest_progress:*&COUNT=100"
         print(f"[IngestStats] Scanning: {scan_url}")
@@ -180,7 +191,7 @@ async def ingest_stats():
                     "progress": status_data
                 })
                 
-        return {"success": True, "active_tasks": tasks}
+        return {"success": True, "active_tasks": tasks, "logs": logs}
     except Exception as e:
         import traceback
         err_trace = traceback.format_exc()

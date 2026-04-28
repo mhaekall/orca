@@ -81,7 +81,19 @@ export default function App() {
     fetch(`${API}/api/v2/admin/ingest-stats`, { headers })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data?.success) setIngestTasks(data.active_tasks || []);
+        if (data?.success) {
+          setIngestTasks(data.active_tasks || []);
+          if (data.logs && data.logs.length > 0) {
+            setLogs(prev => {
+              const newLogs = [...prev];
+              // Prepend server logs that are not already in the array
+              data.logs.forEach((log: string) => {
+                if (!newLogs.includes(log)) newLogs.push(log);
+              });
+              return newLogs.slice(0, 100); // Keep max 100
+            });
+          }
+        }
       }).catch(console.error);
 
     fetch(`${API}/api/v2/admin/database`, { headers })
@@ -165,6 +177,31 @@ export default function App() {
       setDiagnostics(prev => ({ ...prev, [ep.id]: { loading: false, result: data } }));
     } catch (e: any) {
       setDiagnostics(prev => ({ ...prev, [ep.id]: { loading: false, result: { success: false, status: "Network Error" } } }));
+    }
+  };
+
+  const handleReingestEpisode = async (ep: EpisodeRow) => {
+    if (!confirm(`Yakin ingin men-delete dan mem-force re-ingest Episode ${ep.episodeNumber}?`)) return;
+    
+    setDiagnostics(prev => ({ ...prev, [ep.id]: { loading: true } }));
+    try {
+      const key = localStorage.getItem("orcaSysKey") || password;
+      const res = await fetch(`${API}/api/v2/admin/episode/${ep.id}/reingest`, { 
+        method: "POST", 
+        headers: { 'x-admin-key': key }
+      });
+      const data = await res.json();
+      if (data.success) {
+        addLog(`✅ Ep ${ep.episodeNumber} reingest queued!`);
+        // Remove from list
+        setEpisodes(prev => prev.filter(e => e.id !== ep.id));
+      } else {
+        addLog(`❌ Failed to reingest Ep ${ep.episodeNumber}: ${data.error}`);
+      }
+      setDiagnostics(prev => ({ ...prev, [ep.id]: { loading: false, result: data } }));
+    } catch (e: any) {
+      addLog(`❌ Network Error reingest Ep ${ep.episodeNumber}`);
+      setDiagnostics(prev => ({ ...prev, [ep.id]: { loading: false } }));
     }
   };
 
@@ -533,6 +570,13 @@ export default function App() {
                                 {diag?.loading ? 'Scanning...' : 'Diagnose'}
                               </button>
                             )}
+                            <button 
+                              onClick={() => handleReingestEpisode(ep)}
+                              disabled={diag?.loading}
+                              className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 border border-orange-500/20 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors w-full sm:w-auto"
+                            >
+                              Re-Ingest
+                            </button>
                           </div>
                         </div>
                       );

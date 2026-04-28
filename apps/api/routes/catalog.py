@@ -224,7 +224,8 @@ async def admin_get_database(
     limit: int = Query(50, ge=1, le=100),
     search: str = Query(None),
     hide_empty: bool = Query(False),
-    only_tg: bool = Query(False)
+    only_tg: bool = Query(False),
+    provider: str = Query(None)
 ):
     """Return paginated anime in database with episode counts"""
     try:
@@ -246,6 +247,10 @@ async def admin_get_database(
             
         if only_tg:
             having_clause += " AND SUM(CASE WHEN e.\"episodeUrl\" LIKE '%tg-proxy%' OR e.\"episodeUrl\" LIKE '%workers.dev%' THEN 1 ELSE 0 END) > 0"
+            
+        if provider:
+            having_clause += ' AND MAX(e."providerId") = :provider'
+            values["provider"] = provider
 
         # Note: Using subqueries or CTEs for accurate counts with HAVING is safer, but for simplicity we'll count from the grouped result
         count_query = f'''

@@ -19,6 +19,7 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
   const [totalPages, setTotalPages] = useState(1);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [onlyTg, setOnlyTg] = useState(false);
+  const [provider, setProvider] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   
   const ITEMS_PER_PAGE = 50;
@@ -37,7 +38,8 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
         limit: ITEMS_PER_PAGE.toString(),
         hide_empty: hideEmpty.toString(),
         only_tg: onlyTg.toString(),
-        ...(search ? { search } : {})
+        ...(search ? { search } : {}),
+        ...(provider ? { provider } : {})
       });
       
       fetch(`${api}/api/v2/admin/database?${query.toString()}`, { headers: authHeaders })
@@ -58,7 +60,7 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [api, authHeaders, currentPage, search, hideEmpty, onlyTg, addToast]);
+  }, [api, authHeaders, currentPage, search, hideEmpty, onlyTg, provider, addToast]);
 
   const toggleAnimeEpisodes = async (anime: AnimeRow) => {
     if (expandedAnimeId === anime.anilistId) {
@@ -138,6 +140,19 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
         </div>
         <div className="flex flex-wrap items-center gap-3 px-1">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest mr-2">Filters:</span>
+          
+          <select 
+            value={provider} 
+            onChange={(e) => { setProvider(e.target.value); setCurrentPage(1); }}
+            className="bg-black/50 border border-white/20 text-xs rounded-lg px-2 py-1.5 focus:outline-none text-gray-300 transition-colors hover:border-white/40 cursor-pointer"
+          >
+            <option value="">All Providers</option>
+            <option value="oploverz">Oploverz</option>
+            <option value="samehadaku">Samehadaku</option>
+            <option value="kuronime">Kuronime</option>
+            <option value="otakudesu">Otakudesu</option>
+          </select>
+
           <label className="flex items-center gap-2 cursor-pointer group">
             <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${hideEmpty ? 'bg-purple-500 border-purple-500 text-white' : 'bg-black/50 border-white/20 text-transparent group-hover:border-white/40'}`}>
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>

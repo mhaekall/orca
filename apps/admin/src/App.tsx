@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ToastProvider, useToast } from "./components/ui/ToastProvider";
 import { SidebarItem } from "./components/layout/SidebarItem";
 import { MobileDock } from "./components/layout/MobileDock";
@@ -60,7 +60,7 @@ function MainApp() {
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 50));
   };
 
-  const authHeaders = { 'x-admin-key': password };
+  const authHeaders = useMemo(() => ({ 'x-admin-key': password }), [password]);
 
   const fetchData = () => {
     if (!password) return;

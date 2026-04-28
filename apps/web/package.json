@@ -8,8 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "purge:cache": "python ../api/scripts/purge_cache.py",
-    "cap:sync": "CAPACITOR_BUILD=true next build && cap sync",
-    "build:android": "CAPACITOR_BUILD=true next build && cap sync android"
+    "cap:build": "mv app/api .api_temp && CAPACITOR_BUILD=true next build; mv .api_temp app/api",
+    "cap:sync": "pnpm run cap:build && cap sync",
+    "build:android": "pnpm run cap:build && cap sync android"
   },
   "dependencies": {
     "@capacitor/core": "^8.3.1",

@@ -45,9 +45,7 @@ jobs:
 
       - name: Build Next.js (Static Export)
         working-directory: ./apps/web
-        env:
-          CAPACITOR_BUILD: 'true'
-        run: pnpm run build
+        run: pnpm run cap:build
 
       - name: Capacitor Sync
         working-directory: ./apps/web

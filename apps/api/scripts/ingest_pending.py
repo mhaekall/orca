@@ -75,19 +75,19 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
                     # Prefer 720p mp4/direct/hls
                     for s in sources_response["sources"]:
                         if s.get("quality") == "720p" and s.get("type") in ["mp4", "direct", "hls"]:
-                            direct_url = s.get("url", "")
+                            direct_url = s.get("raw_url") or s.get("url", "")
                             provider_id = s.get("source", "unknown")
                             break
                     
                     if not direct_url:
                         for s in sources_response["sources"]:
                             if s.get("type") in ["mp4", "direct", "hls"]:
-                                direct_url = s.get("url", "")
+                                direct_url = s.get("raw_url") or s.get("url", "")
                                 provider_id = s.get("source", "unknown")
                                 break
                                 
                     if not direct_url:
-                        direct_url = sources_response["sources"][0].get("url", "")
+                        direct_url = sources_response["sources"][0].get("raw_url") or sources_response["sources"][0].get("url", "")
                         provider_id = sources_response["sources"][0].get("source", "unknown")
                 
                 if direct_url and "tg-proxy" not in direct_url:

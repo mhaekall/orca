@@ -47,6 +47,10 @@ jobs:
         working-directory: ./apps/web
         run: pnpm run cap:build
 
+      - name: Add Android Platform
+        working-directory: ./apps/web
+        run: npx cap add android
+
       - name: Capacitor Sync
         working-directory: ./apps/web
         run: npx cap sync android

@@ -11,17 +11,20 @@ router = APIRouter()
 
 @router.get("")
 async def get_collection(user_id: str):
-    query = select(
-        collections,
-        anime_metadata.c.coverImage,
-        anime_metadata.c.cleanTitle,
-        anime_metadata.c.nativeTitle,
-        anime_metadata.c.totalEpisodes
-    ).select_from(
-        collections.outerjoin(anime_metadata, collections.c.animeSlug == func.cast(anime_metadata.c.anilistId, String))
-    ).where(collections.c.userId == user_id).order_by(collections.c.updatedAt.desc())
-    
-    rows = await database.fetch_all(query=query)
+    query = """
+        SELECT c.*, 
+               m."coverImage" as "coverImage",
+               m."cleanTitle" as "cleanTitle",
+               m."nativeTitle" as "nativeTitle",
+               COALESCE(ca.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
+               (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode"
+        FROM collections c
+        LEFT JOIN anime_metadata m ON c."animeSlug" = CAST(m."anilistId" AS VARCHAR)
+        LEFT JOIN canonical_anime ca ON m."anilistId" = ca.anilist_id
+        WHERE c."userId" = :user_id
+        ORDER BY c."updatedAt" DESC
+    """
+    rows = await database.fetch_all(query=query, values={"user_id": user_id})
     return [dict(row) for row in rows]
 
 @router.post("")

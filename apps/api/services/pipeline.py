@@ -572,12 +572,25 @@ async def get_anime_detail(anilist_id: int) -> Optional[dict]:
         rec_ids = [r["id"] for r in meta_dict["recommendations"] if r.get("id")]
         if rec_ids:
             try:
-                valid_rows = await database.fetch_all(
-                    'SELECT DISTINCT "anilistId" FROM episodes WHERE "anilistId" = ANY(:ids)',
-                    values={"ids": rec_ids}
-                )
-                valid_ids = {r["anilistId"] for r in valid_rows}
-                meta_dict["recommendations"] = [r for r in meta_dict["recommendations"] if r.get("id") in valid_ids]
+                rec_query = '''
+                    SELECT m."anilistId", 
+                           COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
+                           (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode"
+                    FROM anime_metadata m
+                    LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id
+                    WHERE m."anilistId" = ANY(:ids) AND EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
+                '''
+                valid_rows = await database.fetch_all(rec_query, values={"ids": rec_ids})
+                valid_info = {r["anilistId"]: dict(r) for r in valid_rows}
+                
+                new_recs = []
+                for r in meta_dict["recommendations"]:
+                    rid = r.get("id")
+                    if rid in valid_info:
+                        r["totalEpisodes"] = valid_info[rid].get("totalEpisodes")
+                        r["latestEpisode"] = valid_info[rid].get("latestEpisode")
+                        new_recs.append(r)
+                meta_dict["recommendations"] = new_recs
             except Exception as e:
                 print(f"[Pipeline] Failed to filter recommendations: {e}")
                 meta_dict["recommendations"] = []

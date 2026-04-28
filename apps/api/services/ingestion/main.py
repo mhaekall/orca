@@ -129,6 +129,12 @@ class IngestionEngine:
                     error_type = "upload_failed"
                     return False, lvp, m3p, None
                 
+                import re
+                safe_title = re.sub(r'[^A-Za-z0-9_ \-]', '', anime_title).strip().replace(" ", "_")
+                formatted_m3p = os.path.join(os.path.dirname(cloud_m3p), f"{safe_title}_Ep_{episode_number}_720p.m3u8")
+                os.rename(cloud_m3p, formatted_m3p)
+                cloud_m3p = formatted_m3p
+                
                 # 4. Upload the master playlist
                 print(f"[Ingestion] Uploading master playlist to Telegram...")
                 f_res = await self.uploader.upload_file(cloud_m3p)

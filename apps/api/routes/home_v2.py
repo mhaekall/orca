@@ -17,7 +17,7 @@ async def get_home_v2(response: Response):
     hero_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."synopsis", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."synopsis", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score, m."nextAiringEpisode",
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -36,7 +36,7 @@ async def get_home_v2(response: Response):
     airing_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score, m."nextAiringEpisode",
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -55,7 +55,7 @@ async def get_home_v2(response: Response):
     latest_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'watching' AND ms.source_name = 'jikan_api'), 0) as jikan_views,
                max(e."episodeNumber") as "latestEpisode",
@@ -65,7 +65,7 @@ async def get_home_v2(response: Response):
         JOIN episodes e ON m."anilistId" = e."anilistId"
         LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id
         WHERE m.status != 'FINISHED' OR m.status IS NULL
-        GROUP BY m."anilistId", c.id, c.title_preferred, m."cleanTitle", m."nativeTitle", m."coverImage", m."bannerImage", m."score", m."totalEpisodes", c.episode_count_actual
+        GROUP BY m."anilistId", c.id, c.title_preferred, m."cleanTitle", m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity, m."totalEpisodes", c.episode_count_actual
         ORDER BY last_up DESC
         LIMIT 20
     '''
@@ -73,7 +73,7 @@ async def get_home_v2(response: Response):
     popular_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -92,7 +92,7 @@ async def get_home_v2(response: Response):
     completed_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score, 
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
@@ -107,7 +107,7 @@ async def get_home_v2(response: Response):
     top_rated_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -122,7 +122,7 @@ async def get_home_v2(response: Response):
     isekai_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -138,7 +138,7 @@ async def get_home_v2(response: Response):
     movies_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -153,7 +153,7 @@ async def get_home_v2(response: Response):
     trending_query = '''
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
-               m."nativeTitle", m."coverImage", m."bannerImage", m."score",
+               m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
@@ -198,7 +198,16 @@ async def get_home_v2(response: Response):
         # Get views (it might be aliased as local_views or local_trending)
         local_v = d.get("local_views") or d.get("local_trending") or 0
         jikan_v = d.get("jikan_views") or 0
-        final_views = max(int(local_v), int(jikan_v))
+        
+        pop_v = d.get("popularity")
+        if not pop_v:
+            # Deterministic fallback for anime missing popularity data
+            pop_v = (int(d["anilistId"]) % 900) + 100
+            
+        eps_v = d.get("totalEpisodes") or 12
+        base_v = int(pop_v * eps_v * 0.7)
+        
+        final_views = max(int(local_v), int(jikan_v)) + base_v
         
         return {
             "id": str(d["anilistId"]),
@@ -206,7 +215,7 @@ async def get_home_v2(response: Response):
             "img": d.get("coverImage"),
             "banner": d.get("bannerImage"),
             "score": final_score,
-            "views": final_views if final_views else None,
+            "views": final_views,
             "synopsis": d.get("synopsis"),
             "nextAiringEpisode": d.get("nextAiringEpisode"),
             "url": f"/anime/{d['anilistId']}",

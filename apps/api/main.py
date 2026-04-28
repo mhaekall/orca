@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from db.connection import database
 from services.background import background_scrape_job
-from routes import home, anime, stream, catalog, home_v2, stream_v2, webhook, social, comments, db, collection
+from routes import home, anime, stream, catalog, home_v2, stream_v2, webhook, social, comments, db, collection, schedule
 
 ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "https://orcanime.pages.dev")
 
@@ -251,6 +251,7 @@ app.include_router(webhook.router, prefix="/api/v2", tags=["Webhook"])
 app.include_router(social.router, prefix="/api/v2/social", tags=["Social"])
 app.include_router(comments.router, prefix="/api/v2/comments", tags=["Comments"])
 app.include_router(collection.router, prefix="/api/v2/collection", tags=["Collection"])
+app.include_router(schedule.router, prefix="/api", tags=["Schedule"])
 
 
 @app.get("/api/v2/anime/{anilist_id}/debug-sync", tags=["Admin"], dependencies=[Depends(verify_admin_key)])

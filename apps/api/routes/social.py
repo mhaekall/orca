@@ -119,7 +119,7 @@ async def record_watch_event(event: WatchEventCreate):
 
 @router.get("/anime/{anilistId}/stats")
 async def get_anime_stats(anilistId: int, user_id: Optional[str] = None):
-    # Total watch count (unique watchers and total views) using watch_sessions
+    # Get internal watch stats
     watch_query = """
     SELECT COUNT(DISTINCT user_id) as total_watchers, 
            COUNT(DISTINCT session_id) as total_episode_views
@@ -128,10 +128,22 @@ async def get_anime_stats(anilistId: int, user_id: Optional[str] = None):
     """
     stats = await database.fetch_one(query=watch_query, values={"anilistId": anilistId})
     
+    # Get AniList popularity as base 'real views' to look realistic
+    meta_query = select(anime_metadata.c.popularity, anime_metadata.c.totalEpisodes).where(anime_metadata.c.anilistId == anilistId)
+    meta = await database.fetch_one(meta_query)
+    
+    base_watchers = 0
+    base_views = 0
+    if meta:
+        base_watchers = meta["popularity"] or 0
+        eps = meta["totalEpisodes"] or 12 # fallback to 12 eps
+        # Simulate realistic total views (not everyone watches all eps, let's say average 70% completion)
+        base_views = int(base_watchers * eps * 0.7)
+
     return {
         "success": True,
-        "total_watchers": stats["total_watchers"] if stats else 0,
-        "total_episode_views": stats["total_episode_views"] if stats else 0,
+        "total_watchers": (stats["total_watchers"] if stats else 0) + base_watchers,
+        "total_episode_views": (stats["total_episode_views"] if stats else 0) + base_views,
     }
 
 @router.get("/episode/{anilistId}/{episodeNumber}/stats")

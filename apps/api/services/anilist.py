@@ -48,6 +48,7 @@ GET_ANIME_DETAILS = """
         nextAiringEpisode {
           episode
           timeUntilAiring
+          airingAt
         }
       }
     }
@@ -101,6 +102,7 @@ GET_ANIME_BY_ID = """
       nextAiringEpisode {
         episode
         timeUntilAiring
+        airingAt
       }
     }
   }

@@ -48,7 +48,7 @@ class IngestionEngine:
                     logger.warning(f"[Keep-Alive] Ping failed: {e}")
                 await asyncio.sleep(15)
 
-    async def process_episode(self, episode_id: int, anilist_id: int, provider_id: str, episode_number: float, direct_video_url: str, anime_title: str = "Unknown", segment_time: int = 5):
+    async def process_episode(self, episode_id: int, anilist_id: int, provider_id: str, episode_number: float, direct_video_url: str, anime_title: str = "Unknown", segment_time: int = 5, video_quality: str = "720p"):
         """
         Full pipeline to ingest a video from a provider, slice it, upload to Telegram, and update DB.
         """
@@ -131,7 +131,7 @@ class IngestionEngine:
                 
                 import re
                 safe_title = re.sub(r'[^A-Za-z0-9_ \-]', '', anime_title).strip().replace(" ", "_")
-                formatted_m3p = os.path.join(os.path.dirname(cloud_m3p), f"{safe_title}_Ep_{episode_number}_720p.m3u8")
+                formatted_m3p = os.path.join(os.path.dirname(cloud_m3p), f"{safe_title}_Ep_{episode_number}_{video_quality}.m3u8")
                 os.rename(cloud_m3p, formatted_m3p)
                 cloud_m3p = formatted_m3p
                 

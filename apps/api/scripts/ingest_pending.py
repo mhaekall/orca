@@ -77,6 +77,7 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
                         if s.get("quality") == "720p" and s.get("type") in ["mp4", "direct", "hls"]:
                             direct_url = s.get("raw_url") or s.get("url", "")
                             provider_id = s.get("source", "unknown")
+                            quality_picked = s.get("quality", "720p")
                             break
                     
                     if not direct_url:
@@ -84,22 +85,25 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
                             if s.get("type") in ["mp4", "direct", "hls"]:
                                 direct_url = s.get("raw_url") or s.get("url", "")
                                 provider_id = s.get("source", "unknown")
+                                quality_picked = s.get("quality", "Auto")
                                 break
                                 
                     if not direct_url:
                         direct_url = sources_response["sources"][0].get("raw_url") or sources_response["sources"][0].get("url", "")
                         provider_id = sources_response["sources"][0].get("source", "unknown")
+                        quality_picked = sources_response["sources"][0].get("quality", "Auto")
                 
                 if direct_url and "tg-proxy" not in direct_url:
                     # Only process if we found a direct stream URL that isn't already ingested
-                    logger.info(f"Found stream from {provider_id}, triggering ingestion...")
+                    logger.info(f"Found stream from {provider_id} ({quality_picked}), triggering ingestion...")
                     success = await engine.process_episode(
                         episode_id=ep_id,
                         anilist_id=anilist_id,
                         provider_id=provider_id,
                         episode_number=episode_num,
                         direct_video_url=direct_url,
-                        anime_title=clean_title
+                        anime_title=clean_title,
+                        video_quality=quality_picked
                     )
                     logger.info(f"Ingest Result {anilist_id} Ep {episode_num}: {success}")
                     

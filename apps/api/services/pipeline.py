@@ -501,7 +501,8 @@ async def get_anime_detail(anilist_id: int) -> Optional[dict]:
                c.title_preferred as "canonicalTitle", 
                c.episode_count_actual as "canonicalEpisodes",
                c.genres_local as "canonicalGenres",
-               c.air_schedule_wib as "canonicalSchedule"
+               c.air_schedule_wib as "canonicalSchedule",
+               (SELECT MAX("episodeNumber") FROM episodes e2 WHERE e2."anilistId" = m."anilistId") as "latestEpisode"
         FROM anime_metadata m
         LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id
         WHERE m."anilistId" = :id

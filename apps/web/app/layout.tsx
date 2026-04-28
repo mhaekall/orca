@@ -4,12 +4,15 @@ import { Navigation } from "@/ui/layout/Navigation";
 import { Toaster } from "@/ui/overlays/Toaster";
 import "./globals.css";
 
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === "true";
+
 export const metadata: Metadata = {
   title: "Orca",
   description: "Platform streaming anime premium minimalis — cepat, elegan, gratis.",
   icons: {
-    icon: "/api/icon?size=32&dark=true",
-    apple: "/api/icon?size=192&dark=true"
+    // Capacitor tidak bisa serve /api/icon karena API routes di-hide saat build
+    icon: isCapacitorBuild ? "/icons/icon-32.png" : "/api/icon?size=32&dark=true",
+    apple: isCapacitorBuild ? "/icons/icon-192.png" : "/api/icon?size=192&dark=true",
   },
   appleWebApp: {
     capable: true,

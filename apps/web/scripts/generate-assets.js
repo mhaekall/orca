@@ -4,9 +4,14 @@ const path = require('path');
 
 const svgPath = path.resolve(__dirname, '../public/orca-logo-new.svg');
 const assetsDir = path.resolve(__dirname, '../assets');
+const publicIconsDir = path.resolve(__dirname, '../public/icons');
 
 if (!fs.existsSync(assetsDir)) {
   fs.mkdirSync(assetsDir);
+}
+
+if (!fs.existsSync(publicIconsDir)) {
+  fs.mkdirSync(publicIconsDir);
 }
 
 async function generate() {
@@ -24,6 +29,17 @@ async function generate() {
     .resize(2732, 2732, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
     .png()
     .toFile(path.join(assetsDir, 'splash.png'));
+
+  console.log('[generate-assets] Generating public/icons for metadata...');
+  await sharp(svgBuffer)
+    .resize(32, 32, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+    .png()
+    .toFile(path.join(publicIconsDir, 'icon-32.png'));
+
+  await sharp(svgBuffer)
+    .resize(192, 192, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+    .png()
+    .toFile(path.join(publicIconsDir, 'icon-192.png'));
 
   console.log('[generate-assets] Done!');
 }

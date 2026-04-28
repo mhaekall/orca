@@ -363,7 +363,6 @@ async def sync_anime_episodes(anilist_id: int) -> dict:
 
     if synced_total > 0:
         from services.queue import enqueue_ingest_batch
-        import asyncio
         print(f"[Pipeline] Automatically triggering batch ingestion after syncing {synced_total} episodes...")
         try:
             loop = asyncio.get_running_loop()

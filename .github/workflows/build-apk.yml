@@ -49,6 +49,10 @@ jobs:
         working-directory: ./apps/web
         run: pnpm run cap:build
 
+      - name: Ensure Output Directory Exists
+        working-directory: ./apps/web
+        run: mkdir -p out && touch out/index.html
+
       - name: Add Android Platform
         working-directory: ./apps/web
         run: npx cap add android

@@ -50,8 +50,8 @@ export default function App() {
   const [vaultCurrentPage, setVaultCurrentPage] = useState(1);
   const [vaultTotalPages, setVaultTotalPages] = useState(1);
 
-  // Modal States
-  const [selectedAnime, setSelectedAnime] = useState<AnimeRow | null>(null);
+  // Row Expansion States (replaces heavy modal)
+  const [expandedAnimeId, setExpandedAnimeId] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeRow[]>([]);
   const [epLoading, setEpLoading] = useState(false);
   const [diagnostics, setDiagnostics] = useState<Record<number, any>>({});
@@ -233,8 +233,26 @@ export default function App() {
     setLoading(false);
   };
 
-  const fetchAnimeEpisodes = async (anime: AnimeRow) => {
-    setSelectedAnime(anime);
+  const handleExportVaultTelegram = async () => {
+    setLoading(true);
+    addLog("Sending Swarm Vault backup to @myorca5_bot...");
+    try {
+      const key = localStorage.getItem("orcaSysKey") || password;
+      const res = await fetch(`${API}/api/v2/admin/swarm-vault/export-tg`, { method: "POST", headers: { 'x-admin-key': key } });
+      const data = await res.json();
+      addLog(data.success ? `✅ ${data.message}` : `❌ Telegram Export Failed: ${data.error}`);
+    } catch (e: any) {
+      addLog(`Network Error: ${e.message}`);
+    }
+    setLoading(false);
+  };
+
+  const toggleAnimeEpisodes = async (anime: AnimeRow) => {
+    if (expandedAnimeId === anime.anilistId) {
+      setExpandedAnimeId(null);
+      return;
+    }
+    setExpandedAnimeId(anime.anilistId);
     setEpisodes([]);
     setDiagnostics({});
     setEpLoading(true);
@@ -435,8 +453,9 @@ export default function App() {
                     ) : (
                       ingestTasks.map((t: any, i) => (
                         <div key={i} className="flex flex-col gap-2 cursor-pointer" onClick={() => {
-                          const anime = dbData.find(a => String(a.anilistId) === String(t.anilist_id));
-                          if(anime) fetchAnimeEpisodes(anime);
+                          setActiveTab('database');
+                          setSearch(String(t.anilist_id));
+                          setCurrentPage(1);
                         }}>
                           <div className="flex justify-between items-center text-sm hover:text-purple-400 transition-colors">
                             <span className="font-semibold truncate">ID: {t.anilist_id} <span className="text-gray-500">| Ep {t.episode}</span></span>
@@ -508,28 +527,96 @@ export default function App() {
                       <div className="p-10 text-center text-gray-500 text-sm">No records matched your criteria.</div>
                     ) : (
                       dbData.map((item) => (
-                        <div key={item.anilistId} onClick={() => fetchAnimeEpisodes(item)} className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors cursor-pointer active:bg-white/10">
-                          <div className="flex items-center gap-4 min-w-0">
-                            <img src={item.cover} alt="" className="w-12 h-16 rounded-xl object-cover bg-black shrink-0 border border-white/5 shadow-sm" loading="lazy" />
-                            <div className="min-w-0">
-                              <h3 className="font-semibold text-[15px] truncate pr-4 text-white">{item.title}</h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[11px] text-gray-400 font-mono">ID: {item.anilistId}</span>
-                                {item.providerId && <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">{item.providerId}</span>}
+                        <div key={item.anilistId} className="flex flex-col">
+                          <div onClick={() => toggleAnimeEpisodes(item)} className={`flex items-center justify-between p-3 hover:bg-white/5 transition-colors cursor-pointer active:bg-white/10 ${expandedAnimeId === item.anilistId ? 'bg-white/5' : ''}`}>
+                            <div className="flex items-center gap-4 min-w-0">
+                              <img src={item.cover} alt="" className="w-10 h-14 rounded-lg object-cover bg-black shrink-0 border border-white/5 shadow-sm" loading="lazy" />
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-[14px] truncate pr-4 text-white leading-tight">{item.title}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] text-gray-400 font-mono">ID: {item.anilistId}</span>
+                                  {item.providerId && <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">{item.providerId}</span>}
+                                  <span className="text-[10px] text-gray-500">{item.status}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="text-right shrink-0 ml-4">
-                            {item.episode_count > 0 ? (
-                              <div className="flex flex-col items-end">
-                                <span className="text-xl font-bold text-white leading-none">{item.episode_count}</span>
-                                <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Episodes</span>
-                                {item.tg_count > 0 && <span className="text-[9px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider mt-1">{item.tg_count} TG Proxy</span>}
+                            <div className="text-right shrink-0 ml-4 flex items-center gap-4">
+                              <div className="hidden sm:flex flex-col items-end mr-4">
+                                {item.tg_count > 0 && <span className="text-[9px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider mb-1">TG Swarm: {item.tg_count}</span>}
                               </div>
-                            ) : (
-                              <span className="text-[11px] font-bold text-orange-400 bg-orange-500/10 px-3 py-1 rounded-lg uppercase tracking-wider">Empty</span>
-                            )}
+                              {item.episode_count > 0 ? (
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 text-white font-bold text-sm">
+                                  {item.episode_count}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] font-bold text-orange-400 bg-orange-500/10 px-2 py-1 rounded uppercase tracking-wider">Empty</span>
+                              )}
+                              <svg className={`w-5 h-5 text-gray-500 transition-transform ${expandedAnimeId === item.anilistId ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                            </div>
                           </div>
+                          
+                          {/* Inline Expansion Area */}
+                          {expandedAnimeId === item.anilistId && (
+                            <div className="bg-black/40 border-t border-white/5 p-4 inset-shadow-sm">
+                              <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Episode Directory</h4>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if(confirm("Force Re-Ingest anime ini?")) {
+                                      handleAction(`/api/v2/anime/${item.anilistId}/debug-sync`, "Force Re-Ingest");
+                                    }
+                                  }}
+                                  className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded text-[10px] font-bold transition-colors uppercase tracking-wider"
+                                >
+                                  Force Re-Ingest All
+                                </button>
+                              </div>
+                              {epLoading ? (
+                                <div className="flex justify-center items-center h-20">
+                                  <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                              ) : episodes.length === 0 ? (
+                                <div className="text-center p-4 text-gray-500 text-xs">No episodes mapped.</div>
+                              ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                                  {episodes.map(ep => {
+                                    const diag = diagnostics[ep.id];
+                                    const isTg = ep.episodeUrl.includes('tg-proxy') || ep.episodeUrl.includes('workers.dev');
+                                    return (
+                                      <div key={ep.id} className="bg-[#1C1C1E] border border-white/5 p-3 rounded-xl flex items-center gap-3 hover:bg-white/5 transition-colors">
+                                        <div className="w-10 h-10 rounded-lg bg-black flex flex-col items-center justify-center shrink-0 border border-white/5">
+                                          <span className="text-[8px] text-gray-500 font-bold uppercase">EP</span>
+                                          <span className="text-sm font-black text-white leading-none">{ep.episodeNumber}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5 mb-1">
+                                            {isTg && <span className="text-[8px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">TG PROXY</span>}
+                                          </div>
+                                          <div className="text-[10px] text-gray-500 font-mono truncate w-full" title={ep.episodeUrl}>{ep.episodeUrl}</div>
+                                          {diag?.result && (
+                                            <div className={`mt-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded w-fit ${diag.result.healthy ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                              {diag.result.healthy ? '✅ OK' : '❌ ERR'} • {diag.result.status}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="shrink-0 flex flex-col gap-1.5">
+                                          {isTg && (
+                                            <button onClick={() => handleDiagnose(ep)} disabled={diag?.loading} className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-2 py-1 rounded text-[9px] font-bold disabled:opacity-50 transition-colors w-full">
+                                              {diag?.loading ? '...' : 'Diagnose'}
+                                            </button>
+                                          )}
+                                          <button onClick={() => handleReingestEpisode(ep)} disabled={diag?.loading} className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 border border-orange-500/20 px-2 py-1 rounded text-[9px] font-bold disabled:opacity-50 transition-colors w-full">
+                                            Re-Ingest
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
@@ -559,10 +646,16 @@ export default function App() {
                   </h2>
                   <p className="text-sm text-gray-400">Pusat perlindungan data URL Proxy Telegram. Eksport database HLS Swarm.</p>
                 </div>
-                <button onClick={handleExportVault} disabled={loading} className="px-6 py-2.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 disabled:opacity-50">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                  {loading ? 'Exporting...' : 'Export to CSV'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={handleExportVaultTelegram} disabled={loading} className="px-5 py-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    Send to @myorca5_bot
+                  </button>
+                  <button onClick={handleExportVault} disabled={loading} className="px-5 py-2.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Export to CSV
+                  </button>
+                </div>
               </div>
 
               <div className="bg-[#1C1C1E] rounded-[2rem] border border-white/5 p-4 flex flex-col gap-4">
@@ -749,98 +842,6 @@ export default function App() {
           )}
 
         </div>
-
-        {/* EPISODE DIAGNOSTIC MODAL */}
-        {selectedAnime && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-[#1C1C1E] border border-white/10 rounded-[2rem] w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-              
-              <div className="p-6 border-b border-white/5 flex gap-4 items-center bg-black/20">
-                <img src={selectedAnime.cover} alt="" className="w-16 h-24 object-cover rounded-xl shadow-lg border border-white/10" />
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold text-white truncate">{selectedAnime.title}</h2>
-                  <p className="text-sm text-gray-400 font-mono mt-1">ID: {selectedAnime.anilistId} • Episodes: {selectedAnime.episode_count}</p>
-                  <button 
-                    onClick={() => {
-                      if(confirm("Force Re-Ingest anime ini?")) {
-                        handleAction(`/api/v2/anime/${selectedAnime.anilistId}/debug-sync`, "Force Re-Ingest");
-                      }
-                    }}
-                    className="mt-3 bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                  >
-                    Force Re-Ingest All
-                  </button>
-                </div>
-                <button onClick={() => setSelectedAnime(null)} className="p-2 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-full transition-colors self-start">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-2 bg-black/10 custom-scrollbar">
-                {epLoading ? (
-                  <div className="flex justify-center items-center h-40">
-                    <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                ) : episodes.length === 0 ? (
-                  <div className="text-center p-10 text-gray-500 text-sm">Tidak ada episode tersimpan di database.</div>
-                ) : (
-                  <div className="space-y-2 p-2">
-                    {episodes.map(ep => {
-                      const diag = diagnostics[ep.id];
-                      const isTg = ep.episodeUrl.includes('tg-proxy') || ep.episodeUrl.includes('workers.dev');
-                      return (
-                        <div key={ep.id} className="bg-[#1C1C1E] border border-white/5 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-white/5 transition-colors">
-                          <div className="w-12 h-12 rounded-xl bg-black flex flex-col items-center justify-center shrink-0 border border-white/5">
-                            <span className="text-[10px] text-gray-500 font-bold uppercase">EP</span>
-                            <span className="text-lg font-black text-white leading-none">{ep.episodeNumber}</span>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">{ep.providerId}</span>
-                              {isTg && <span className="text-[9px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">TG PROXY</span>}
-                            </div>
-                            <div className="text-[11px] text-gray-500 font-mono truncate w-full" title={ep.episodeUrl}>
-                              {ep.episodeUrl}
-                            </div>
-
-                            {diag?.result && (
-                              <div className={`mt-2 text-xs font-bold px-2 py-1 rounded w-fit ${diag.result.healthy ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                {diag.result.healthy ? '✅ Healthy' : '❌ Error'} • {diag.result.status}
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="shrink-0 flex gap-2">
-                            {isTg && (
-                              <button 
-                                onClick={() => handleDiagnose(ep)}
-                                disabled={diag?.loading}
-                                className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors w-full sm:w-auto"
-                              >
-                                {diag?.loading ? 'Scanning...' : 'Diagnose'}
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => handleReingestEpisode(ep)}
-                              disabled={diag?.loading}
-                              className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 border border-orange-500/20 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-colors w-full sm:w-auto"
-                            >
-                              Re-Ingest
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
       </main>
 
       {/* Mobile Bottom Dock (Slim) */}

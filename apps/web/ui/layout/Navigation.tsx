@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { IconHome, IconCollection, IconUser, IconBell } from "@/ui/icons";
+import { IconHome, IconCollection, IconUser, IconBell, IconCalendar } from "@/ui/icons";
 import { useMounted } from "@/core/hooks/use-mounted";
 import { useKonami } from "@/core/hooks/use-konami";
 import { useViewTransition } from "@/core/hooks/use-view-transition";
@@ -12,8 +12,8 @@ import { authClient } from "@/core/lib/auth-client";
 
 const TABS = [
   { id: "/", label: "Beranda", icon: IconHome },
+  { id: "/schedule", label: "Jadwal", icon: IconCalendar },
   { id: "/collection", label: "Koleksi", icon: IconCollection },
-  { id: "/notifications", label: "Notifikasi", icon: IconBell },
   { id: "/profile", label: "Profil", icon: IconUser },
 ];
 
@@ -40,8 +40,8 @@ export function Navigation({ children }: { children: React.ReactNode }) {
 
         {/* Global Bottom Nav - Render when mounted and on a main tab */}
         {mounted && isMainTab && (
-          <div className="fixed bottom-0 left-0 right-0 h-[72px] z-[90] flex flex-col justify-end items-center pb-2 pointer-events-auto" aria-hidden="true" title="Bottom Navigation Area">
-            <nav className="relative w-[calc(100%-32px)] max-w-[320px] z-[100] bg-[#1c1c1e] border border-[#2c2c2e] shadow-[0_8px_32px_rgba(0,0,0,0.8)] rounded-[32px] overflow-hidden" aria-hidden="false">
+          <div className="fixed bottom-0 left-0 right-0 h-[72px] z-[90] flex flex-col justify-end items-center pb-2 pointer-events-auto" title="Bottom Navigation Area">
+            <nav className="relative w-[calc(100%-32px)] max-w-[320px] z-[100] bg-[#1c1c1e] border border-[#2c2c2e] shadow-[0_8px_32px_rgba(0,0,0,0.8)] rounded-[32px] overflow-hidden">
               <div className="flex justify-around items-center px-2 h-[60px]">
                 {TABS.map((t) => {
                   const active = pathname === t.id || (t.id !== "/" && pathname.startsWith(t.id));

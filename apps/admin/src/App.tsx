@@ -40,6 +40,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [hideEmpty, setHideEmpty] = useState(false);
+  const [onlyTg, setOnlyTg] = useState(false);
   const ITEMS_PER_PAGE = 50;
 
   // Modal States
@@ -124,6 +126,8 @@ export default function App() {
       const query = new URLSearchParams({
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),
+        hide_empty: hideEmpty.toString(),
+        only_tg: onlyTg.toString(),
         ...(search ? { search } : {})
       });
       
@@ -138,7 +142,7 @@ export default function App() {
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [auth, activeTab, currentPage, search]);
+  }, [auth, activeTab, currentPage, search, hideEmpty, onlyTg]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,6 +295,8 @@ export default function App() {
           <SidebarItem active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" label="Insights" />
           <SidebarItem active={activeTab === 'database'} onClick={() => setActiveTab('database')} icon="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" label="Database" />
           <SidebarItem active={activeTab === 'cache'} onClick={() => setActiveTab('cache')} icon="M13 10V3L4 14h7v7l9-11h-7z" label="Edge Cache" />
+          <SidebarItem active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" label="Users" />
+          <SidebarItem active={activeTab === 'monetization'} onClick={() => setActiveTab('monetization')} icon="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" label="Monetization" />
           <SidebarItem active={activeTab === 'ecosystem'} onClick={() => setActiveTab('ecosystem')} icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" label="Ecosystem" />
         </nav>
       </aside>
@@ -406,8 +412,8 @@ export default function App() {
           {/* --- TAB: DATABASE --- */}
           {activeTab === 'database' && (
             <div className="space-y-6">
-              <div className="bg-[#1C1C1E] rounded-[2rem] border border-white/5 p-4 flex flex-col md:flex-row gap-3">
-                <div className="flex-1 relative">
+              <div className="bg-[#1C1C1E] rounded-[2rem] border border-white/5 p-4 flex flex-col gap-4">
+                <div className="relative w-full">
                   <svg className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -416,8 +422,26 @@ export default function App() {
                     placeholder="Search Anime ID or Title..." 
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                    className="w-full bg-black/50 border border-white/5 rounded-2xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+                    className="w-full bg-black/50 border border-white/5 rounded-2xl pl-11 pr-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-3 px-1">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest mr-2">Filters:</span>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${hideEmpty ? 'bg-purple-500 border-purple-500 text-white' : 'bg-black/50 border-white/20 text-transparent group-hover:border-white/40'}`}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Hide Empty Episodes</span>
+                    <input type="checkbox" className="hidden" checked={hideEmpty} onChange={(e) => { setHideEmpty(e.target.checked); setCurrentPage(1); }} />
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${onlyTg ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-black/50 border-white/20 text-transparent group-hover:border-white/40'}`}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Only show Telegram Swarm</span>
+                    <input type="checkbox" className="hidden" checked={onlyTg} onChange={(e) => { setOnlyTg(e.target.checked); setCurrentPage(1); }} />
+                  </label>
                 </div>
               </div>
 
@@ -517,6 +541,52 @@ export default function App() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* --- TAB: USERS --- */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <DataWidget title="Total Users" value={analytics?.real_users || "0"} caption="Registered Accounts" color="border-indigo-500/30" />
+                <DataWidget title="Premium Users" value="0" caption="Active Subscriptions" color="border-purple-500/30" />
+                <DataWidget title="Conversion" value="0%" caption="Free to Premium" color="border-blue-500/30" />
+                <DataWidget title="Avg Watch Time" value="--m" caption="Per Session" color="border-green-500/30" />
+              </div>
+              
+              <div className="bg-[#1C1C1E] rounded-[2rem] border border-white/5 p-10 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">User Management</h3>
+                <p className="text-gray-400 text-sm max-w-md mx-auto">This module will allow you to manage registered users, upgrade accounts to Premium, and handle ban/suspend actions. Feature currently in development.</p>
+              </div>
+            </div>
+          )}
+
+          {/* --- TAB: MONETIZATION --- */}
+          {activeTab === 'monetization' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <DataWidget title="MRR" value="Rp 0" caption="Monthly Recurring Rev" color="border-emerald-500/30" />
+                <DataWidget title="Saweria/Trakteer" value="Rp 0" caption="One-time Donations" color="border-yellow-500/30" />
+                <DataWidget title="Server Costs" value="$0" caption="Neon + CF + HF" color="border-red-500/30" />
+              </div>
+              
+              <div className="bg-[#1C1C1E] rounded-[2rem] border border-white/5 p-10 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Monetization Hub</h3>
+                <p className="text-gray-400 text-sm max-w-md mx-auto">Connect Payment Gateways (Midtrans, Saweria, Trakteer) to automate Premium role provisioning and track platform revenue.</p>
+                <button className="mt-6 px-6 py-2.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl font-bold text-sm transition-colors">
+                  Setup Payment Gateway
+                </button>
+              </div>
             </div>
           )}
 
@@ -641,13 +711,14 @@ export default function App() {
 
       </main>
 
-      {/* Mobile Bottom Dock */}
-      <nav className="md:hidden fixed bottom-6 inset-x-6 z-40">
-         <div className="bg-[#1C1C1E]/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-2 flex justify-between shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)]">
-           <DockItem active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" label="Insights" />
-           <DockItem active={activeTab === 'database'} onClick={() => setActiveTab('database')} icon="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" label="Database" />
-           <DockItem active={activeTab === 'cache'} onClick={() => setActiveTab('cache')} icon="M13 10V3L4 14h7v7l9-11h-7z" label="Edge" />
-           <DockItem active={activeTab === 'ecosystem'} onClick={() => setActiveTab('ecosystem')} icon="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" label="Stack" />
+      {/* Mobile Bottom Dock (Slim) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#1C1C1E]/90 backdrop-blur-2xl border-t border-white/10 pb-safe">
+         <div className="flex justify-around items-center px-2 pt-2 pb-1">
+           <SlimDockItem active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" label="Insights" />
+           <SlimDockItem active={activeTab === 'database'} onClick={() => setActiveTab('database')} icon="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" label="Database" />
+           <SlimDockItem active={activeTab === 'cache'} onClick={() => setActiveTab('cache')} icon="M13 10V3L4 14h7v7l9-11h-7z" label="Edge" />
+           <SlimDockItem active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" label="Users" />
+           <SlimDockItem active={activeTab === 'monetization'} onClick={() => setActiveTab('monetization')} icon="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" label="Revenue" />
          </div>
       </nav>
       <style>{`
@@ -670,13 +741,15 @@ function SidebarItem({ active, onClick, icon, label }: any) {
   );
 }
 
-function DockItem({ active, onClick, icon, label }: any) {
+function SlimDockItem({ active, onClick, icon, label }: any) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-200 ${active ? 'bg-white/15' : 'hover:bg-white/5'}`}>
-      <svg className={`w-6 h-6 mb-1 ${active ? 'text-white' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active?2.5:2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
-      </svg>
-      <span className={`text-[9px] tracking-wide ${active ? 'text-white font-bold' : 'text-gray-400 font-medium'}`}>{label}</span>
+    <button onClick={onClick} className="flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-200">
+      <div className={`relative px-4 py-1 rounded-full transition-colors ${active ? 'bg-white/10' : 'bg-transparent hover:bg-white/5'}`}>
+        <svg className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+        </svg>
+      </div>
+      <span className={`text-[10px] mt-1 tracking-wide ${active ? 'text-white font-bold' : 'text-gray-500 font-medium'}`}>{label}</span>
     </button>
   );
 }

@@ -219,23 +219,82 @@ async def admin_trigger_prefetch():
     return {"success": True, "message": "Smart Pre-fetch job started in the background."}
 
 @router.get("/v2/admin/database", dependencies=[Depends(verify_admin_key)])
-async def admin_get_database():
-    """Return all anime in database with episode counts"""
+async def admin_get_database(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=100),
+    search: str = Query(None),
+    hide_empty: bool = Query(False),
+    only_tg: bool = Query(False)
+):
+    """Return paginated anime in database with episode counts"""
     try:
-        query = '''
+        offset = (page - 1) * limit
+        where_clause = "1=1"
+        having_clause = "1=1"
+        values = {}
+        
+        if search:
+            if search.isdigit():
+                where_clause += ' AND a."anilistId" = :search_id'
+                values["search_id"] = int(search)
+            else:
+                where_clause += ' AND a."cleanTitle" ILIKE :search_str'
+                values["search_str"] = f"%{search}%"
+
+        if hide_empty:
+            having_clause += " AND COUNT(e.id) > 0"
+            
+        if only_tg:
+            having_clause += " AND SUM(CASE WHEN e.\"episodeUrl\" LIKE '%tg-proxy%' OR e.\"episodeUrl\" LIKE '%workers.dev%' THEN 1 ELSE 0 END) > 0"
+
+        # Note: Using subqueries or CTEs for accurate counts with HAVING is safer, but for simplicity we'll count from the grouped result
+        count_query = f'''
+            SELECT COUNT(*) FROM (
+                SELECT a."anilistId"
+                FROM anime_metadata a
+                LEFT JOIN episodes e ON a."anilistId" = e."anilistId"
+                WHERE {where_clause}
+                GROUP BY a."anilistId"
+                HAVING {having_clause}
+            ) as subq
+        '''
+        total_count = await database.fetch_val(count_query, values)
+        
+        query = f'''
             SELECT a."anilistId", a."cleanTitle" as title, a.genres, a.status, a.year, a."coverImage" as cover,
                    COUNT(e.id) as episode_count,
                    SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) as tg_count,
                    MAX(e."providerId") as "providerId"
             FROM anime_metadata a
             LEFT JOIN episodes e ON a."anilistId" = e."anilistId"
+            WHERE {where_clause}
             GROUP BY a."anilistId", a."cleanTitle", a.genres, a.status, a.year, a."coverImage"
+            HAVING {having_clause}
             ORDER BY a.year DESC, a."cleanTitle" ASC
+            LIMIT :limit OFFSET :offset
         '''
-        rows = await database.fetch_all(query)
+        
+        values["limit"] = limit
+        values["offset"] = offset
+        
+        rows = await database.fetch_all(query, values)
         data = [dict(row) for row in rows]
-        return {"success": True, "data": data}
+        
+        total_pages = (total_count + limit - 1) // limit if total_count else 1
+        
+        return {
+            "success": True, 
+            "data": data, 
+            "pagination": {
+                "total": total_count,
+                "page": page,
+                "limit": limit,
+                "total_pages": total_pages
+            }
+        }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"success": False, "error": str(e)}
 
 @router.post("/v2/admin/mass-sync", dependencies=[Depends(verify_admin_key)])

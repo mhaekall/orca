@@ -27,7 +27,11 @@ const svgTransparent = Buffer.from(`
 
 async function generate() {
   const publicDir = path.join(__dirname, '../public');
-  
+  const iconsDir = path.join(publicDir, 'icons');
+
+  // Buat folder /public/icons/ kalau belum ada
+  if (!fs.existsSync(iconsDir)) fs.mkdirSync(iconsDir, { recursive: true });
+
   // Icon 192 (with black background for better PWA visibility)
   await sharp(svgBuffer)
     .resize(192, 192)
@@ -41,13 +45,17 @@ async function generate() {
     .toFile(path.join(publicDir, 'icon-512x512.png'));
 
   // Favicon 32x32 (transparent)
-  // .ico format can just be a .png renamed for modern browsers, or we can use sharp's raw png
   await sharp(svgTransparent)
-    .resize(64, 64) // double size for retina
+    .resize(64, 64)
     .png()
-    .toFile(path.join(publicDir, 'favicon.ico')); // browsers accept png data in .ico
-    
-  console.log("Icons generated!");
+    .toFile(path.join(publicDir, 'favicon.ico'));
+
+  // Static icons untuk Capacitor build (karena /api/icon tidak tersedia)
+  await sharp(svgBuffer).resize(32, 32).png().toFile(path.join(iconsDir, 'icon-32.png'));
+  await sharp(svgBuffer).resize(192, 192).png().toFile(path.join(iconsDir, 'icon-192.png'));
+  await sharp(svgBuffer).resize(512, 512).png().toFile(path.join(iconsDir, 'icon-512.png'));
+
+  console.log("Icons generated! (public/ dan public/icons/)");
 }
 
 generate().catch(console.error);

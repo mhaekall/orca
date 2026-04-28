@@ -297,6 +297,109 @@ async def admin_get_database(
         traceback.print_exc()
         return {"success": False, "error": str(e)}
 
+@router.get("/v2/admin/swarm-vault", dependencies=[Depends(verify_admin_key)])
+async def admin_get_swarm_vault(
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=500),
+    search: str = Query(None)
+):
+    """Return paginated list of all Telegram Proxy URLs (The Vault) for backup/restore purposes."""
+    try:
+        offset = (page - 1) * limit
+        where_clause = '("episodeUrl" LIKE \'%tg-proxy%\' OR "episodeUrl" LIKE \'%workers.dev%\')'
+        values = {}
+        
+        if search:
+            where_clause += ' AND (a."cleanTitle" ILIKE :search_str OR CAST(e."anilistId" AS TEXT) ILIKE :search_str)'
+            values["search_str"] = f"%{search}%"
+
+        count_query = f'''
+            SELECT COUNT(e.id)
+            FROM episodes e
+            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            WHERE {where_clause}
+        '''
+        total_count = await database.fetch_val(count_query, values)
+        
+        query = f'''
+            SELECT e.id, e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."providerId", e."episodeUrl", e."updatedAt"
+            FROM episodes e
+            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            WHERE {where_clause}
+            ORDER BY e."updatedAt" DESC
+            LIMIT :limit OFFSET :offset
+        '''
+        
+        values["limit"] = limit
+        values["offset"] = offset
+        
+        rows = await database.fetch_all(query, values)
+        data = [dict(row) for row in rows]
+        
+        # Convert datetime to string for JSON serialization
+        for r in data:
+            if r.get("updatedAt"):
+                r["updatedAt"] = r["updatedAt"].isoformat()
+        
+        total_pages = (total_count + limit - 1) // limit if total_count else 1
+        
+        return {
+            "success": True, 
+            "data": data, 
+            "pagination": {
+                "total": total_count,
+                "page": page,
+                "limit": limit,
+                "total_pages": total_pages
+            }
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
+@router.get("/v2/admin/swarm-vault/export", dependencies=[Depends(verify_admin_key)])
+async def admin_export_swarm_vault():
+    """Export all Telegram Proxy URLs to CSV format."""
+    try:
+        where_clause = '("episodeUrl" LIKE \'%tg-proxy%\' OR "episodeUrl" LIKE \'%workers.dev%\')'
+        query = f'''
+            SELECT e.id, e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."providerId", e."episodeUrl", e."updatedAt"
+            FROM episodes e
+            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            WHERE {where_clause}
+            ORDER BY e."updatedAt" DESC
+        '''
+        
+        rows = await database.fetch_all(query)
+        
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['id', 'anilistId', 'title', 'episodeNumber', 'providerId', 'episodeUrl', 'updatedAt'])
+        
+        for r in rows:
+            writer.writerow([
+                r['id'], 
+                r['anilistId'], 
+                r['title'] or 'Unknown', 
+                r['episodeNumber'], 
+                r['providerId'], 
+                r['episodeUrl'], 
+                r['updatedAt'].isoformat() if r['updatedAt'] else ''
+            ])
+            
+        from fastapi.responses import StreamingResponse
+        response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
+        response.headers["Content-Disposition"] = "attachment; filename=swarm_vault_backup.csv"
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
 @router.post("/v2/admin/mass-sync", dependencies=[Depends(verify_admin_key)])
 async def admin_mass_sync():
     """Trigger a mass sync via QStash or local background task"""

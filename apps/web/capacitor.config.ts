@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.animescraperpro.app',
   appName: 'Anime Scraper Pro',
   webDir: 'out',
-  bundledWebRuntime: false,
   server: {
     androidScheme: 'https'
   },

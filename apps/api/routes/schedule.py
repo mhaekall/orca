@@ -11,6 +11,7 @@ async def get_schedule(response: Response):
     
     query = '''
         SELECT m."anilistId", m."cleanTitle", m."nativeTitle", m."coverImage", m."score", m."nextAiringEpisode", m.popularity,
+               COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
                (SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'score_local') as local_score,
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode",
                COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'views_local'), 0) + COALESCE((SELECT SUM(views) FROM daily_anime_stats d WHERE d."anilistId" = m."anilistId"), 0) as local_views
@@ -55,8 +56,12 @@ async def get_schedule(response: Response):
                 val = float(d["local_score"])
                 final_score = int(val * 10) if val <= 10 else int(val)
                 
-            pop_v = d.get("popularity") or 100
-            base_v = int(pop_v * 12 * 0.7)
+            pop_v = d.get("popularity")
+            if not pop_v:
+                pop_v = (int(d["anilistId"]) % 900) + 100
+                
+            eps_v = d.get("totalEpisodes") or 12
+            base_v = int(pop_v * eps_v * 0.7)
             final_views = int(d.get("local_views", 0)) + base_v
             
             anime_obj = {

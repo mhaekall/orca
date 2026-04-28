@@ -123,7 +123,7 @@ class TelegramUploader:
                             file_id = resp_json["result"]["video"]["file_id"]
                             
                         if file_id:
-                            final_url = f"{proxy_url}/{file_id}" if proxy_url else file_id
+                            final_url = f"{proxy_url}/stream/bot{bot_token}/{file_id}" if proxy_url else file_id
                             await asyncio.sleep(0.5)
                             return {
                                 "url": final_url,

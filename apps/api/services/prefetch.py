@@ -41,7 +41,7 @@ async def get_ingestion_stats():
         logger.error(f"[Prefetch] Error fetching stats: {e}")
         return {"total_anime": 0, "total_episodes": 0, "ingested_episodes": 0, "pending_episodes": 0}
 
-async def smart_prefetch_episodes():
+async def smart_prefetch_episodes(force: bool = False):
     """
     Finds RELEASING anime, syncs their latest episodes if missing, 
     and enqueues un-ingested episodes for Telegram uploading.
@@ -79,7 +79,7 @@ async def smart_prefetch_episodes():
         
         queued_count = len(un_ingested_eps)
         if queued_count > 0:
-            await enqueue_ingest_batch()
+            await enqueue_ingest_batch(force=force)
             
         logger.info(f"[Prefetch] Successfully queued batch ingest trigger for {queued_count} episodes.")
         return {"status": "success", "queued_ingestions": queued_count, "synced_anime": len(anime_ids)}

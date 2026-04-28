@@ -116,19 +116,27 @@ class QStashPublisher:
             asyncio.run(_run())
 
     @staticmethod
-    async def publish_ingest_batch_task():
+    async def publish_ingest_batch_task(force: bool = False):
         # Deduplication: Prevent redundant batch triggers within 15 minutes (900s)
         from services.cache import upstash_set
         lock_key = "lock:ingest_batch_trigger"
         
-        is_locked = await upstash_set(lock_key, {
-            "status": "queued",
-            "started_at": int(time.time()),
-        }, ex=900, nx=True)
-        
-        if not is_locked:
-            print(f"[Queue] Batch ingest trigger already running. Skipping deduplicate.")
-            return
+        if not force:
+            is_locked = await upstash_set(lock_key, {
+                "status": "queued",
+                "started_at": int(time.time()),
+            }, ex=900, nx=True)
+            
+            if not is_locked:
+                print(f"[Queue] Batch ingest trigger already running. Skipping deduplicate.")
+                return
+        else:
+            print(f"[Queue] Force triggering batch ingestion, bypassing lock.")
+            # Set the lock so subsequent non-force triggers are skipped for a bit
+            await upstash_set(lock_key, {
+                "status": "forced",
+                "started_at": int(time.time()),
+            }, ex=900)
 
         # Direct Background Execution (Bypasses QStash)
         # Because we are already running on the HF Space FastAPI, we can just spawn a task!

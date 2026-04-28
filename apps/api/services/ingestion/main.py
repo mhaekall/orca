@@ -48,7 +48,7 @@ class IngestionEngine:
                     logger.warning(f"[Keep-Alive] Ping failed: {e}")
                 await asyncio.sleep(15)
 
-    async def process_episode(self, episode_id: int, anilist_id: int, provider_id: str, episode_number: float, direct_video_url: str, anime_title: str = "Unknown"):
+    async def process_episode(self, episode_id: int, anilist_id: int, provider_id: str, episode_number: float, direct_video_url: str, anime_title: str = "Unknown", segment_time: int = 5):
         """
         Full pipeline to ingest a video from a provider, slice it, upload to Telegram, and update DB.
         """
@@ -115,8 +115,8 @@ class IngestionEngine:
                     return False, lvp, None, None
                 
                 # 2. Slice Video
-                await _log_to_redis(f"✂️ <b>[SLICING]</b>\n🎬 <b>Anime:</b> {anime_title}\n📺 <b>Episode:</b> {episode_number}\n🔪 Memotong video menjadi HLS 5-detik...")
-                m3p = await self.slicer.slice(url=lvp, filename=filename, provider_id=provider_id, segment_time=5)
+                await _log_to_redis(f"✂️ <b>[SLICING]</b>\n🎬 <b>Anime:</b> {anime_title}\n📺 <b>Episode:</b> {episode_number}\n🔪 Memotong video menjadi HLS {segment_time}-detik...")
+                m3p = await self.slicer.slice(url=lvp, filename=filename, provider_id=provider_id, segment_time=segment_time)
                 if not m3p: 
                     error_type = "slicing_failed"
                     return False, lvp, m3p, None

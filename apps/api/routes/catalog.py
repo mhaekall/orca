@@ -214,7 +214,7 @@ async def admin_trigger_prefetch():
     import asyncio
     
     # We trigger it in the background so the request doesn't timeout
-    asyncio.create_task(smart_prefetch_episodes())
+    asyncio.create_task(smart_prefetch_episodes(force=True))
     
     return {"success": True, "message": "Smart Pre-fetch job started in the background."}
 
@@ -793,6 +793,7 @@ async def admin_reingest_episode(episode_id: int):
         try:
             from services.cache import upstash_del
             await upstash_del(f"ingest:{anilist_id}:{ep_num}")
+            await upstash_del(f"ingest_progress:{anilist_id}:{ep_num}")
         except:
             pass
             

@@ -5,9 +5,16 @@ const config: CapacitorConfig = {
   appName: 'Orca',
   webDir: 'out',
   server: {
-    androidScheme: 'https',
-    errorPath: '404.html'
-  }
+    androidScheme: 'https'
+  },
+  plugins: {
+    // Status bar transparan — konten bisa extend ke bawah status bar
+    StatusBar: {
+      style: 'DARK',
+      backgroundColor: '#00000000',
+      overlaysWebView: true,
+    },
+  },
 };
 
 export default config;

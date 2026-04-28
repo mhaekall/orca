@@ -70,3 +70,8 @@ apps/web/.env.production
 # playground / local scripts
 scripts/playground/
 *.log
+
+# Capacitor
+apps/web/android/
+apps/web/ios/
+*.apk

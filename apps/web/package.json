@@ -7,9 +7,12 @@
     "build": "next build ",
     "start": "next start",
     "lint": "eslint",
-    "purge:cache": "python ../api/scripts/purge_cache.py"
+    "purge:cache": "python ../api/scripts/purge_cache.py",
+    "cap:sync": "CAPACITOR_BUILD=true next build && cap sync",
+    "build:android": "CAPACITOR_BUILD=true next build && cap sync android"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.1",
     "@neondatabase/serverless": "^1.0.2",
     "@serwist/next": "^9.5.7",
     "better-auth": "^1.6.2",
@@ -25,6 +28,8 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^8.3.1",
     "@cloudflare/next-on-pages": "^1.13.16",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

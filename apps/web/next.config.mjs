@@ -7,9 +7,13 @@ const withSerwist = withSerwistInit({
 });
 
 /** @type {import('next').NextConfig} */
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
+
 const nextConfig = {
+  output: isCapacitorBuild ? 'export' : undefined,
   productionBrowserSourceMaps: false,
   images: {
+    unoptimized: isCapacitorBuild,
     remotePatterns: [
       { protocol: 'https', hostname: 's4.anilist.co' },
       { protocol: 'https', hostname: 'img.anili.st' },

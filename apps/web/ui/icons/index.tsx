@@ -2,9 +2,18 @@
 // Each icon is ~200 bytes vs lucide-react's 40KB+ bundle impact.
 
 import { memo } from "react";
-import { Home, Compass, Library, User, Info, Bell } from "lucide-react";
+import { Home, Compass, Library, User, Info, Bell, CalendarDays } from "lucide-react";
 
 type P = { className?: string };
+
+export const IconCalendar = memo(({ className = "w-5 h-5", filled = false }: P & { filled?: boolean }) => (
+  <CalendarDays 
+    className={className} 
+    strokeWidth={1.5} 
+    fill={filled ? "currentColor" : "none"} 
+  />
+));
+IconCalendar.displayName = "IconCalendar";
 
 export const IconBell = memo(({ className = "w-5 h-5", filled = false }: P & { filled?: boolean }) => (
   <Bell 

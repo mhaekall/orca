@@ -37,7 +37,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   /** Homepage data from our DB (fast, verified) */
-  homeV2: (init?: RequestInit) => request<{ success: boolean; data: { hero: any[]; airing?: any[]; latest: any[]; popular: any[]; completed?: any[]; top_rated?: any[]; isekai?: any[]; movies?: any[]; trending?: any[] } }>("/api/v2/home", init),
+  homeV2: (init?: RequestInit) => request<{ success: boolean; data: { hero: any[]; airing?: any[]; latest: any[]; popular: any[]; completed?: any[]; top_rated?: any[]; isekai?: any[]; movies?: any[]; trending?: any[] } }>("/api/v2/home?v=3", init),
 
   /** Full anime detail + episodes */
   animeDetail: (id: number | string, init?: RequestInit) => request<{ success: boolean; syncing?: boolean; data: any }>(`/api/v2/anime/${id}`, init),
@@ -60,6 +60,9 @@ export const api = {
     if (params.sort) q.set("sort", params.sort);
     return request<{ success: boolean; page: number; data: any[] }>(`/api/v2/browse?${q.toString()}`, init);
   },
+
+  /** Airing Schedule by day */
+  schedule: (init?: RequestInit) => request<{ success: boolean; data: Record<string, any[]> }>("/api/v2/schedule?v=2", init),
 
   /** AniList GraphQL proxy or direct call */
   anilist: (query: string, variables?: Record<string, any>, init?: RequestInit) => {

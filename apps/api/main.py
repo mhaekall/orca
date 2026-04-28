@@ -107,6 +107,10 @@ app = FastAPI(
 
 app.add_middleware(DatabaseReconnectMiddleware)
 
+@app.post("/api/v2/admin/verify", tags=["Admin"], dependencies=[Depends(verify_admin_key)])
+async def admin_verify_key():
+    return {"success": True, "message": "Admin key verified"}
+
 @app.get("/api/v2/admin/cache-stats", dependencies=[Depends(verify_admin_key)])
 async def cache_stats():
     from services.stream_cache import cache_stats_handler

@@ -33,6 +33,12 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
           AND e."episodeUrl" NOT LIKE '%workers.dev%'
           AND e."episodeUrl" IS NOT NULL
           AND e."episodeUrl" != ''
+          AND NOT EXISTS (
+              SELECT 1 FROM episodes e2 
+              WHERE e2."anilistId" = e."anilistId" 
+                AND e2."episodeNumber" = e."episodeNumber" 
+                AND (e2."episodeUrl" LIKE '%tg-proxy%' OR e2."episodeUrl" LIKE '%workers.dev%')
+          )
         ORDER BY m.popularity DESC NULLS LAST, e."anilistId", e."episodeNumber" DESC
         LIMIT :limit
     """

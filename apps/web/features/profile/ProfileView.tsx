@@ -110,7 +110,6 @@ export default function ProfileView() {
                     
                     // Inisialisasi wajib untuk mencegah Force Close di Android
                     GoogleAuth.initialize({
-                      clientId: '475749423464-e2dq5kmtgdehbbb369f0nvr86f73gpl0.apps.googleusercontent.com',
                       scopes: ['profile', 'email'],
                       grantOfflineAccess: true,
                     });

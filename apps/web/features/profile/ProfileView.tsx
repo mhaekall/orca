@@ -105,7 +105,7 @@ export default function ProfileView() {
               onClick={() => {
                 authClient.signIn.social({
                   provider: "google",
-                  callbackURL: "/profile",
+                  callbackURL: typeof window !== "undefined" && window.location.protocol === "capacitor:" ? "orca://app/profile" : "/profile",
                 });
               }}
               className="flex items-center justify-center gap-2 bg-white hover:bg-white/90 text-black px-6 py-2.5 rounded-full font-bold text-sm transition-transform active:scale-95 mx-auto"

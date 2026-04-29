@@ -18,7 +18,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setLoading(true);
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/profile",
+      callbackURL: typeof window !== "undefined" && window.location.protocol === "capacitor:" ? "orca://app/profile" : "/profile",
     });
     // Let the redirection handle the loading state, but if it fails we reset it
     setTimeout(() => setLoading(false), 5000);

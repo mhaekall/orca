@@ -1,13 +1,14 @@
 import withSerwistInit from "@serwist/next";
 
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
+
 const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
-  disable: process.env.NODE_ENV === "development",
+  disable: process.env.NODE_ENV === "development" || isCapacitorBuild,
 });
 
 /** @type {import('next').NextConfig} */
-const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
 
 const nextConfig = {
   output: isCapacitorBuild ? 'export' : undefined,

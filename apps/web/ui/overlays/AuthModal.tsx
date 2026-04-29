@@ -25,7 +25,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         // Inisialisasi wajib untuk mencegah Force Close di Android
         GoogleAuth.initialize({
           scopes: ['profile', 'email'],
-          grantOfflineAccess: true,
         });
         const user = await GoogleAuth.signIn();
         if (user?.authentication?.idToken) {

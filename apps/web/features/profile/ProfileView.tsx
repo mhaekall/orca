@@ -111,7 +111,6 @@ export default function ProfileView() {
                     // Inisialisasi wajib untuk mencegah Force Close di Android
                     GoogleAuth.initialize({
                       scopes: ['profile', 'email'],
-                      grantOfflineAccess: true,
                     });
 
                     const user = await GoogleAuth.signIn();

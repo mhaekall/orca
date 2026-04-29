@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { InstallPrompt } from "@/ui/overlays/InstallPrompt";
 import { Navigation } from "@/ui/layout/Navigation";
 import { Toaster } from "@/ui/overlays/Toaster";
+import { CapacitorRouter } from "@/ui/layout/CapacitorRouter";
 import "./globals.css";
 
 const isCapacitorBuild = process.env.CAPACITOR_BUILD === "true";
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full bg-black text-white flex flex-col">
         <div className="flex-1 relative">
           <Navigation>
-            {children}
+            <CapacitorRouter>{children}</CapacitorRouter>
           </Navigation>
         </div>
         <Toaster />

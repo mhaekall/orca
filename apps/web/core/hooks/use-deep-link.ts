@@ -6,7 +6,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/core/lib/router";
 import { isCapacitor } from "@/core/lib/capacitor";
 
 const APP_DOMAIN = "orcanime.pages.dev";
@@ -29,7 +29,7 @@ function urlToPath(url: string): string | null {
  * lalu navigate ke route yang sesuai di dalam app.
  */
 export function useDeepLink() {
-  const router = useRouter();
+  const router = useAppRouter();
 
   useEffect(() => {
     if (!isCapacitor()) return;

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAppRouter } from "@/core/lib/router";
 import { IconHome, IconCollection, IconUser, IconBell, IconCalendar } from "@/ui/icons";
 import { useMounted } from "@/core/hooks/use-mounted";
 import { useKonami } from "@/core/hooks/use-konami";
@@ -9,6 +10,9 @@ import { useViewTransition } from "@/core/hooks/use-view-transition";
 import { SnakeGame } from "@/ui/games/SnakeGame";
 import { useState } from "react";
 import { authClient } from "@/core/lib/auth-client";
+import { useHardwareBackButton } from "@/core/hooks/use-back-button";
+import { useStatusBar } from "@/core/hooks/use-status-bar";
+import { useDeepLink } from "@/core/hooks/use-deep-link";
 
 const TABS = [
   { id: "/", label: "Beranda", icon: IconHome },
@@ -19,11 +23,16 @@ const TABS = [
 
 export function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const router = useRouter();
+  const router = useAppRouter();
   const navigate = useViewTransition();
   const mounted = useMounted();
   const [snakeActive, setSnakeActive] = useState(false);
   const { data: session } = authClient.useSession();
+
+  // Capacitor: hardware back button, status bar, deep linking
+  useHardwareBackButton();
+  useStatusBar();
+  useDeepLink();
 
   useKonami(() => setSnakeActive(true));
 
@@ -34,14 +43,14 @@ export function Navigation({ children }: { children: React.ReactNode }) {
     <div className="w-full min-h-[100dvh] bg-[#121212] text-white flex flex-col relative select-none antialiased min-w-0 transition-colors duration-500">
       {/* Main content */}
       <div className="flex-1 w-full min-h-[100dvh] relative flex flex-col min-w-0">
-        <main className={`flex-1 w-full min-w-0 ${mounted && isMainTab ? 'pb-[100px]' : 'pb-0'}`}>
+        <main className={`flex-1 w-full min-w-0 ${mounted && isMainTab ? 'pb-[calc(100px+env(safe-area-inset-bottom))]' : 'pb-[env(safe-area-inset-bottom)]'}`}>
           {children}
         </main>
 
         {/* Global Bottom Nav - Render when mounted and on a main tab */}
         {mounted && isMainTab && (
-          <div className="fixed bottom-0 left-0 right-0 h-[72px] z-[90] flex flex-col justify-end items-center pb-2 pointer-events-auto" title="Bottom Navigation Area">
-            <nav className="relative w-[calc(100%-32px)] max-w-[320px] z-[100] bg-[#1c1c1e] border border-[#2c2c2e] shadow-[0_8px_32px_rgba(0,0,0,0.8)] rounded-[32px] overflow-hidden">
+          <div className="fixed bottom-0 left-0 right-0 z-[90] flex flex-col justify-end items-center pointer-events-auto" style={{paddingBottom: 'max(8px, env(safe-area-inset-bottom))'}} aria-hidden="true" title="Bottom Navigation Area">
+            <nav className="relative w-[calc(100%-32px)] max-w-[320px] z-[100] bg-[#1c1c1e] border border-[#2c2c2e] shadow-[0_8px_32px_rgba(0,0,0,0.8)] rounded-[32px] overflow-hidden" aria-hidden="false">
               <div className="flex justify-around items-center px-2 h-[60px]">
                 {TABS.map((t) => {
                   const active = pathname === t.id || (t.id !== "/" && pathname.startsWith(t.id));

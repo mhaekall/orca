@@ -1,8 +1,8 @@
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/core/lib/router";
 import { useCallback } from "react";
 
 export function useViewTransition() {
-  const router = useRouter();
+  const router = useAppRouter();
   
   const navigate = useCallback((href: string) => {
     if (!(document as any).startViewTransition) {

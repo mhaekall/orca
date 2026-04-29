@@ -1,5 +1,7 @@
 // core/lib/api.ts — Centralized API client. All backend calls go through here.
 
+import { getAppBaseUrl } from "./capacitor";
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 
 class ApiError extends Error {
@@ -15,11 +17,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (path.startsWith("http")) {
     url = path;
   } else if (isLocalNextRoute) {
-    // Di server komponen, kita tidak bisa ngefetch ke route relatif tanpa base URL
-    const baseUrl = typeof window === 'undefined' 
-      ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000') 
-      : '';
-    url = `${baseUrl}${path}`;
+    // Di Capacitor & server, butuh absolute URL karena tidak ada domain
+    url = `${getAppBaseUrl()}${path}`;
   } else {
     url = `${API}${path}`;
   }

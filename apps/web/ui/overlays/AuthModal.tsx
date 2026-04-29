@@ -4,6 +4,8 @@ import { useState } from "react";
 import { authClient } from "@/core/lib/auth-client";
 import { IconCheck } from "@/ui/icons";
 
+import { isCapacitor } from "@/core/lib/capacitor";
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,7 +19,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      if (typeof window !== "undefined" && window.location.protocol === "capacitor:") {
+      if (isCapacitor()) {
         const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
         const user = await GoogleAuth.signIn();
         if (user?.authentication?.idToken) {

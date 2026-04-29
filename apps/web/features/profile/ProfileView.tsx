@@ -104,7 +104,7 @@ export default function ProfileView() {
             <button 
               onClick={async () => {
                 try {
-                  if (typeof window !== "undefined" && window.location.protocol === "capacitor:") {
+                  if (isCapacitor()) {
                     const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
                     const user = await GoogleAuth.signIn();
                     if (user?.authentication?.idToken) {

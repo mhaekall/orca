@@ -31,6 +31,25 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
+      - name: Cache Android Debug Keystore
+        id: cache-keystore
+        uses: actions/cache@v3
+        with:
+          path: ~/.android/debug.keystore
+          key: ${{ runner.os }}-android-debug-keystore
+
+      - name: Generate and Print Keystore SHA-1
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "Generating new debug keystore..."
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+          fi
+          echo "=========================================="
+          echo "GOOGLE CLOUD CONSOLE SHA-1 FINGERPRINT:"
+          keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep "SHA1:"
+          echo "=========================================="
+
       - name: Cache pnpm dependencies
         uses: actions/cache@v3
         with:

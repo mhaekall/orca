@@ -108,11 +108,18 @@ export default function ProfileView() {
                     const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
                     const user = await GoogleAuth.signIn();
                     if (user?.authentication?.idToken) {
-                      await authClient.signIn.social({
+                      const res = await authClient.signIn.social({
                         provider: "google",
-                        idToken: { token: user.authentication.idToken }
+                        idToken: { 
+                          token: user.authentication.idToken,
+                          accessToken: user.authentication.accessToken 
+                        }
                       });
-                      window.location.reload();
+                      if (res.error) {
+                        alert("BetterAuth Error: " + res.error.message);
+                      } else {
+                        window.location.reload();
+                      }
                     }
                   } else {
                     await authClient.signIn.social({
@@ -120,7 +127,8 @@ export default function ProfileView() {
                       callbackURL: "/profile",
                     });
                   }
-                } catch (err) {
+                } catch (err: any) {
+                  alert("Google login error: " + (err?.message || JSON.stringify(err)));
                   console.error("Google login error:", err);
                 }
               }}

@@ -21,11 +21,19 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
         const user = await GoogleAuth.signIn();
         if (user?.authentication?.idToken) {
-          await authClient.signIn.social({
+          const res = await authClient.signIn.social({
             provider: "google",
-            idToken: { token: user.authentication.idToken }
+            idToken: { 
+              token: user.authentication.idToken,
+              accessToken: user.authentication.accessToken 
+            }
           });
-          window.location.reload();
+          if (res.error) {
+            alert("BetterAuth Error: " + res.error.message);
+            setLoading(false);
+          } else {
+            window.location.reload();
+          }
         } else {
           setLoading(false);
         }
@@ -36,7 +44,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         });
         setTimeout(() => setLoading(false), 5000);
       }
-    } catch (err) {
+    } catch (err: any) {
+      alert("Google login error: " + (err?.message || JSON.stringify(err)));
       console.error("Google login error:", err);
       setLoading(false);
     }

@@ -16,12 +16,30 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    await authClient.signIn.social({
-      provider: "google",
-      callbackURL: typeof window !== "undefined" && window.location.protocol === "capacitor:" ? "orca://app/profile" : "/profile",
-    });
-    // Let the redirection handle the loading state, but if it fails we reset it
-    setTimeout(() => setLoading(false), 5000);
+    try {
+      if (typeof window !== "undefined" && window.location.protocol === "capacitor:") {
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+        const user = await GoogleAuth.signIn();
+        if (user?.authentication?.idToken) {
+          await authClient.signIn.social({
+            provider: "google",
+            idToken: { token: user.authentication.idToken }
+          });
+          window.location.reload();
+        } else {
+          setLoading(false);
+        }
+      } else {
+        await authClient.signIn.social({
+          provider: "google",
+          callbackURL: "/profile",
+        });
+        setTimeout(() => setLoading(false), 5000);
+      }
+    } catch (err) {
+      console.error("Google login error:", err);
+      setLoading(false);
+    }
   };
 
   return (

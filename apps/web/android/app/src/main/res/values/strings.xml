@@ -4,4 +4,5 @@
     <string name="title_activity_main">Orca</string>
     <string name="package_name">com.animescraperpro.app</string>
     <string name="custom_url_scheme">com.animescraperpro.app</string>
+    <string name="server_client_id">475749423464-e2dq5kmtgdehbbb369f0nvr86f73gpl0.apps.googleusercontent.com</string>
 </resources>

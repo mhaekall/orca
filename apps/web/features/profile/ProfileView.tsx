@@ -102,11 +102,27 @@ export default function ProfileView() {
             <h2 className="text-2xl font-black text-white mb-2">Guest Mode</h2>
             <p className="text-sm text-white/50 mb-4 max-w-xs mx-auto">Masuk untuk melacak riwayat tontonan, mengelola koleksi, dan berinteraksi dengan komunitas.</p>
             <button 
-              onClick={() => {
-                authClient.signIn.social({
-                  provider: "google",
-                  callbackURL: typeof window !== "undefined" && window.location.protocol === "capacitor:" ? "orca://app/profile" : "/profile",
-                });
+              onClick={async () => {
+                try {
+                  if (typeof window !== "undefined" && window.location.protocol === "capacitor:") {
+                    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+                    const user = await GoogleAuth.signIn();
+                    if (user?.authentication?.idToken) {
+                      await authClient.signIn.social({
+                        provider: "google",
+                        idToken: { token: user.authentication.idToken }
+                      });
+                      window.location.reload();
+                    }
+                  } else {
+                    await authClient.signIn.social({
+                      provider: "google",
+                      callbackURL: "/profile",
+                    });
+                  }
+                } catch (err) {
+                  console.error("Google login error:", err);
+                }
               }}
               className="flex items-center justify-center gap-2 bg-white hover:bg-white/90 text-black px-6 py-2.5 rounded-full font-bold text-sm transition-transform active:scale-95 mx-auto"
             >

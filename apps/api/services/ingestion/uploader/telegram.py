@@ -88,7 +88,7 @@ class TelegramUploader:
         file_size = os.path.getsize(file_path)
         endpoint = "sendVideo" if file_size > 10_000_000 else "sendDocument"
         tg_proxy = os.getenv("TG_PROXY_BASE_URL", "https://api.telegram.org")
-        url = f"{tg_proxy}/bot{bot_token}/{endpoint}"
+        url = f"https://api.telegram.org/bot{bot_token}/{endpoint}"
         
         await _debug(f"Uploading {os.path.basename(file_path)} using bot {bot_token[-4:]}...")
         
@@ -151,7 +151,7 @@ class TelegramUploader:
             
             bot = random.choice(self.bot_pool)
             bot_token = bot["token"]
-            url = f"{tg_proxy}/bot{bot_token}/{endpoint}"
+            url = f"https://api.telegram.org/bot{bot_token}/{endpoint}"
 
         return None
 

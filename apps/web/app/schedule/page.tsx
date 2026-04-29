@@ -14,12 +14,7 @@ export default async function SchedulePage() {
       schedule = res.data;
     }
   } catch (error: any) {
-    errorMsg = error.message || String(error);
     console.error("Failed to fetch schedule data:", error);
-  }
-
-  if (errorMsg) {
-    return <div style={{ color: 'red', padding: '20px' }}>Error fetching data: {errorMsg}</div>;
   }
 
   return <ScheduleView initialSchedule={schedule} />;

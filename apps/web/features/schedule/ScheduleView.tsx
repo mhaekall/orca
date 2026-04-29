@@ -4,6 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { AnimeCard } from "@/ui/cards/AnimeCard";
 import { useMounted } from "@/core/hooks/use-mounted";
+import useSWR from "swr";
+import { API } from "@/core/lib/api";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Props {
   initialSchedule: Record<string, any[]>;
@@ -14,20 +18,27 @@ export function ScheduleView({ initialSchedule }: Props) {
   const [activeDay, setActiveDay] = useState<string>("Senin");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const { data: swrData } = useSWR(`${API}/api/v2/schedule?v=2`, fetcher, { 
+    fallbackData: { data: initialSchedule },
+    revalidateOnFocus: false 
+  });
+
+  const schedData = swrData?.data || {};
+
   // Set default day to today once mounted
   useEffect(() => {
     const todayIndex = new Date().getDay() - 1;
     const daysArr = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const today = daysArr[todayIndex < 0 ? 6 : todayIndex];
-    if (initialSchedule[today]) {
+    if (schedData[today]) {
       setActiveDay(today);
     } else {
-      setActiveDay(Object.keys(initialSchedule)[0] || "Senin");
+      setActiveDay(Object.keys(schedData)[0] || "Senin");
     }
-  }, [initialSchedule]);
+  }, [schedData]);
 
-  const days = Object.keys(initialSchedule).filter(k => k !== "TBA");
-  if (initialSchedule["TBA"]) days.push("TBA");
+  const days = Object.keys(schedData).filter(k => k !== "TBA");
+  if (schedData["TBA"]) days.push("TBA");
 
   if (!mounted) return null;
 
@@ -39,7 +50,7 @@ export function ScheduleView({ initialSchedule }: Props) {
     );
   }
 
-  const currentItems = initialSchedule[activeDay] || [];
+  const currentItems = schedData[activeDay] || [];
 
   return (
     <div className="min-h-screen bg-black pb-32 text-white">
@@ -82,7 +93,7 @@ export function ScheduleView({ initialSchedule }: Props) {
 
       <div className="px-5 md:px-8 pt-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4 anim-fade" key={activeDay}>
-          {currentItems.map((item, idx) => (
+          {currentItems.map((item: any, idx: number) => (
             <div key={`${item.id}-${idx}`} className="w-full relative">
               <AnimeCard
                 id={String(item.id)}

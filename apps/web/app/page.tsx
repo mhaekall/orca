@@ -17,6 +17,7 @@ export default async function Page() {
 
   try {
     const res = await api.homeV2({ next: { revalidate: 3600 } });
+    
     if (res.success && res.data) {
       hero = res.data.hero || [];
       airing = res.data.airing || [];
@@ -29,12 +30,7 @@ export default async function Page() {
       trending = res.data.trending || [];
     }
   } catch (error: any) {
-    errorMsg = error.message || String(error);
     console.error("Failed to fetch home data:", error);
-  }
-
-  if (errorMsg) {
-    return <div style={{ color: 'red', padding: '20px' }}>Error fetching data: {errorMsg}</div>;
   }
 
   return <HomeView 

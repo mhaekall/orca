@@ -6,6 +6,10 @@ import { ContinueWatching } from "./ContinueWatching";
 import { LatestGrid } from "@/ui/cards/LatestGrid";
 import { authClient } from "@/core/lib/auth-client";
 import { OrcaLogo } from "@/ui/icons/OrcaLogo";
+import useSWR from "swr";
+import { API } from "@/core/lib/api";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const greet = () => {
   const h = new Date().getHours();
@@ -61,9 +65,23 @@ export default function HomeView({
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
+  // SWR untuk auto-refresh data di Client (Capacitor)
+  const { data: swrData } = useSWR(`${API}/api/v2/home?v=3`, fetcher, { 
+    fallbackData: { data: { hero: initialHero, airing: initialAiring, latest: initialLatest, popular: initialPopular, completed: initialCompleted, top_rated: initialTopRated, movies: initialMovies } },
+    revalidateOnFocus: false // hemat kuota
+  });
+
+  const d = swrData?.data || {};
+  const sLatest = d.latest || [];
+  const sAiring = d.airing || [];
+  const sPopular = d.popular || [];
+  const sTopRated = d.top_rated || [];
+  const sCompleted = d.completed || [];
+  const sMovies = d.movies || [];
+
   // 1. Gabungkan Tayangan Terbaru + Airing (Deduplikasi)
   const ongoingMap = new Map();
-  [...initialLatest, ...initialAiring].forEach(i => {
+  [...sLatest, ...sAiring].forEach((i: any) => {
     const id = String(i.anilistId || i.id);
     if (!ongoingMap.has(id)) ongoingMap.set(id, i);
   });
@@ -71,7 +89,7 @@ export default function HomeView({
 
   // 2. Gabungkan Populer + Skor Tertinggi + Tamat (Deduplikasi)
   const bestMap = new Map();
-  [...initialPopular, ...initialTopRated, ...initialCompleted].forEach(i => {
+  [...sPopular, ...sTopRated, ...sCompleted].forEach((i: any) => {
     const id = String(i.anilistId || i.id);
     if (!bestMap.has(id)) bestMap.set(id, i);
   });
@@ -114,10 +132,10 @@ export default function HomeView({
 
       {/* Lazy Sections for heavy components below the fold */}
       <div className="space-y-4">
-        {/* Section 2: Best Completed */}
+        {/* Section 2: Best Completed & Popular */}
         {bestItems.length > 0 && (
           <LazySection>
-            <LatestGrid title="Anime Tamat Terbaik" items={bestItems} badge="BEST" />
+            <LatestGrid title="Terpopuler & Terbaik" items={bestItems} badge="BEST" />
           </LazySection>
         )}
         

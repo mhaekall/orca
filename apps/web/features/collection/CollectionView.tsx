@@ -22,8 +22,8 @@ export default function CollectionView() {
   return (
     <div className="min-h-screen pb-32 bg-black">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-6 pb-4 border-b border-white/5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between mt-6">
           <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">Koleksi Anime</h1>
           <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold text-white/80">
             {sortedItems.length} Judul

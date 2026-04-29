@@ -10,12 +10,10 @@ import {
   MessageCircle, Activity, Share2
 } from "lucide-react";
 import { authClient } from "@/core/lib/auth-client";
-import { AuthModal } from "@/ui/overlays/AuthModal";
 import Link from "next/link";
 
 export default function ProfileView() {
   const mounted = useMounted();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { data: session, isPending } = authClient.useSession();
   const { items: watchlist } = useCollection(session?.user?.id);
   const { history } = useWatchHistory();
@@ -55,10 +53,10 @@ export default function ProfileView() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-black pb-32 pt-6 px-4 md:px-8 max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-black pb-32 pt-[env(safe-area-inset-top)] px-4 md:px-8 max-w-3xl mx-auto space-y-6">
       
       {/* Header Profile Section */}
-      <section className="flex flex-col items-center justify-center pt-4 pb-6 border-b border-white/10 relative">
+      <section className="flex flex-col items-center justify-center pt-8 pb-6 border-b border-white/10 relative">
         <div className="relative mb-4 group">
           <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-white/20 shadow-2xl relative z-10 bg-[#1c1c1e]">
             <img 
@@ -104,7 +102,12 @@ export default function ProfileView() {
             <h2 className="text-2xl font-black text-white mb-2">Guest Mode</h2>
             <p className="text-sm text-white/50 mb-4 max-w-xs mx-auto">Masuk untuk melacak riwayat tontonan, mengelola koleksi, dan berinteraksi dengan komunitas.</p>
             <button 
-              onClick={() => setIsAuthModalOpen(true)}
+              onClick={() => {
+                authClient.signIn.social({
+                  provider: "google",
+                  callbackURL: "/profile",
+                });
+              }}
               className="flex items-center justify-center gap-2 bg-white hover:bg-white/90 text-black px-6 py-2.5 rounded-full font-bold text-sm transition-transform active:scale-95 mx-auto"
             >
               <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
@@ -251,8 +254,6 @@ export default function ProfileView() {
         <p className="text-white/20 text-[10px] font-black tracking-widest uppercase">Orca v3.0.0 (Social Ready)</p>
         <p className="text-white/10 text-[9px] font-bold">Didesain untuk efisiensi maksimal </p>
       </div>
-      
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 }

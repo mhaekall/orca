@@ -57,8 +57,8 @@ export default function NotificationsPage() {
   const notifications = data?.data || [];
 
   return (
-    <div className="w-full min-h-screen bg-black text-white p-5 md:px-8 pt-8 pb-32 max-w-4xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div className="w-full min-h-screen bg-black text-white p-5 md:px-8 pt-[env(safe-area-inset-top)] pb-32 max-w-4xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 mt-8">
         <h1 className="text-2xl md:text-3xl font-black tracking-tight">Notifikasi</h1>
         
         <div className="flex gap-2 items-center">

@@ -5,7 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Orca',
   webDir: 'out',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    allowNavigation: [
+      'accounts.google.com',
+      'jonyyyyyyyu-anime-scraper-api.hf.space',
+      'orcanime.pages.dev'
+    ]
   },
   plugins: {
     // Status bar transparan — konten bisa extend ke bawah status bar

@@ -55,8 +55,8 @@ export function ScheduleView({ initialSchedule }: Props) {
   return (
     <div className="min-h-screen bg-black pb-32 text-white">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-6 pb-4 border-b border-white/5">
-        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4 mt-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">

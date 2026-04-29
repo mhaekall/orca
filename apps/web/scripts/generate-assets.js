@@ -1,38 +1,45 @@
-const fs = require('fs');
 const sharp = require('sharp');
+const fs = require('fs');
 const path = require('path');
 
-const cleanOrcaFile = path.join(__dirname, '../public/clean-orca.txt');
-const lines = fs.readFileSync(cleanOrcaFile, 'utf8').split('\n').filter(Boolean);
-const pathMain = lines[0] || "";
-const pathAccent = lines[1] || "";
+const svgPath = path.resolve(__dirname, '../public/orca-logo-new.svg');
+const assetsDir = path.resolve(__dirname, '../assets');
+const publicIconsDir = path.resolve(__dirname, '../public/icons');
 
-// The viewBox of the SVG is 940.5 x 940.5
-// We will pad it slightly to make sure it fits perfectly
-const svgBuffer = Buffer.from(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 1040 1040">
-  <rect width="100%" height="100%" fill="#000000"/>
-  <path d="${pathMain}" fill="#ffffff" />
-  <path d="${pathAccent}" fill="#ffffff" opacity="0.8" />
-</svg>
-`);
+if (!fs.existsSync(assetsDir)) {
+  fs.mkdirSync(assetsDir);
+}
+
+if (!fs.existsSync(publicIconsDir)) {
+  fs.mkdirSync(publicIconsDir);
+}
 
 async function generate() {
-  const assetsDir = path.join(__dirname, '../assets');
-
-  if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
+  console.log('[generate-assets] Reading SVG...');
+  const svgBuffer = fs.readFileSync(svgPath);
 
   console.log('[generate-assets] Generating icon.png (1024x1024)...');
   await sharp(svgBuffer)
-    .resize(1024, 1024)
+    .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
     .png()
     .toFile(path.join(assetsDir, 'icon.png'));
 
   console.log('[generate-assets] Generating splash.png (2732x2732)...');
   await sharp(svgBuffer)
-    .resize(2732, 2732)
+    .resize(2732, 2732, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
     .png()
     .toFile(path.join(assetsDir, 'splash.png'));
+
+  console.log('[generate-assets] Generating public/icons for metadata...');
+  await sharp(svgBuffer)
+    .resize(32, 32, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+    .png()
+    .toFile(path.join(publicIconsDir, 'icon-32.png'));
+
+  await sharp(svgBuffer)
+    .resize(192, 192, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+    .png()
+    .toFile(path.join(publicIconsDir, 'icon-192.png'));
 
   console.log('[generate-assets] Done!');
 }

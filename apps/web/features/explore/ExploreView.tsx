@@ -87,6 +87,7 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
             color: m.color,
             status: m.status,
             seasonYear: m.year,
+            totalEps: m.latestEpisode || m.totalEpisodes || m.episodes,
           })));
           
           if (dq && res.data.length > 0) {
@@ -108,8 +109,8 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
 
   return (
     <div className="w-full pb-32">
-      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-4 pb-4 border-b border-white/5">
-        <div className="relative max-w-2xl mx-auto">
+      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
+        <div className="relative max-w-2xl mx-auto mt-4">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40"><IconSearch className="w-5 h-5" /></div>
           <input 
             ref={inputRef}
@@ -148,7 +149,7 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
                 <span className="text-white/40 text-[11px] font-medium">{results.length} item</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 lg:gap-4">
-                {results.map((a) => <AnimeCard key={a.id} id={String(a.id)} title={a.title} img={a.img} score={a.score} color={a.color} />)}
+                {results.map((a) => <AnimeCard key={a.id} id={String(a.id)} title={a.title} img={a.img} score={a.score} color={a.color} totalEps={a.totalEps} />)}
               </div>
             </div>
           ) : (

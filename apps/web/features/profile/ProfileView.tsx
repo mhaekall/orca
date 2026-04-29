@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useCollection } from "@/core/hooks/use-collection";
 import { useWatchHistory } from "@/core/hooks/use-watch-history";
 import { useMounted } from "@/core/hooks/use-mounted";
+import { isCapacitor } from "@/core/lib/capacitor";
 import { 
   LogOut, ChevronRight, Crown, Shield, FileText, 
   Copy, Mail, Hash, RefreshCw, Bell, Users, Settings, 

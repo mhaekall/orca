@@ -48,6 +48,7 @@ function formatCountdown(seconds: number) {
 }
 
 import useSWR from "swr";
+import { API } from "@/core/lib/api";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -61,7 +62,7 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
   const [isExpanded, setIsExpanded] = useState(false);
 
   const { data: stats } = useSWR(
-    `https://jonyyyyyyyu-anime-scraper-api.hf.space/api/v2/social/anime/${id}/stats`,
+    `${API}/api/v2/social/anime/${id}/stats`,
     fetcher
   );
 

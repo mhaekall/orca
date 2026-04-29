@@ -107,11 +107,6 @@ export default function ProfileView() {
                 try {
                   if (isCapacitor()) {
                     const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-                    
-                    // Inisialisasi wajib untuk mencegah Force Close di Android
-                    GoogleAuth.initialize({
-                      scopes: ['profile', 'email'],
-                    });
 
                     const user = await GoogleAuth.signIn();
                     if (user?.authentication?.idToken) {

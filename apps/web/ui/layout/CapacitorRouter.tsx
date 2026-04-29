@@ -29,6 +29,13 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     if (isCapacitor()) {
+      // Initialize Google Auth globally on app startup to prevent race conditions
+      import('@codetrix-studio/capacitor-google-auth').then(({ GoogleAuth }) => {
+        GoogleAuth.initialize({
+          scopes: ['profile', 'email'],
+        });
+      }).catch(console.error);
+
       setCurrentUrl(window.location.pathname + window.location.search);
 
       const handlePopState = () => {

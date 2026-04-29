@@ -22,10 +22,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (isCapacitor()) {
         const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
         
-        // Inisialisasi wajib untuk mencegah Force Close di Android
-        GoogleAuth.initialize({
-          scopes: ['profile', 'email'],
-        });
         const user = await GoogleAuth.signIn();
         if (user?.authentication?.idToken) {
           const res = await authClient.signIn.social({

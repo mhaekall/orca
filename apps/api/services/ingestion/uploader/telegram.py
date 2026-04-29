@@ -70,10 +70,12 @@ class TelegramUploader:
             try:
                 from services.cache import client as redis_client
                 from services.config import UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
-                import urllib.parse
-                # Safely truncate message to avoid URL too long
-                safe_msg = urllib.parse.quote(str(msg)[:200].replace('\n', ' '))
-                await redis_client.get(f"{UPSTASH_REDIS_REST_URL}/lpush/debug_tg_log/{safe_msg}", headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
+                headers = {"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}", "Content-Type": "application/json"}
+                # Use POST to safely push long messages
+                safe_msg = str(msg)[:500].replace('\n', ' ')
+                await redis_client.post(f"{UPSTASH_REDIS_REST_URL}/lpush/debug_tg_log", headers=headers, json=[safe_msg])
+                # Also trim it
+                await redis_client.get(f"{UPSTASH_REDIS_REST_URL}/ltrim/debug_tg_log/0/49", headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
             except:
                 pass
                 

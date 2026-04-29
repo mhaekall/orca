@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '0 */12 * * *'  # Setiap 12 jam
   workflow_dispatch:
+    inputs:
+      anilist_id:
+        description: 'Anilist ID of the anime to ingest'
+        required: false
+        type: string
+      ep_num:
+        description: 'Episode number to ingest'
+        required: false
+        type: string
 
 jobs:
   ingest-pending:
@@ -26,6 +35,11 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN_2: ${{ secrets.TELEGRAM_BOT_TOKEN_2 }}
+          TELEGRAM_BOT_TOKEN_3: ${{ secrets.TELEGRAM_BOT_TOKEN_3 }}
+          TELEGRAM_BOT_TOKEN_4: ${{ secrets.TELEGRAM_BOT_TOKEN_4 }}
+          TELEGRAM_BOT_TOKEN_5: ${{ secrets.TELEGRAM_BOT_TOKEN_5 }}
+          TELEGRAM_BOT_TOKEN_6: ${{ secrets.TELEGRAM_BOT_TOKEN_6 }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TG_PROXY_BASE_URL: ${{ secrets.TG_PROXY_BASE_URL }}
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
@@ -33,4 +47,11 @@ jobs:
         run: |
           echo "Worker ingestion dijalankan via GitHub Actions!"
           export PYTHONPATH=$PYTHONPATH:$(pwd):$(pwd)/apps/api
-          python apps/api/scripts/ingest_pending.py --limit 10
+          
+          if [ -n "${{ github.event.inputs.anilist_id }}" ] && [ -n "${{ github.event.inputs.ep_num }}" ]; then
+            echo "Targeted ingestion for Anime ID: ${{ github.event.inputs.anilist_id }}, Episode: ${{ github.event.inputs.ep_num }}"
+            python apps/api/scripts/ingest_pending.py --anilist_id "${{ github.event.inputs.anilist_id }}" --ep_num "${{ github.event.inputs.ep_num }}"
+          else
+            echo "Running default bulk ingestion"
+            python apps/api/scripts/ingest_pending.py --limit 10
+          fi

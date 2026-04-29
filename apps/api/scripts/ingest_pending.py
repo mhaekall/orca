@@ -18,32 +18,43 @@ from services.stream_cache import get_cached_stream
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
+async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1, anilist_id: str = None, ep_num: str = None):
     await database.connect()
     
-    logger.info(f"Looking for up to {limit} pending episodes to ingest...")
-    
-    # We find episodes that do not have tg-proxy or workers.dev in their URL
-    # We prioritize popular anime
-    query = """
-        SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle"
-        FROM episodes e
-        JOIN anime_metadata m ON e."anilistId" = m."anilistId"
-        WHERE e."episodeUrl" NOT LIKE '%tg-proxy%' 
-          AND e."episodeUrl" NOT LIKE '%workers.dev%'
-          AND e."episodeUrl" IS NOT NULL
-          AND e."episodeUrl" != ''
-          AND NOT EXISTS (
-              SELECT 1 FROM episodes e2 
-              WHERE e2."anilistId" = e."anilistId" 
-                AND e2."episodeNumber" = e."episodeNumber" 
-                AND (e2."episodeUrl" LIKE '%tg-proxy%' OR e2."episodeUrl" LIKE '%workers.dev%')
-          )
-        ORDER BY m.popularity DESC NULLS LAST, e."anilistId", e."episodeNumber" DESC
-        LIMIT :limit
-    """
-    
-    rows = await database.fetch_all(query, {"limit": limit})
+    if anilist_id and ep_num:
+        logger.info(f"Targeted ingestion for Anime ID: {anilist_id}, Episode: {ep_num}")
+        query = """
+            SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle"
+            FROM episodes e
+            JOIN anime_metadata m ON e."anilistId" = m."anilistId"
+            WHERE e."anilistId" = :aid AND e."episodeNumber" = :ep
+        """
+        rows = await database.fetch_all(query, {"aid": int(anilist_id), "ep": float(ep_num)})
+    else:
+        logger.info(f"Looking for up to {limit} pending episodes to ingest...")
+        
+        # We find episodes that do not have tg-proxy or workers.dev in their URL
+        # We prioritize popular anime
+        query = """
+            SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle"
+            FROM episodes e
+            JOIN anime_metadata m ON e."anilistId" = m."anilistId"
+            WHERE e."episodeUrl" NOT LIKE '%tg-proxy%' 
+              AND e."episodeUrl" NOT LIKE '%workers.dev%'
+              AND e."episodeUrl" IS NOT NULL
+              AND e."episodeUrl" != ''
+              AND NOT EXISTS (
+                  SELECT 1 FROM episodes e2 
+                  WHERE e2."anilistId" = e."anilistId" 
+                    AND e2."episodeNumber" = e."episodeNumber" 
+                    AND (e2."episodeUrl" LIKE '%tg-proxy%' OR e2."episodeUrl" LIKE '%workers.dev%')
+              )
+            ORDER BY m.popularity DESC NULLS LAST, e."anilistId", e."episodeNumber" DESC
+            LIMIT :limit
+        """
+        
+        rows = await database.fetch_all(query, {"limit": limit})
+        
     if not rows:
         logger.info("No pending episodes found.")
         await database.disconnect()
@@ -54,6 +65,7 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
     engine = IngestionEngine()
 
     async with httpx.AsyncClient(timeout=30.0) as client:
+
         for idx, row in enumerate(rows):
             ep_id = row['id']
             anilist_id = row['anilistId']
@@ -132,6 +144,8 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=10, help="Max episodes to process")
+    parser.add_argument("--anilist_id", type=str, help="Specific Anilist ID to ingest")
+    parser.add_argument("--ep_num", type=str, help="Specific episode number to ingest")
     args = parser.parse_args()
     
-    asyncio.run(ingest_pending(args.limit))
+    asyncio.run(ingest_pending(args.limit, anilist_id=args.anilist_id, ep_num=args.ep_num))

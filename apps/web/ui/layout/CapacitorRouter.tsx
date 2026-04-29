@@ -14,7 +14,7 @@ const CollectionView = dynamicNext(() => import("@/features/collection/Collectio
 const ProfileView = dynamicNext(() => import("@/features/profile/ProfileView"));
 const NotificationsPage = dynamicNext(() => import("@/app/notifications/page"));
 
-const DetailClient = dynamicNext(() => import("@/features/detail/DetailClient"), {
+const DetailClientWrapper = dynamicNext(() => import("./DetailClientWrapper"), {
   loading: () => <div className="min-h-screen bg-black"></div>
 });
 
@@ -110,8 +110,7 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
   const animeMatch = path.match(/^\/anime\/(\d+)$/);
   if (animeMatch) {
     const id = animeMatch[1];
-    // DetailClient SWR logic akan mengambil alih fetching data
-    return <DetailClient id={id} detail={null as any} />;
+    return <DetailClientWrapper id={id} />;
   }
 
   // 8. Watch (/watch/:id/:episode)

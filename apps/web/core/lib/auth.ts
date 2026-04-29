@@ -18,11 +18,9 @@ export const auth = betterAuth({
     }),
     socialProviders: {
         google: {
-            clientId: process.env.GOOGLE_CLIENT_ID 
-                ? [process.env.GOOGLE_CLIENT_ID, "475749423464-pbmr1a7p4994qj4rt7l1s45etaqda87q.apps.googleusercontent.com"] as any
-                : "",
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-        }
+          clientId: process.env.GOOGLE_CLIENT_ID || "",
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        },
     },
     secret: process.env.BETTER_AUTH_SECRET,
 });

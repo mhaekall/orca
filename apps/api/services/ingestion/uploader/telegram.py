@@ -142,6 +142,7 @@ class TelegramUploader:
                         continue
                     else:
                         await _debug(f"Failed to upload {os.path.basename(file_path)}. HTTP {response.status_code}")
+                        await _debug(f"Response: {response.text}")
             except Exception as e:
                 await _debug(f"Exception during Telegram upload (attempt {attempt+1}): {repr(e)}")
             

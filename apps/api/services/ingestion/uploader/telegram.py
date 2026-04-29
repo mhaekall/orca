@@ -88,6 +88,10 @@ class TelegramUploader:
         proxy_url = bot["proxy"]
 
         file_size = os.path.getsize(file_path)
+        if file_size == 0:
+            await _debug(f"Skipping empty file: {os.path.basename(file_path)}")
+            return None
+            
         endpoint = "sendVideo" if file_size > 10_000_000 else "sendDocument"
         tg_proxy = os.getenv("TG_PROXY_BASE_URL", "https://api.telegram.org")
         url = f"https://api.telegram.org/bot{bot_token}/{endpoint}"
@@ -145,6 +149,7 @@ class TelegramUploader:
                     else:
                         await _debug(f"Failed to upload {os.path.basename(file_path)}. HTTP {response.status_code}")
                         await _debug(f"Response: {response.text}")
+                        logger.error(f"Telegram API Error {response.status_code}: {response.text}")
             except Exception as e:
                 await _debug(f"Exception during Telegram upload (attempt {attempt+1}): {repr(e)}")
             

@@ -21,8 +21,8 @@ importers:
         specifier: ^8.0.2
         version: 8.0.2(@capacitor/core@8.3.1)
       '@codetrix-studio/capacitor-google-auth':
-        specifier: 3.4.0-rc.4
-        version: 3.4.0-rc.4(@capacitor/core@8.3.1)
+        specifier: 3.3.6
+        version: 3.3.6(@capacitor/core@8.3.1)
       '@neondatabase/serverless':
         specifier: ^1.0.2
         version: 1.0.2
@@ -300,10 +300,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@codetrix-studio/capacitor-google-auth@3.4.0-rc.4':
-    resolution: {integrity: sha512-d548/xKrbMHHbzMYSWnlgZCLZYo2zzY7Onrh3x8ujojrb7atkNK68I6su5WgmaBt4E+R4gxBsWams4554aOFjA==}
+  '@codetrix-studio/capacitor-google-auth@3.3.6':
+    resolution: {integrity: sha512-SiMjYq5O2rWzEdKrmu3VZQ2nmFdq6LUXPzsNbjs4Ri6WTJVCtzp1HI12t4Dcwi5YoSw8g94Iyi3Can8msj57QA==}
     peerDependencies:
-      '@capacitor/core': ^6.0.0
+      '@capacitor/core': ^5.0.0
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -3489,7 +3489,7 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20260420.1':
     optional: true
 
-  '@codetrix-studio/capacitor-google-auth@3.4.0-rc.4(@capacitor/core@8.3.1)':
+  '@codetrix-studio/capacitor-google-auth@3.3.6(@capacitor/core@8.3.1)':
     dependencies:
       '@capacitor/core': 8.3.1
 

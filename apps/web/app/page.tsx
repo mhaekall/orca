@@ -1,7 +1,7 @@
 import HomeView from "@/features/home/HomeView";
 import { api } from "@/core/lib/api";
 
-export const revalidate = 3600;
+export const runtime = "edge";
 
 export default async function Page() {
   let hero = [];

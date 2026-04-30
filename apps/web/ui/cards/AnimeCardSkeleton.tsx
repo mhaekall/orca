@@ -6,7 +6,7 @@ export function AnimeCardSkeleton({ variant = "vertical" }: { variant?: "vertica
 
   return (
     <div className="flex flex-col h-full w-full animate-pulse">
-      <div className={`w-full ${aspectClass} rounded-2xl mb-2 border border-white/5 bg-[#1c1c1e] flex items-center justify-center overflow-hidden relative`}>
+      <div className={`w-full ${aspectClass} rounded-2xl mb-2 border border-white/5 bg-[#151E32] flex items-center justify-center overflow-hidden relative`}>
          <div className="absolute inset-0 bg-white/5" />
          <OrcaLogo className="w-10 h-10 text-white/10 relative z-10" animated={false} />
       </div>

@@ -59,7 +59,7 @@ export default function ProfileView() {
       {/* Header Profile Section */}
       <section className="flex flex-col items-center justify-center pt-8 pb-6 border-b border-white/10 relative">
         <div className="relative mb-4 group">
-          <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-white/20 shadow-2xl relative z-10 bg-[#1c1c1e]">
+          <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-white/20 shadow-2xl relative z-10 bg-[#151E32]">
             <img 
               src={session?.user?.image || "https://api.dicebear.com/7.x/notionists/svg?seed=OrcaUser"} 
               alt="avatar" 
@@ -142,11 +142,11 @@ export default function ProfileView() {
       {/* Social / Action Buttons */}
       {session?.user && (
         <section className="grid grid-cols-2 gap-3 anim-fade">
-          <Link href="/notifications" className="flex flex-col items-center justify-center p-4 bg-[#1c1c1e] hover:bg-[#2c2c2e] rounded-2xl border border-white/5 transition-colors group">
+          <Link href="/notifications" className="flex flex-col items-center justify-center p-4 bg-[#151E32] hover:bg-[#1E2942] rounded-2xl border border-white/5 transition-colors group">
             <Bell className="w-6 h-6 text-white mb-2 group-hover:text-[#0A84FF] transition-colors" />
             <span className="text-xs font-bold text-white/80">Notifikasi</span>
           </Link>
-          <div className="flex flex-col items-center justify-center p-4 bg-[#1c1c1e] hover:bg-[#2c2c2e] rounded-2xl border border-white/5 transition-colors cursor-pointer group" onClick={() => alert("Fitur Teman segera hadir!")}>
+          <div className="flex flex-col items-center justify-center p-4 bg-[#151E32] hover:bg-[#1E2942] rounded-2xl border border-white/5 transition-colors cursor-pointer group" onClick={() => alert("Fitur Teman segera hadir!")}>
             <Users className="w-6 h-6 text-white mb-2 group-hover:text-[#32D74B] transition-colors" />
             <span className="text-xs font-bold text-white/80">Teman</span>
           </div>
@@ -154,7 +154,7 @@ export default function ProfileView() {
       )}
 
       {/* Watch Stats */}
-      <section className="bg-[#1c1c1e] rounded-[24px] p-5 border border-white/5 anim-fade">
+      <section className="bg-[#151E32] rounded-[24px] p-5 border border-white/5 anim-fade">
         <h3 className="text-[13px] font-black text-white/50 uppercase tracking-widest mb-4 flex items-center gap-2">
           <Activity className="w-4 h-4" />
           Aktivitas Menonton
@@ -182,7 +182,7 @@ export default function ProfileView() {
           Sistem & Pengaturan
         </h3>
         
-        <div className="bg-[#1c1c1e] rounded-[24px] border border-white/5 overflow-hidden flex flex-col">
+        <div className="bg-[#151E32] rounded-[24px] border border-white/5 overflow-hidden flex flex-col">
           <Link href="/premium" className="flex items-center justify-between p-4 md:p-5 hover:bg-white/5 transition-colors border-b border-white/5">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#FF9F0A]/10">

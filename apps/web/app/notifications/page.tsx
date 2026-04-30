@@ -88,7 +88,7 @@ export default function NotificationsPage() {
               href={notif.link || "#"}
               className={`block relative overflow-hidden p-5 rounded-[24px] border transition-all duration-300 group cursor-pointer ${
                 notif.isUnread 
-                  ? "bg-[#1c1c1e] border-white/10 hover:bg-[#2c2c2e]" 
+                  ? "bg-[#151E32] border-white/10 hover:bg-[#1E2942]" 
                   : "bg-transparent border-transparent hover:bg-white/5"
               }`}
             >

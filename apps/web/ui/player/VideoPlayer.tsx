@@ -504,7 +504,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
       )}
 
       {showSettings && (
-        <div className="absolute bottom-16 right-4 z-50 bg-[#1c1c1e]/95 border border-white/10 rounded-2xl shadow-2xl min-w-[220px] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute bottom-16 right-4 z-50 bg-[#151E32]/95 border border-white/10 rounded-2xl shadow-2xl min-w-[220px] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
           {menuView === "main" && (
             <div className="p-1.5 flex flex-col">
               <div className="px-3 py-2 border-b border-white/5 mb-1 flex items-center justify-between">

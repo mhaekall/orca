@@ -84,7 +84,7 @@ export function SnakeGame({ onClose }: { onClose: () => void }) {
       </div>
       
       <div
-        className="relative border border-[#2c2c2e] rounded-lg overflow-hidden"
+        className="relative border border-[#1E2942] rounded-lg overflow-hidden"
         style={{ width: COLS * CELL, height: ROWS * CELL, background: "#0a0c10" }}
       >
         {/* Grid dots */}

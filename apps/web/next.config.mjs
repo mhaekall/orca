@@ -22,9 +22,6 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,
   },
-  experimental: {
-    optimizePackageImports: ['swr', 'clsx'],
-  },
 };
 
 export default withSerwist(nextConfig);

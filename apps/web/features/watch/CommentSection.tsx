@@ -173,14 +173,14 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
       `}</style>
 
       {/* Preview area */}
-      <div className="md:hidden bg-[#1c1c1e] rounded-2xl p-4 mb-2 cursor-pointer border border-white/5" onClick={() => setIsMainModalOpen(true)}>
+      <div className="md:hidden bg-[#151E32] rounded-2xl p-4 mb-2 cursor-pointer border border-white/5" onClick={() => setIsMainModalOpen(true)}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-white font-black text-sm">Komentar <span className="text-[#8e8e93] ml-1">{comments.length}</span></span>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8e8e93" strokeWidth="2.5"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"></path></svg>
         </div>
         {comments.length > 0 ? (
           <div className="flex gap-3 items-center">
-            <div className="w-6 h-6 rounded-full bg-[#3a3a3c] flex items-center justify-center text-[10px] font-black shrink-0 text-white border border-white/10">
+            <div className="w-6 h-6 rounded-full bg-[#2A3958] flex items-center justify-center text-[10px] font-black shrink-0 text-white border border-white/10">
               {comments[0].avatar ? <img src={comments[0].avatar} className="w-full h-full object-cover rounded-full" /> : (comments[0].username || "U").charAt(0).toUpperCase()}
             </div>
             <p className="text-[#e5e5ea] text-xs line-clamp-1">{comments[0].text}</p>
@@ -255,7 +255,7 @@ const CommentItem = ({ comment: c, onReply, onLike, onSeek, hideActions, userId 
   const isMe = c.user_id === userId;
   return (
     <div className="py-4 flex gap-3 group">
-      <div className="w-9 h-9 rounded-full bg-[#2c2c2e] flex items-center justify-center text-xs font-black text-white shrink-0 shadow-md border border-white/10 overflow-hidden">
+      <div className="w-9 h-9 rounded-full bg-[#1E2942] flex items-center justify-center text-xs font-black text-white shrink-0 shadow-md border border-white/10 overflow-hidden">
         {c.avatar ? <img src={c.avatar} className="w-full h-full object-cover" /> : (c.username || "U").charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
@@ -334,7 +334,7 @@ const CommentComposer = ({ userId, onSubmit, compact, autoFocus, placeholder, sh
             onBlur={() => { if(!text.trim()) setFocused(false); }} 
             placeholder={placeholder || "Komentar..."} 
             rows={1} 
-            className={`w-full bg-white/10 hover:bg-white/20 text-white text-sm pl-4 ${focused ? (text.trim() ? 'pr-20' : 'pr-10') : 'pr-4'} border border-transparent focus:outline-none focus:bg-[#2c2c2e]/90 focus:border-[#0a84ff]/50 transition-all resize-none no-scrollbar flex items-center rounded-full py-2.5 leading-[20px] h-10`} 
+            className={`w-full bg-white/10 hover:bg-white/20 text-white text-sm pl-4 ${focused ? (text.trim() ? 'pr-20' : 'pr-10') : 'pr-4'} border border-transparent focus:outline-none focus:bg-[#1E2942]/90 focus:border-[#0a84ff]/50 transition-all resize-none no-scrollbar flex items-center rounded-full py-2.5 leading-[20px] h-10`} 
           />
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
             {focused && currentTime != null && (

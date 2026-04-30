@@ -34,7 +34,7 @@ export default function CollectionView() {
       <div className="px-5 md:px-8 pt-6 max-w-7xl mx-auto">
         {sortedItems.length === 0 ? (
           <div className="flex flex-col items-center pt-24 text-center anim-fade">
-            <div className="w-20 h-20 bg-[#1c1c1e] rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-xl">
+            <div className="w-20 h-20 bg-[#151E32] rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-xl">
               <IconBookmark className="w-10 h-10 text-white/20" />
             </div>
             <h3 className="text-white font-bold text-xl">Belum ada koleksi</h3>

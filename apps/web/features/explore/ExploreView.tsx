@@ -24,7 +24,7 @@ const GENRES = [
   { name: "Psychological", bg: "bg-[#FF375F]/10", border: "border-[#FF375F]/20", text: "text-[#FF375F]" },
   { name: "Adventure", bg: "bg-[#30D158]/10", border: "border-[#30D158]/20", text: "text-[#30D158]" },
   { name: "Supernatural", bg: "bg-[#BF5AF2]/10", border: "border-[#BF5AF2]/20", text: "text-[#BF5AF2]" },
-  { name: "Thriller", bg: "bg-[#1C1C1E]", border: "border-white/20", text: "text-white" },
+  { name: "Thriller", bg: "bg-[#151E32]", border: "border-white/20", text: "text-white" },
   { name: "Music", bg: "bg-[#FFD60A]/10", border: "border-[#FFD60A]/20", text: "text-[#FFD60A]" },
 ];
 
@@ -123,7 +123,7 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
             spellCheck="false"
             value={query} 
             onChange={(e) => setQuery(e.target.value)} 
-            className="w-full bg-[#1c1c1e] text-white rounded-[16px] py-3.5 pl-12 pr-10 outline-none text-[16px] placeholder-white/30 border border-white/10 focus:border-white/20 transition-all shadow-lg" 
+            className="w-full bg-[#151E32] text-white rounded-[16px] py-3.5 pl-12 pr-10 outline-none text-[16px] placeholder-white/30 border border-white/10 focus:border-white/20 transition-all shadow-lg" 
             placeholder="Ketik judul anime..." 
           />
           {(query || genre) && (
@@ -155,7 +155,7 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
             </div>
           ) : (
             <div className="flex flex-col items-center pt-20 text-center anim-fade">
-              <div className="w-16 h-16 bg-[#1c1c1e] rounded-full flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-[#151E32] rounded-full flex items-center justify-center mb-6">
                 <IconSearch className="w-8 h-8 text-white/20" />
               </div>
               <h3 className="text-white font-bold text-xl">Tidak Ditemukan</h3>
@@ -172,7 +172,7 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
                 </div>
                 <div className="flex flex-wrap gap-2.5">
                   {searchHist.map((t, i) => (
-                    <button key={i} onClick={() => setQuery(t)} className="flex items-center gap-2 px-4 py-2 bg-[#1c1c1e] hover:bg-[#2c2c2e] rounded-full border border-white/5 text-white/80 text-[13px] transition-colors">
+                    <button key={i} onClick={() => setQuery(t)} className="flex items-center gap-2 px-4 py-2 bg-[#151E32] hover:bg-[#1E2942] rounded-full border border-white/5 text-white/80 text-[13px] transition-colors">
                       <IconClock className="w-3.5 h-3.5 text-white/30" /> {t}
                     </button>
                   ))}
@@ -210,7 +210,7 @@ function ExploreSkeleton() {
     <div className="w-full pb-32 min-h-screen bg-black">
       <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
         <div className="relative max-w-2xl mx-auto mt-4">
-           <div className="w-full bg-[#1c1c1e] rounded-[16px] h-[52px] animate-pulse" />
+           <div className="w-full bg-[#151E32] rounded-[16px] h-[52px] animate-pulse" />
         </div>
       </div>
       <div className="px-5 md:px-8 pt-6 max-w-5xl mx-auto">

@@ -32,7 +32,7 @@ function ScheduleRowSkeleton() {
 const ScheduleRow = memo(function ScheduleRow({ item }: { item: any }) {
   return (
     <Link href={`/anime/${item.id}`} className="flex items-center gap-3 md:gap-4 py-3 md:py-4 border-b border-white/5 group active:opacity-50 transition-opacity">
-      <div className="relative w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-[14px] overflow-hidden bg-[#1c1c1e] border border-white/10">
+      <div className="relative w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-[14px] overflow-hidden bg-[#151E32] border border-white/10">
         <LiquidImage 
           src={item.img || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg"} 
           alt={item.title} 
@@ -145,7 +145,7 @@ export function ScheduleView({ initialSchedule }: Props) {
               </div>
             </div>
             <div className="w-full overflow-x-hidden pb-2 -mx-5 px-5 md:mx-0 md:px-0">
-              <div className="flex bg-[#1c1c1e] p-0.5 rounded-full border border-white/5 min-w-max">
+              <div className="flex bg-[#151E32] p-0.5 rounded-full border border-white/5 min-w-max">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div key={i} className="flex-1 min-w-[48px] md:min-w-[64px] h-[24px] md:h-[28px] rounded-full animate-pulse" />
                 ))}
@@ -188,7 +188,7 @@ export function ScheduleView({ initialSchedule }: Props) {
           
           {/* Days Filter (Segmented Control) */}
           <div className="w-full overflow-x-auto no-scrollbar pb-2 -mx-5 px-5 md:mx-0 md:px-0">
-            <div className="relative flex bg-[#1c1c1e] p-1 rounded-full border border-white/5 min-w-max">
+            <div className="relative flex bg-[#151E32] p-1 rounded-full border border-white/5 min-w-max">
               {/* Active Highlight (Sliding background) */}
               <div 
                 className="absolute top-1 bottom-1 left-1 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.4)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"

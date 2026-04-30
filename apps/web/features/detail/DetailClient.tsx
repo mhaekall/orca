@@ -180,10 +180,10 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
                   <IconPlay className="w-5 h-5" /> Mulai Tonton
                 </Link>
               ) : (
-                <button disabled className="flex-1 py-3.5 rounded-full text-[#8e8e93] bg-[#1c1c1e] font-bold text-[14px] cursor-not-allowed flex items-center justify-center">Belum Tersedia</button>
+                <button disabled className="flex-1 py-3.5 rounded-full text-[#8e8e93] bg-[#151E32] font-bold text-[14px] cursor-not-allowed flex items-center justify-center">Belum Tersedia</button>
               )}
               <button onClick={() => { const added = toggle({ id, title: d.title, img: d.poster, totalEps: d.latestEpisode || d.totalEpisodes || eps.length }); toast(added ? "Ditambahkan ke Koleksi" : "Dihapus dari Koleksi", added ? "success" : "error"); }}
-                className={`flex-1 py-3.5 px-2 rounded-full flex items-center justify-center gap-1.5 font-bold text-[14px] border active:scale-95 transition-all ${saved ? "bg-white/15 border-white/30 text-white" : "bg-[#1c1c1e] border-white/5 text-[#e5e5ea] hover:bg-white/5"}`}>
+                className={`flex-1 py-3.5 px-2 rounded-full flex items-center justify-center gap-1.5 font-bold text-[14px] border active:scale-95 transition-all ${saved ? "bg-white/15 border-white/30 text-white" : "bg-[#151E32] border-white/5 text-[#e5e5ea] hover:bg-white/5"}`}>
                 <IconBookmark filled={saved} className="w-4 h-4 shrink-0" /> <span className="truncate">Tambah ke Koleksi</span>
               </button>
             </div>

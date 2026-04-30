@@ -39,7 +39,7 @@ function HeroCarouselInner({ items }: { items: AnimeHome[] }) {
           const cover = a.img || a.banner;
           const c = a.color || accent;
           return (
-            <div key={a.id + i} className="min-w-full snap-center relative h-[380px] md:h-[460px] rounded-3xl overflow-hidden border border-white/5 bg-[#1c1c1e]">
+            <div key={a.id + i} className="min-w-full snap-center relative h-[380px] md:h-[460px] rounded-3xl overflow-hidden border border-white/5 bg-[#151E32]">
               {cover && (
                 <div className="absolute inset-0">
                   <LiquidImage 
@@ -74,7 +74,7 @@ function HeroCarouselInner({ items }: { items: AnimeHome[] }) {
       <div className="flex justify-center gap-2 mt-4">
         {heroes.map((_, i) => (
           <button key={i} onClick={() => { ref.current?.scrollTo({ left: ref.current.offsetWidth * i, behavior: "smooth" }); setIdx(i); }}
-            className={`h-1.5 rounded-full transition-all duration-400 ${idx === i ? "w-7 bg-white" : "w-2 bg-[#3a3a3c]"}`}
+            className={`h-1.5 rounded-full transition-all duration-400 ${idx === i ? "w-7 bg-white" : "w-2 bg-[#2A3958]"}`}
           />
         ))}
       </div>

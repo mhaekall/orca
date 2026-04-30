@@ -27,6 +27,8 @@ try {
 const runtimeRegex = /export const runtime = ['"]edge['"];/g;
 const dynamicRegex = /export const dynamic = ['"]force-dynamic['"];/g;
 const revalRegex = /export const revalidate = 3600;/g;
+const staticParamsStartRegex = /\/\*\s*CAPACITOR_STATIC_PARAMS/g;
+const staticParamsEndRegex = /}\s*\*\//g;
 
 console.log('[build-cap] Masking edge runtime and force-dynamic exports...');
 walk(APP_DIR, (filePath) => {
@@ -43,6 +45,12 @@ walk(APP_DIR, (filePath) => {
     }
     if (content.includes('export const revalidate = 3600;')) {
       content = content.replace(revalRegex, '/* export const revalidate = 3600; */');
+      changed = true;
+    }
+    // Uncomment generateStaticParams for Capacitor
+    if (content.includes('/* CAPACITOR_STATIC_PARAMS')) {
+      content = content.replace(/\/\*\s*CAPACITOR_STATIC_PARAMS\s*/g, '');
+      content = content.replace(/}\s*\*\//g, '}');
       changed = true;
     }
     if (changed) fs.writeFileSync(filePath, content);
@@ -81,6 +89,14 @@ walk(APP_DIR, (filePath) => {
     }
     if (content.includes('/* export const revalidate = 3600; */')) {
       content = content.replace(/\/\* export const revalidate = 3600; \*\//g, 'export const revalidate = 3600;');
+      changed = true;
+    }
+    // Re-comment generateStaticParams
+    if (content.includes('export function generateStaticParams() {')) {
+      content = content.replace(/export function generateStaticParams\(\) {/, '/* CAPACITOR_STATIC_PARAMS\nexport function generateStaticParams() {');
+      // We know generateStaticParams ends with `}`. We need to add `*/` after it.
+      // A simple replace assuming `}\n`
+      content = content.replace(/(export function generateStaticParams\(\) {[\s\S]*?})\n/m, '$1\n*/\n');
       changed = true;
     }
     if (changed) fs.writeFileSync(filePath, content);

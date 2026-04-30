@@ -23,7 +23,7 @@ function ContinueWatchingInner({ userId }: { userId?: string }) {
       <h2 className="text-[20px] font-black text-white tracking-tight mb-4">Lanjutkan Menonton</h2>
       <div className="flex gap-4 overflow-x-auto no-scrollbar">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="shrink-0 w-[240px] md:w-[280px] aspect-video bg-[#1c1c1e] rounded-[22px] animate-pulse border border-white/5" />
+          <div key={i} className="shrink-0 w-[240px] md:w-[280px] aspect-video bg-[#151E32] rounded-[22px] animate-pulse border border-white/5" />
         ))}
       </div>
     </div>
@@ -50,7 +50,7 @@ function ContinueWatchingInner({ userId }: { userId?: string }) {
               className="min-w-[240px] md:min-w-[300px] snap-start group block"
             >
               {/* Card — HIG: Glassmorphism / Large Rounded Corners */}
-              <div className="w-full aspect-video rounded-[22px] bg-[#1c1c1e] relative overflow-hidden mb-3 border border-white/[0.08] group-hover:border-white/[0.18] transition-all duration-300 shadow-lg">
+              <div className="w-full aspect-video rounded-[22px] bg-[#151E32] relative overflow-hidden mb-3 border border-white/[0.08] group-hover:border-white/[0.18] transition-all duration-300 shadow-lg">
                 <img 
                   src={item.animeCover || `https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx${item.anilistId}.jpg`} 
                   className="w-full h-full object-cover opacity-60 group-hover:scale-[1.03] group-hover:opacity-80 transition-all duration-700 ease-out" 

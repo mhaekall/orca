@@ -237,7 +237,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
       <div className={isMinimized ? "fixed bottom-24 right-4 w-64 md:w-80 z-[600] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20 transition-all duration-300 anim-fade" : "w-full min-h-[100dvh] bg-black flex flex-col anim-fade items-center"}>
         
         {/* Sticky/Fixed Player (Full Width or Mini) */}
-        <div className={isMinimized ? "relative w-full aspect-video flex flex-col justify-center min-h-0 bg-black overflow-hidden group" : "fixed md:sticky top-0 z-[500] w-full bg-black shadow-xl border-b border-[#2c2c2e]/50 max-w-[1200px] mx-auto"}>
+        <div className={isMinimized ? "relative w-full aspect-video flex flex-col justify-center min-h-0 bg-black overflow-hidden group" : "fixed md:sticky top-0 z-[500] w-full bg-black shadow-xl border-b border-[#1E2942]/50 max-w-[1200px] mx-auto"}>
           
           {!isMinimized && (
             <button onClick={handleMinimize} className="absolute top-4 left-4 z-50 w-9 h-9 bg-black/40 rounded-full flex items-center justify-center text-white border border-white/10 active:scale-90 transition-transform">
@@ -394,7 +394,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                     className={`flex items-center justify-center w-full aspect-square rounded-[10px] border text-[14px] font-bold transition-all ${
                       isActive 
                         ? "bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.2)]" 
-                        : "bg-[#1c1c1e] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
+                        : "bg-[#151E32] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {ep.number}
@@ -414,7 +414,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                     className={`shrink-0 flex items-center justify-center min-w-[64px] px-4 h-12 rounded-[14px] border text-[15px] font-bold transition-all snap-start ${
                       isActive 
                         ? "bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.2)]" 
-                        : "bg-[#1c1c1e] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
+                        : "bg-[#151E32] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {isActive && <IconPlay className="w-4 h-4 text-black mr-1 -ml-1 fill-black" />}
@@ -437,7 +437,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                 
                 return (
                   <Link key={rec.id} href={`/anime/${rec.id}`} className="block group shrink-0 w-[140px] md:w-[160px] snap-start">
-                    <div className="aspect-[3/4] bg-[#1c1c1e] rounded-xl overflow-hidden relative shadow-md">
+                    <div className="aspect-[3/4] bg-[#151E32] rounded-xl overflow-hidden relative shadow-md">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       {recImage ? (
                         <img 
@@ -447,7 +447,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full bg-[#2c2c2e] flex items-center justify-center text-[10px] text-[#8e8e93] p-4 text-center">
+                        <div className="w-full h-full bg-[#1E2942] flex items-center justify-center text-[10px] text-[#8e8e93] p-4 text-center">
                           {recTitle}
                         </div>
                       )}

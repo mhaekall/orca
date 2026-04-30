@@ -32,7 +32,7 @@ function SpecialPopularRowInner({ title, items }: Props) {
   }
 
   return (
-    <section className="mb-12 w-full overflow-hidden relative py-14 bg-[#1c1c1e] text-white shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
+    <section className="mb-12 w-full overflow-hidden relative py-14 bg-[#151E32] text-white shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
       {/* Abstract Texture Line Background (Topography style) */}
       <div 
         className="absolute inset-0 z-0 opacity-[0.05] pointer-events-none" 
@@ -83,7 +83,7 @@ function Rank1Card({ item, rank }: { item: any, rank: number }) {
   const img = item.coverImage?.extraLarge || item.coverImage?.large || item.img;
 
   return (
-    <Link href={href} prefetch={true} className="block relative w-full aspect-[9/16] rounded-[24px] overflow-hidden group shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-[#1c1c1e] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(0,0,0,0.7)] hover:border-white/20">
+    <Link href={href} prefetch={true} className="block relative w-full aspect-[9/16] rounded-[24px] overflow-hidden group shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-[#151E32] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(0,0,0,0.7)] hover:border-white/20">
       {img && (
         <img 
           src={img} 
@@ -127,7 +127,7 @@ function PairedCard({ item, rank }: { item: any, rank: number }) {
   const img = item.coverImage?.extraLarge || item.coverImage?.large || item.img;
 
   return (
-    <Link href={href} prefetch={true} className="block relative w-full h-[calc(50%-6px)] md:h-[calc(50%-8px)] rounded-[20px] overflow-hidden group shadow-[0_12px_24px_rgba(0,0,0,0.3)] bg-[#2c2c2e]">
+    <Link href={href} prefetch={true} className="block relative w-full h-[calc(50%-6px)] md:h-[calc(50%-8px)] rounded-[20px] overflow-hidden group shadow-[0_12px_24px_rgba(0,0,0,0.3)] bg-[#1E2942]">
       {img && (
         <img 
           src={img} 

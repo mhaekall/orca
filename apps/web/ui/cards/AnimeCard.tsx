@@ -67,7 +67,7 @@ function AnimeCardInner({ id, title, img, banner, score, color, epId, rank, vari
 
   return (
     <div ref={ref} onMouseEnter={handleMouseEnter} onTouchStart={handleMouseEnter} className="flex flex-col h-full w-full group cursor-pointer anim-up" style={{ animationDelay: rank ? `${Math.min(rank * 40, 240)}ms` : "0ms" }}>
-      <Link href={href} prefetch={true} className={`w-full ${aspectClass} rounded-2xl relative overflow-hidden mb-2 border border-white/5 bg-[#1c1c1e] block transition-shadow duration-300 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] text-left focus:outline-none`}>
+      <Link href={href} prefetch={true} className={`w-full ${aspectClass} rounded-2xl relative overflow-hidden mb-2 border border-white/5 bg-[#151E32] block transition-shadow duration-300 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] text-left focus:outline-none`}>
         {visible && imageSrc ? (
           <div className="absolute inset-0 w-full h-full transition-transform duration-500 group-hover:scale-105">
             <LiquidImage 
@@ -80,7 +80,7 @@ function AnimeCardInner({ id, title, img, banner, score, color, epId, rank, vari
             />
           </div>
         ) : (
-          <div className="w-full h-full bg-[#2c2c2e] flex items-center justify-center">
+          <div className="w-full h-full bg-[#1E2942] flex items-center justify-center">
             {visible ? <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full anim-spin" /> : null}
           </div>
         )}

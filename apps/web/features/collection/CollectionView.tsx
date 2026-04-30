@@ -20,9 +20,9 @@ export default function CollectionView() {
   const sortedItems = [...items].sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
-    <div className="min-h-screen pb-32 bg-black">
+    <div className="min-h-screen pb-32 bg-[#13111a]">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
+      <div className="sticky top-0 z-30 bg-[#13111a]/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between mt-6">
           <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">Koleksi Anime</h1>
           <span className="bg-white/10 px-3 py-1 rounded-full text-xs font-bold text-white/80">
@@ -34,7 +34,7 @@ export default function CollectionView() {
       <div className="px-5 md:px-8 pt-6 max-w-7xl mx-auto">
         {sortedItems.length === 0 ? (
           <div className="flex flex-col items-center pt-24 text-center anim-fade">
-            <div className="w-20 h-20 bg-[#151E32] rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-xl">
+            <div className="w-20 h-20 bg-[#1f1c29] rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-xl">
               <IconBookmark className="w-10 h-10 text-white/20" />
             </div>
             <h3 className="text-white font-bold text-xl">Belum ada koleksi</h3>

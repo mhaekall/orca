@@ -1,8 +1,10 @@
 "use client";
 
+export const runtime = "edge";
+
 import { useEffect, useState, Suspense } from "react";
-import { authClient } from "@/core/lib/auth-client";
 import { useSearchParams } from "next/navigation";
+import { authClient } from "@/core/lib/auth-client";
 
 function MobileLoginContent() {
   const searchParams = useSearchParams();
@@ -10,11 +12,20 @@ function MobileLoginContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const baseUrl = window.location.origin;
+    const baseUrl = window.location.origin; // Will be https://orcanime.pages.dev inside the custom tab
+
+    // Set flag that we are opening a custom tab for auth.
+    // AuthTabCatcher will use this to intercept fallback redirects.
+    localStorage.setItem("orca_auth_tab", "true");
+
+    // Gunakan SDK resmi Better Auth agar state callback dikelola dengan benar via session/cookies
     authClient.signIn.social({
-      provider,
+      provider: provider,
       callbackURL: `${baseUrl}/api/mobile-callback`
-    }).catch(e => setError(e.message || String(e)));
+    }).catch(err => {
+      console.error("Auth SDK redirect failed:", err);
+      setError(err.message || String(err));
+    });
   }, [provider]);
 
   return (

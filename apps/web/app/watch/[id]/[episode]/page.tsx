@@ -11,7 +11,7 @@ export function generateStaticParams() {
 
 export default function WatchPage() {
   return (
-    <Suspense fallback={<div className="w-full h-screen bg-black" />}>
+    <Suspense fallback={<div className="w-full h-screen bg-[#13111a]" />}>
       <WatchClientPage />
     </Suspense>
   );

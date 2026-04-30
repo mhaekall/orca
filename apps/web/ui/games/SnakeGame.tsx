@@ -77,14 +77,14 @@ export function SnakeGame({ onClose }: { onClose: () => void }) {
   }, [dead, food]);
 
   return (
-    <div className="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center gap-4">
+    <div className="fixed inset-0 z-[500] bg-[#13111a]/95 flex flex-col items-center justify-center gap-4">
       <div className="text-center mb-2">
         <p className="text-[#30d158] font-black text-sm uppercase tracking-widest">SNAKE</p>
         <p className="text-white font-black text-3xl">{score}</p>
       </div>
       
       <div
-        className="relative border border-[#1E2942] rounded-lg overflow-hidden"
+        className="relative border border-[#2a2536] rounded-lg overflow-hidden"
         style={{ width: COLS * CELL, height: ROWS * CELL, background: "#0a0c10" }}
       >
         {/* Grid dots */}
@@ -111,7 +111,7 @@ export function SnakeGame({ onClose }: { onClose: () => void }) {
         
         {/* Dead overlay */}
         {dead && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3">
+          <div className="absolute inset-0 bg-[#13111a]/80 flex flex-col items-center justify-center gap-3">
             <p className="text-white font-black text-xl">GAME OVER</p>
             <p className="text-[#30d158] font-bold">Score: {score}</p>
             <button

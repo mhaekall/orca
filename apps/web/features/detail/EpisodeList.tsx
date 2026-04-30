@@ -17,7 +17,7 @@ function EpisodeListInner({ episodes, animeId }: { episodes: Episode[]; animeId:
   const { history } = useWatchHistory();
 
   if (!episodes?.length) return (
-    <div className="bg-[#151E32] p-6 text-center rounded-2xl text-[#8e8e93] border border-white/5 text-sm font-medium">
+    <div className="bg-[#1f1c29] p-6 text-center rounded-2xl text-[#8e8e93] border border-white/5 text-sm font-medium">
       Belum ada episode.
     </div>
   );
@@ -29,7 +29,7 @@ function EpisodeListInner({ episodes, animeId }: { episodes: Episode[]; animeId:
     <div className="flex flex-col gap-4 anim-fade">
       <div className="flex justify-between items-center mb-2">
         <span className="text-[#8e8e93] text-sm font-bold">{episodes.length} Episode Total</span>
-        <button onClick={() => setReversed(!reversed)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#151E32] border border-white/10 rounded-lg text-[11px] font-bold text-white active:scale-95 transition-colors hover:bg-white/5">
+        <button onClick={() => setReversed(!reversed)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1f1c29] border border-white/10 rounded-lg text-[11px] font-bold text-white active:scale-95 transition-colors hover:bg-white/5">
           <IconSort /> {reversed ? "Baru → Lama" : "Lama → Baru"}
         </button>
       </div>
@@ -37,7 +37,7 @@ function EpisodeListInner({ episodes, animeId }: { episodes: Episode[]; animeId:
       {/* Grid of buttons for episodes */}
       <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
         {view.map((ep, i) => {
-          const epId = (ep.url || "").replace(/\/$/, "").split("/").pop() || String(ep.number);
+          const epId = ep.number != null ? String(ep.number) : ((ep.url || "").split("episode=").pop() || "1");
           const w = mounted ? history.find((h) => h.animeSlug === animeId && h.episode.toString() === epId) : undefined;
           const pct = w && w.durationSec > 0 ? (w.timestampSec / w.durationSec) * 100 : 0;
           const isWatched = w?.completed;
@@ -48,10 +48,10 @@ function EpisodeListInner({ episodes, animeId }: { episodes: Episode[]; animeId:
               href={`/watch/${animeId}/${epId}`} 
               className={`relative overflow-hidden group flex items-center justify-center py-3 rounded-xl border transition-all duration-300 active:scale-95 ${
                 isWatched 
-                  ? "bg-[#151E32]/80 border-white/5 text-white/50" 
+                  ? "bg-[#1f1c29]/80 border-white/5 text-white/50" 
                   : pct > 0 
-                    ? "bg-[#151E32] border-[#0A84FF]/30 text-white" 
-                    : "bg-[#151E32] border-white/10 text-white hover:bg-white/10 hover:border-white/20"
+                    ? "bg-[#1f1c29] border-[#0A84FF]/30 text-white" 
+                    : "bg-[#1f1c29] border-white/10 text-white hover:bg-white/10 hover:border-white/20"
               }`}
             >
               <div className="flex flex-col items-center justify-center relative z-10">
@@ -70,7 +70,7 @@ function EpisodeListInner({ episodes, animeId }: { episodes: Episode[]; animeId:
       </div>
 
       {limit < episodes.length && (
-        <button onClick={() => setLimit((p) => p + 50)} className="w-full mt-2 py-3 bg-[#151E32] hover:bg-white/10 border border-white/10 transition-colors text-white rounded-xl font-bold text-sm active:scale-95">
+        <button onClick={() => setLimit((p) => p + 50)} className="w-full mt-2 py-3 bg-[#1f1c29] hover:bg-white/10 border border-white/10 transition-colors text-white rounded-xl font-bold text-sm active:scale-95">
           Muat Lebih ({episodes.length - limit} tersisa)
         </button>
       )}

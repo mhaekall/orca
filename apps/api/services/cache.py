@@ -4,7 +4,11 @@ import asyncio
 from services.config import UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
 from services.clients import client
 
+_local_cache = {}
+
 async def upstash_get(key: str):
+    if key in _local_cache:
+        return _local_cache[key]
     try:
         res = await client.get(f"{UPSTASH_REDIS_REST_URL}/get/{key}", headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
         data = res.json()
@@ -33,15 +37,23 @@ async def upstash_set(key: str, value: dict, ex: int = 3600, nx: bool = False):
         res = await client.post(UPSTASH_REDIS_REST_URL, headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"}, json=command)
         data = res.json()
         if "error" in data:
+            if "max requests limit exceeded" in data["error"].lower():
+                if nx and key in _local_cache:
+                    return False
+                _local_cache[key] = value
+                return True
             print(f"[Upstash] Set error response: {data['error']}")
             return False
         result = data.get('result')
         return result == 'OK'
     except Exception as e:
-        print(f"[Upstash] Set error: {e}")
-    return False
+        if nx and key in _local_cache:
+            return False
+        _local_cache[key] = value
+        return True
 
 def upstash_del(key: str):
+    _local_cache.pop(key, None)
     return client.post(f"{UPSTASH_REDIS_REST_URL}/del/{key}", headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
 
 async def swr_cache_get(key: str, fetch_fn, ttl: int = 3600, swr: int = 86400):

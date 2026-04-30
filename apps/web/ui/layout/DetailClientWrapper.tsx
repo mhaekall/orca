@@ -33,7 +33,7 @@ export default function DetailClientWrapper({ id }: { id: string }) {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
+      <div className="min-h-screen bg-[#13111a] flex flex-col items-center justify-center text-white">
         <h1 className="text-xl font-bold text-[#ff453a] mb-2">Gagal memuat anime</h1>
       </div>
     );

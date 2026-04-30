@@ -46,7 +46,7 @@ export default function AnimeClientPage() {
   
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#13111a] flex items-center justify-center text-white">
         <p className="text-red-500 font-bold">Error: {error || "Anime tidak ditemukan"}</p>
       </div>
     );

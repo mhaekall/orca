@@ -25,7 +25,7 @@ export function EpisodeNavigationBar({ prevUrl, nextUrl, currentTitle }: Navigat
   }, [nextUrl, prevUrl]);
 
   return (
-    <div className="flex items-center justify-between w-full bg-[#151E32]/50 border-y border-[#1E2942] px-4 py-3 shrink-0">
+    <div className="flex items-center justify-between w-full bg-[#1f1c29]/50 border-y border-[#2a2536] px-4 py-3 shrink-0">
       {prevUrl ? (
         <Link href={prevUrl} className="flex items-center gap-2 text-[#8e8e93] hover:text-white text-sm font-bold transition-colors">
           <PrevIcon /> Prev (P)

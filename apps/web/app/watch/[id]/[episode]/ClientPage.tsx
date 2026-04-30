@@ -38,7 +38,7 @@ export default function WatchClientPage() {
 
   if (loading) {
     return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
+      <div className="w-full h-screen bg-[#13111a] flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
       </div>
     );
@@ -46,7 +46,7 @@ export default function WatchClientPage() {
   
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#13111a] flex items-center justify-center text-white">
         <p className="text-red-500 font-bold">Error: {error || "Anime tidak ditemukan"}</p>
       </div>
     );

@@ -19,7 +19,7 @@ export function HomeGenreGrid() {
           <Link 
             key={g} 
             href={`/explore?genre=${encodeURIComponent(g)}`}
-            className="px-4 py-2 bg-[#151E32] hover:bg-white hover:text-black border border-white/10 rounded-full text-sm font-bold text-white/80 transition-colors duration-300 active:scale-95"
+            className="px-4 py-2 bg-[#1f1c29] hover:bg-white hover:text-black border border-white/10 rounded-full text-sm font-bold text-white/80 transition-colors duration-300 active:scale-95"
           >
             {g}
           </Link>

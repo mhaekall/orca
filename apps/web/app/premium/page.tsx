@@ -4,8 +4,8 @@ import { IconBack } from "@/ui/icons";
 
 export default function PremiumPage() {
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
-      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 py-4 border-b border-white/5 flex items-center gap-4">
+    <div className="min-h-screen bg-[#13111a] text-white pb-32">
+      <div className="sticky top-0 z-30 bg-[#13111a]/80 backdrop-blur-2xl px-5 md:px-8 py-4 border-b border-white/5 flex items-center gap-4">
         <Link href="/profile" className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors">
           <IconBack />
         </Link>
@@ -24,7 +24,7 @@ export default function PremiumPage() {
           </p>
         </div>
 
-        <div className="bg-[#151E32] border border-[#FF9F0A]/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden mb-8">
+        <div className="bg-[#1f1c29] border border-[#FF9F0A]/30 rounded-[32px] p-8 shadow-2xl relative overflow-hidden mb-8">
           <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] opacity-20 pointer-events-none bg-[#FF9F0A]" />
           
           <div className="relative z-10">

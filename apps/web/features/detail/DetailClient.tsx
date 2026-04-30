@@ -86,7 +86,7 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
     scheduleDay = daysArr[dt.getDay()];
   }
 
-  const firstEp = eps.length > 0 && eps[0].url ? eps[0].url.replace(/\/$/, "").split("/").pop() : null;
+  const firstEp = eps.length > 0 ? (eps[0].number || eps[0].url?.split("episode=").pop() || "1") : null;
 
   const displayEps = d.latestEpisode || d.totalEpisodes || eps.length || '?';
 
@@ -103,9 +103,9 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
   };
 
   return (
-    <main className="min-h-screen bg-black pb-24 text-white overflow-y-auto no-scrollbar">
+    <main className="min-h-screen bg-[#13111a] pb-24 text-white overflow-y-auto no-scrollbar">
       {/* Hero */}
-      <div className="w-full h-[600px] md:h-[700px] relative bg-black anim-fade">
+      <div className="w-full h-[600px] md:h-[700px] relative bg-[#13111a] anim-fade">
         {d.poster && (
           <div className="absolute top-0 w-full h-[70%] md:h-[80%] opacity-80">
             <LiquidImage 
@@ -123,15 +123,15 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
         <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 100%, ${accent}, transparent 70%)` }} />
 
         {/* Top shading for header buttons */}
-        <div className="absolute inset-x-0 top-0 h-[120px] bg-gradient-to-b from-black/60 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-[120px]" style={{ background: "linear-gradient(to bottom, rgba(19, 17, 26, 0.6), rgba(19, 17, 26, 0))" }} />
         
         {/* Main gradient (Bottom to Top) */}
-        <div className="absolute inset-x-0 bottom-0 h-[80%] bg-gradient-to-t from-black via-black/60 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-t from-black via-black/90 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-[150px] bg-gradient-to-t from-black to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-[80%]" style={{ background: "linear-gradient(to top, #13111a, rgba(19, 17, 26, 0.6) 50%, rgba(19, 17, 26, 0))" }} />
+        <div className="absolute inset-x-0 bottom-0 h-[50%]" style={{ background: "linear-gradient(to top, #13111a, rgba(19, 17, 26, 0.9) 50%, rgba(19, 17, 26, 0))" }} />
+        <div className="absolute inset-x-0 bottom-0 h-[150px]" style={{ background: "linear-gradient(to top, #13111a, rgba(19, 17, 26, 0))" }} />
         
-        <button onClick={() => router.back()} className="absolute top-10 left-5 w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white border border-white/20 active:scale-90 z-20"><IconBack /></button>
-        <button onClick={handleShare} className="absolute top-10 right-5 w-9 h-9 bg-black/50 rounded-full flex items-center justify-center text-white border border-white/20 active:scale-90 z-20"><ShareArrowIcon size={18} /></button>
+        <button onClick={() => router.back()} className="absolute top-10 left-5 w-9 h-9 bg-[#13111a]/50 rounded-full flex items-center justify-center text-white border border-white/20 active:scale-90 z-20"><IconBack /></button>
+        <button onClick={handleShare} className="absolute top-10 right-5 w-9 h-9 bg-[#13111a]/50 rounded-full flex items-center justify-center text-white border border-white/20 active:scale-90 z-20"><ShareArrowIcon size={18} /></button>
       </div>
 
       <div className="px-5 md:px-8 -mt-[300px] md:-mt-[350px] relative z-10 max-w-4xl mx-auto">
@@ -180,10 +180,10 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
                   <IconPlay className="w-5 h-5" /> Mulai Tonton
                 </Link>
               ) : (
-                <button disabled className="flex-1 py-3.5 rounded-full text-[#8e8e93] bg-[#151E32] font-bold text-[14px] cursor-not-allowed flex items-center justify-center">Belum Tersedia</button>
+                <button disabled className="flex-1 py-3.5 rounded-full text-[#8e8e93] bg-[#1f1c29] font-bold text-[14px] cursor-not-allowed flex items-center justify-center">Belum Tersedia</button>
               )}
               <button onClick={() => { const added = toggle({ id, title: d.title, img: d.poster, totalEps: d.latestEpisode || d.totalEpisodes || eps.length }); toast(added ? "Ditambahkan ke Koleksi" : "Dihapus dari Koleksi", added ? "success" : "error"); }}
-                className={`flex-1 py-3.5 px-2 rounded-full flex items-center justify-center gap-1.5 font-bold text-[14px] border active:scale-95 transition-all ${saved ? "bg-white/15 border-white/30 text-white" : "bg-[#151E32] border-white/5 text-[#e5e5ea] hover:bg-white/5"}`}>
+                className={`flex-1 py-3.5 px-2 rounded-full flex items-center justify-center gap-1.5 font-bold text-[14px] border active:scale-95 transition-all ${saved ? "bg-white/15 border-white/30 text-white" : "bg-[#1f1c29] border-white/5 text-[#e5e5ea] hover:bg-white/5"}`}>
                 <IconBookmark filled={saved} className="w-4 h-4 shrink-0" /> <span className="truncate">Tambah ke Koleksi</span>
               </button>
             </div>

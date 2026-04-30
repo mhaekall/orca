@@ -33,7 +33,7 @@ export function SkipIntroButton({ currentTime, onSkip, showAt = 30, hideAt = 120
         onSkip(hideAt); 
         setHasSkipped(true); 
       }}
-      className="absolute bottom-24 right-6 z-30 px-5 py-2.5 bg-black/80 hover:bg-black text-white text-sm font-bold rounded-lg border border-white/20 shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in slide-in-from-right-4 duration-300"
+      className="absolute bottom-24 right-6 z-30 px-5 py-2.5 bg-[#13111a]/80 hover:bg-[#13111a] text-white text-sm font-bold rounded-lg border border-white/20 shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in slide-in-from-right-4 duration-300"
     >
       Lewati Opening <span className="text-[#0a84ff]">▶▶</span>
     </button>

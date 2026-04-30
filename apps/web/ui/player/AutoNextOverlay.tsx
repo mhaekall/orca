@@ -32,13 +32,13 @@ export function AutoNextOverlay({ nextEpisodeUrl, nextEpisodeTitle, nextThumbnai
   };
 
   return (
-    <div className="absolute inset-0 z-40 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
+    <div className="absolute inset-0 z-40 bg-[#13111a]/85 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
       
       {isLastEpisode ? (
         <>
           <h3 className="text-white text-3xl font-black mb-4">Anime Selesai! 🎉</h3>
           <p className="text-[#8e8e93] mb-8">Terima kasih telah menonton serial ini.</p>
-          <button onClick={onCancel} className="px-8 py-3 bg-[#151E32] border border-white/20 text-white font-bold rounded-full hover:bg-white/10 transition-colors">
+          <button onClick={onCancel} className="px-8 py-3 bg-[#1f1c29] border border-white/20 text-white font-bold rounded-full hover:bg-white/10 transition-colors">
             Tutup Layar
           </button>
         </>
@@ -66,7 +66,7 @@ export function AutoNextOverlay({ nextEpisodeUrl, nextEpisodeTitle, nextThumbnai
             <button onClick={handlePlayNow} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform">
               Putar Sekarang
             </button>
-            <button onClick={onCancel} className="px-8 py-3 bg-[#151E32] text-white font-bold rounded-full border border-white/20 hover:bg-white/10 transition-colors">
+            <button onClick={onCancel} className="px-8 py-3 bg-[#1f1c29] text-white font-bold rounded-full border border-white/20 hover:bg-white/10 transition-colors">
               Batal
             </button>
           </div>

@@ -95,7 +95,7 @@ export default function HomeView({
   const bestItems = Array.from(bestMap.values());
 
   return (
-    <div className="w-full pb-24 bg-black min-h-screen text-white selection:bg-[#0A84FF]/30">
+    <div className="w-full pb-24 bg-[#13111a] min-h-screen text-white selection:bg-[#0A84FF]/30">
       {/* Static Orca Logo */}
       <div className="px-6 md:px-10 pt-8 pb-2">
         <h1 className="text-[28px] font-black text-white tracking-tight flex items-center gap-2">
@@ -117,7 +117,7 @@ export default function HomeView({
       </div>
 
       {/* Search Bar Section */}
-      <div className="sticky top-0 z-50 bg-black/80 backdrop-blur-2xl border-b border-white/5 py-3 px-5 md:px-10 mb-8 w-full transition-all">
+      <div className="sticky top-0 z-50 bg-[#13111a]/80 backdrop-blur-2xl border-b border-white/5 py-3 px-5 md:px-10 mb-8 w-full transition-all">
         <div className="max-w-4xl mx-auto">
           <HomeSearchBar />
         </div>
@@ -146,7 +146,7 @@ export default function HomeView({
       </div>
       
       {/* Decorative Gradient */}
-      <div className="fixed bottom-0 left-0 w-full h-[150px] pointer-events-none bg-gradient-to-t from-black to-transparent opacity-60 z-10" />
+      <div className="fixed bottom-0 left-0 w-full h-[150px] pointer-events-none bg-gradient-to-t from-[#13111a] to-transparent opacity-60 z-10" />
     </div>
   );
 }

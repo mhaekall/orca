@@ -47,6 +47,9 @@ class SamehadakuProvider(BaseProvider):
                         iframe_match = re.search(r'src=["\']([^"\']+)["\']', ajax_res.text)
                         if iframe_match:
                             src['url'] = iframe_match.group(1)
+                            url_lower = src['url'].lower()
+                            if "wibufile" in url_lower or "pixeldrain" in url_lower or ".mp4" in url_lower:
+                                src['type'] = 'mp4 (direct)'
                             resolved.append(src)
                     except Exception as e:
                         print(f"[Samehadaku] AJAX resolve error: {e}")

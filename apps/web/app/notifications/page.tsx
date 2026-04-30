@@ -57,7 +57,7 @@ export default function NotificationsPage() {
   const notifications = data?.data || [];
 
   return (
-    <div className="w-full min-h-screen bg-black text-white p-5 md:px-8 pt-[env(safe-area-inset-top)] pb-32 max-w-4xl mx-auto">
+    <div className="w-full min-h-screen bg-[#13111a] text-white p-5 md:px-8 pt-[env(safe-area-inset-top)] pb-32 max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 mt-8">
         <h1 className="text-2xl md:text-3xl font-black tracking-tight">Notifikasi</h1>
         
@@ -88,7 +88,7 @@ export default function NotificationsPage() {
               href={notif.link || "#"}
               className={`block relative overflow-hidden p-5 rounded-[24px] border transition-all duration-300 group cursor-pointer ${
                 notif.isUnread 
-                  ? "bg-[#151E32] border-white/10 hover:bg-[#1E2942]" 
+                  ? "bg-[#1f1c29] border-white/10 hover:bg-[#2a2536]" 
                   : "bg-transparent border-transparent hover:bg-white/5"
               }`}
             >

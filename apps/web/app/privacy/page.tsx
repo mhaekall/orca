@@ -4,8 +4,8 @@ import { IconBack } from "@/ui/icons";
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
-      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 py-4 border-b border-white/5 flex items-center gap-4">
+    <div className="min-h-screen bg-[#13111a] text-white pb-32">
+      <div className="sticky top-0 z-30 bg-[#13111a]/80 backdrop-blur-2xl px-5 md:px-8 py-4 border-b border-white/5 flex items-center gap-4">
         <Link href="/profile" className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors">
           <IconBack />
         </Link>

@@ -146,7 +146,7 @@ class IngestionEngine:
                 return (True, lvp, m3p, f_url) if f_url else (False, lvp, m3p, None)
 
             try:
-                success, local_video_path, m3u8_path, final_stream_url = await asyncio.wait_for(_run_pipeline(), timeout=3600.0)
+                success, local_video_path, m3u8_path, final_stream_url = await asyncio.wait_for(_run_pipeline(), timeout=7200.0)
             except asyncio.TimeoutError as e:
                 import traceback
                 print(f"[Ingestion] TimeoutError caught for Anime: {anilist_id} | Ep: {episode_number}")
@@ -251,3 +251,4 @@ if __name__ == "__main__":
         await database.disconnect()
         
     asyncio.run(run_test())
+

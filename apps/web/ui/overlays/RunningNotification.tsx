@@ -7,9 +7,9 @@ export function RunningNotification() {
   const notificationText = "🌟 Anime baru The Angel Next Door S1 & S2 kualitas 1080p berhasil diupdate! 🚀 Tekan tombol 'Cek Pembaruan' di profil Anda untuk memastikan PWA berjalan lancar.";
 
   return (
-    <div className="w-full bg-[#151E32] border-b border-white/10 text-white overflow-hidden py-1.5 relative z-[60]">
+    <div className="w-full bg-[#1f1c29] border-b border-white/10 text-white overflow-hidden py-1.5 relative z-[60]">
       <div className="flex items-center">
-        <div className="pl-4 pr-3 shrink-0 flex items-center justify-center bg-[#151E32] z-10">
+        <div className="pl-4 pr-3 shrink-0 flex items-center justify-center bg-[#1f1c29] z-10">
           <Megaphone className="w-3.5 h-3.5 text-[#0A84FF] mr-2" />
           <span className="text-[10px] font-black tracking-widest text-[#0A84FF] uppercase">INFO</span>
         </div>

@@ -49,7 +49,7 @@ export function AiringSchedule({ schedule }: Props) {
                 className={`shrink-0 px-4 py-2 rounded-full text-[13px] font-bold transition-all ${
                   isActive 
                     ? "bg-white text-black shadow-[0_0_12px_rgba(255,255,255,0.2)]" 
-                    : "bg-[#151E32] text-[#8e8e93] hover:bg-white/10 hover:text-white"
+                    : "bg-[#1f1c29] text-[#8e8e93] hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {day}
@@ -70,7 +70,7 @@ export function AiringSchedule({ schedule }: Props) {
             href={`/anime/${item.id}`} 
             className="group shrink-0 w-[140px] md:w-[160px] snap-start flex flex-col focus:outline-none"
           >
-            <div className="w-full aspect-[2/3] bg-[#151E32] rounded-xl overflow-hidden relative shadow-md mb-2 border border-white/5 group-hover:border-white/20 transition-all">
+            <div className="w-full aspect-[2/3] bg-[#1f1c29] rounded-xl overflow-hidden relative shadow-md mb-2 border border-white/5 group-hover:border-white/20 transition-all">
               {item.img ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img 
@@ -80,13 +80,13 @@ export function AiringSchedule({ schedule }: Props) {
                   loading="lazy" 
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#1E2942]" />
+                <div className="w-full h-full flex items-center justify-center bg-[#2a2536]" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#13111a]/90 via-transparent to-transparent pointer-events-none" />
               
               {/* Time Badge */}
               {item.airingTime && (
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-[6px] text-[10px] font-bold text-[#32D74B] border border-white/10">
+                <div className="absolute top-2 right-2 bg-[#13111a]/60 backdrop-blur-md px-2 py-1 rounded-[6px] text-[10px] font-bold text-[#32D74B] border border-white/10">
                   {item.airingTime}
                 </div>
               )}

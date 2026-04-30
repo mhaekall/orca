@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0B101E;
+  --bg: #13111a;
   --fg: #f5f5f7;
-  --surface: rgba(21, 30, 50, 0.6);
-  --surface-solid: #151E32;
+  --surface: rgba(31, 28, 41, 0.6);
+  --surface-solid: #1f1c29;
   --border: rgba(255, 255, 255, 0.08);
   --muted: #8e8e93;
   --accent: #0a84ff;
@@ -13,7 +13,7 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--fg);
-  --color-black: #0B101E;
+  --color-black: #13111a;
 }
 
 * { -webkit-tap-highlight-color: transparent; }
@@ -31,7 +31,7 @@ body {
 
 /* Glass */
 .glass { background: var(--surface); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); }
-.glass-nav { background: rgba(10,10,10,0.85); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); }
+.glass-nav { background: rgba(19, 17, 26, 0.85); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); }
 
 /* Animations — CSS only, no framer-motion */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

@@ -82,7 +82,7 @@ export default function NotFoundFallback() {
 
   if (loading) {
     return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
+      <div className="w-full h-screen bg-[#13111a] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[#0a84ff]/30 border-t-[#0a84ff] rounded-full animate-spin"></div>
       </div>
     );
@@ -108,7 +108,7 @@ export default function NotFoundFallback() {
   }
 
   return (
-    <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white">
+    <div className="w-full h-screen bg-[#13111a] flex flex-col items-center justify-center text-white">
       <h1 className="text-4xl font-black mb-2 text-[#ff453a]">404</h1>
       <p className="text-[#8e8e93] text-sm">Halaman tidak ditemukan.</p>
     </div>

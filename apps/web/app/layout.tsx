@@ -3,6 +3,7 @@ import { InstallPrompt } from "@/ui/overlays/InstallPrompt";
 import { Navigation } from "@/ui/layout/Navigation";
 import { Toaster } from "@/ui/overlays/Toaster";
 import { CapacitorRouter } from "@/ui/layout/CapacitorRouter";
+import { AuthTabCatcher } from "@/ui/layout/AuthTabCatcher";
 import "./globals.css";
 
 const isCapacitorBuild = process.env.CAPACITOR_BUILD === "true";
@@ -33,7 +34,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" className="h-full">
-      <body className="min-h-full bg-black text-white flex flex-col">
+      <body className="min-h-full bg-[#13111a] text-white flex flex-col">
+        <AuthTabCatcher />
         <div className="flex-1 relative">
           <Navigation>
             <CapacitorRouter>{children}</CapacitorRouter>

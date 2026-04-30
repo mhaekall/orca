@@ -126,7 +126,7 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
           const currentActiveThread = Array.isArray(allComments) ? allComments.find((c: any) => c.id === activeThread.id) || activeThread : activeThread;
           return (
             <div className="absolute inset-0 z-[300] flex flex-col bg-[#0a0c10] pointer-events-auto anim-slide-right overflow-hidden">
-              <div className="h-14 flex items-center px-4 gap-4 shrink-0 border-b border-white/10 bg-black/95 backdrop-blur-xl">
+              <div className="h-14 flex items-center px-4 gap-4 shrink-0 border-b border-white/10 bg-[#13111a]/95 backdrop-blur-xl">
                 <button onClick={() => setActiveThread(null)} className="p-2 text-white -ml-2"><IconBack /></button>
                 <div className="flex flex-col"><span className="text-white font-black text-sm">Balasan</span><span className="text-[10px] text-[#8e8e93] font-bold">ke @{currentActiveThread.username}</span></div>
               </div>
@@ -136,7 +136,7 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
                 </div>
                 <ThreadList replies={currentActiveThread.replies || []} userId={userId} onLike={handleLike} />
               </div>
-              <div className="absolute bottom-0 inset-x-0 p-3 bg-black/95 backdrop-blur-xl border-t border-white/10 pb-safe" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+              <div className="absolute bottom-0 inset-x-0 p-3 bg-[#13111a]/95 backdrop-blur-xl border-t border-white/10 pb-safe" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
                 <CommentComposer userId={userId} autoFocus showEmojis={true} placeholder={`Balas @${currentActiveThread.username}...`} onSubmit={(t: string) => handleSubmit(t, currentActiveThread.id)} currentTime={currentTime} />
               </div>
             </div>
@@ -144,7 +144,7 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
         })()}
 
         {/* Main List inside Side Modal */}
-        <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10 bg-black/95 backdrop-blur-xl z-10 sticky top-0">
+        <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-white/10 bg-[#13111a]/95 backdrop-blur-xl z-10 sticky top-0">
           <div className="flex items-center gap-4">
             <span className="text-white font-bold text-base">Komentar</span>
             <SortTabs />
@@ -158,7 +158,7 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
         <div className="flex-1 overflow-y-auto p-4 no-scrollbar space-y-1 relative z-0">
           {comments.map(c => <CommentItem key={c.id} comment={c} onReply={() => setActiveThread(c)} onLike={() => handleLike(c.id)} onSeek={onSeek} userId={userId} />)}
         </div>
-        <div className="p-3 shrink-0 border-t border-white/10 bg-black/95 backdrop-blur-xl relative z-10 pb-safe" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+        <div className="p-3 shrink-0 border-t border-white/10 bg-[#13111a]/95 backdrop-blur-xl relative z-10 pb-safe" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
           <CommentComposer userId={userId} compact onSubmit={handleSubmit} showEmojis={true} showThanks={true} onClickThanks={() => alert("Fitur dukungan/Thanks (Saweria) akan segera hadir!")} currentTime={currentTime} />
         </div>
       </div>
@@ -173,7 +173,7 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
       `}</style>
 
       {/* Preview area */}
-      <div className="md:hidden bg-[#151E32] rounded-2xl p-4 mb-2 cursor-pointer border border-white/5" onClick={() => setIsMainModalOpen(true)}>
+      <div className="md:hidden bg-[#1f1c29] rounded-2xl p-4 mb-2 cursor-pointer border border-white/5" onClick={() => setIsMainModalOpen(true)}>
         <div className="flex items-center justify-between mb-3">
           <span className="text-white font-black text-sm">Komentar <span className="text-[#8e8e93] ml-1">{comments.length}</span></span>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8e8e93" strokeWidth="2.5"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"></path></svg>
@@ -203,11 +203,11 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
       {/* Main Modal Layer */}
       {isMainModalOpen && (
         <>
-          <div className="fixed inset-0 z-[150] bg-black/20 md:bg-black/80 md:backdrop-blur-xl" onClick={() => setIsMainModalOpen(false)} />
+          <div className="fixed inset-0 z-[150] bg-[#13111a]/20 md:bg-[#13111a]/80 md:backdrop-blur-xl" onClick={() => setIsMainModalOpen(false)} />
           <div 
             className="fixed top-[56.25vw] md:top-0 bottom-0 left-0 right-0 z-[200] flex flex-col bg-[#0a0c10] md:bg-transparent pointer-events-auto anim-slide-up rounded-t-2xl md:rounded-none overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.5)] md:shadow-none border-t border-white/10 md:border-none"
           >
-            <div className="h-14 flex items-center justify-between px-4 shrink-0 bg-[#0a0c10] md:bg-black md:max-w-2xl md:mx-auto md:w-full">
+            <div className="h-14 flex items-center justify-between px-4 shrink-0 bg-[#0a0c10] md:bg-[#13111a] md:max-w-2xl md:mx-auto md:w-full">
               <div className="flex items-center gap-4"><span className="text-white font-black text-sm">Komentar</span><SortTabs /></div>
               <button onClick={() => setIsMainModalOpen(false)} className="p-2 text-[#8e8e93]"><IconClose /></button>
             </div>
@@ -226,11 +226,11 @@ export function CommentSection({ anilistId, episode, currentTime, onSeek, user, 
         const currentActiveThread = Array.isArray(allComments) ? allComments.find((c: any) => c.id === activeThread.id) || activeThread : activeThread;
         return (
           <>
-            <div className="fixed inset-0 z-[250] bg-black/20 md:bg-black/80 md:backdrop-blur-xl" onClick={() => setActiveThread(null)} />
+            <div className="fixed inset-0 z-[250] bg-[#13111a]/20 md:bg-[#13111a]/80 md:backdrop-blur-xl" onClick={() => setActiveThread(null)} />
             <div 
               className="fixed top-[56.25vw] md:top-0 bottom-0 left-0 right-0 z-[300] flex flex-col bg-[#0a0c10] md:bg-transparent pointer-events-auto anim-slide-up rounded-t-2xl md:rounded-none overflow-hidden shadow-[0_-10px_40px_rgba(0,0,0,0.5)] md:shadow-none border-t border-white/10 md:border-none"
             >
-              <div className="h-14 flex items-center px-4 gap-4 md:max-w-2xl md:mx-auto md:w-full bg-[#0a0c10] md:bg-black shrink-0">
+              <div className="h-14 flex items-center px-4 gap-4 md:max-w-2xl md:mx-auto md:w-full bg-[#0a0c10] md:bg-[#13111a] shrink-0">
                 <button onClick={() => setActiveThread(null)} className="p-2 text-white"><IconBack /></button>
                 <div className="flex flex-col"><span className="text-white font-black text-sm">Balasan</span><span className="text-[10px] text-[#8e8e93] font-bold">ke @{currentActiveThread.username}</span></div>
               </div>
@@ -255,7 +255,7 @@ const CommentItem = ({ comment: c, onReply, onLike, onSeek, hideActions, userId 
   const isMe = c.user_id === userId;
   return (
     <div className="py-4 flex gap-3 group">
-      <div className="w-9 h-9 rounded-full bg-[#1E2942] flex items-center justify-center text-xs font-black text-white shrink-0 shadow-md border border-white/10 overflow-hidden">
+      <div className="w-9 h-9 rounded-full bg-[#2a2536] flex items-center justify-center text-xs font-black text-white shrink-0 shadow-md border border-white/10 overflow-hidden">
         {c.avatar ? <img src={c.avatar} className="w-full h-full object-cover" /> : (c.username || "U").charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
@@ -334,7 +334,7 @@ const CommentComposer = ({ userId, onSubmit, compact, autoFocus, placeholder, sh
             onBlur={() => { if(!text.trim()) setFocused(false); }} 
             placeholder={placeholder || "Komentar..."} 
             rows={1} 
-            className={`w-full bg-white/10 hover:bg-white/20 text-white text-sm pl-4 ${focused ? (text.trim() ? 'pr-20' : 'pr-10') : 'pr-4'} border border-transparent focus:outline-none focus:bg-[#1E2942]/90 focus:border-[#0a84ff]/50 transition-all resize-none no-scrollbar flex items-center rounded-full py-2.5 leading-[20px] h-10`} 
+            className={`w-full bg-white/10 hover:bg-white/20 text-white text-sm pl-4 ${focused ? (text.trim() ? 'pr-20' : 'pr-10') : 'pr-4'} border border-transparent focus:outline-none focus:bg-[#2a2536]/90 focus:border-[#0a84ff]/50 transition-all resize-none no-scrollbar flex items-center rounded-full py-2.5 leading-[20px] h-10`} 
           />
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
             {focused && currentTime != null && (
@@ -344,7 +344,7 @@ const CommentComposer = ({ userId, onSubmit, compact, autoFocus, placeholder, sh
                 title="Tambahkan Waktu Video"
               >
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                <span className="absolute -top-0.5 -right-0.5 text-[10px] font-black bg-black rounded-full w-3 h-3 flex items-center justify-center">+</span>
+                <span className="absolute -top-0.5 -right-0.5 text-[10px] font-black bg-[#13111a] rounded-full w-3 h-3 flex items-center justify-center">+</span>
               </button>
             )}
             {text.trim() && focused && (

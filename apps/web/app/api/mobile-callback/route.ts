@@ -27,6 +27,7 @@ export async function GET(request: Request) {
 <body style="background:black;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
   <p>Kembali ke Orca...</p>
   <script>
+    localStorage.removeItem("orca_auth_tab");
     window.location.href = "${deepLink}";
     // Fallback: close tab setelah 2 detik
     setTimeout(() => window.close(), 2000);

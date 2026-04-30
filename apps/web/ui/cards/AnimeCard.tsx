@@ -67,7 +67,7 @@ function AnimeCardInner({ id, title, img, banner, score, color, epId, rank, vari
 
   return (
     <div ref={ref} onMouseEnter={handleMouseEnter} onTouchStart={handleMouseEnter} className="flex flex-col h-full w-full group cursor-pointer anim-up" style={{ animationDelay: rank ? `${Math.min(rank * 40, 240)}ms` : "0ms" }}>
-      <Link href={href} prefetch={true} className={`w-full ${aspectClass} rounded-2xl relative overflow-hidden mb-2 border border-white/5 bg-[#151E32] block transition-shadow duration-300 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] text-left focus:outline-none`}>
+      <Link href={href} prefetch={true} className={`w-full ${aspectClass} rounded-2xl relative overflow-hidden mb-2 border border-white/5 bg-[#1f1c29] block transition-shadow duration-300 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.5)] text-left focus:outline-none`}>
         {visible && imageSrc ? (
           <div className="absolute inset-0 w-full h-full transition-transform duration-500 group-hover:scale-105">
             <LiquidImage 
@@ -80,16 +80,16 @@ function AnimeCardInner({ id, title, img, banner, score, color, epId, rank, vari
             />
           </div>
         ) : (
-          <div className="w-full h-full bg-[#1E2942] flex items-center justify-center">
+          <div className="w-full h-full bg-[#2a2536] flex items-center justify-center">
             {visible ? <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full anim-spin" /> : null}
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#13111a]/80 via-transparent to-transparent pointer-events-none z-10" />
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10" style={{ boxShadow: `inset 0 -30px 50px -15px ${c}60` }} />
 
         {rank && (
-          <div className="absolute top-0 left-0 w-7 h-9 bg-black/60 rounded-br-xl flex items-center justify-center font-black text-sm text-white z-20">{rank}</div>
+          <div className="absolute top-0 left-0 w-7 h-9 bg-[#13111a]/60 rounded-br-xl flex items-center justify-center font-black text-sm text-white z-20">{rank}</div>
         )}
 
         {!rank && currentBadge === "NEW" && (

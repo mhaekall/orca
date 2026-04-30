@@ -13,7 +13,7 @@ load_dotenv()
 from db.connection import database
 from services.cache import upstash_get, upstash_set, upstash_del
 from services.ingestion.main import IngestionEngine
-from services.stream_cache import get_cached_stream
+from services.stream_cache import stream_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1, a
     if anilist_id and ep_num:
         logger.info(f"Targeted ingestion for Anime ID: {anilist_id}, Episode: {ep_num}")
         query = """
-            SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle"
+            SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle", e."episodeUrl", e."providerId"
             FROM episodes e
             JOIN anime_metadata m ON e."anilistId" = m."anilistId"
             WHERE e."anilistId" = :aid AND e."episodeNumber" = :ep
@@ -36,7 +36,7 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1, a
         # We find episodes that do not have tg-proxy or workers.dev in their URL
         # We prioritize popular anime
         query = """
-            SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle"
+            SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle", e."episodeUrl", e."providerId"
             FROM episodes e
             JOIN anime_metadata m ON e."anilistId" = m."anilistId"
             WHERE e."episodeUrl" NOT LIKE '%tg-proxy%' 
@@ -85,31 +85,23 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1, a
             await upstash_set(lock_key, "1", ex=7200)
             
             try:
-                sources_response = await get_cached_stream(anilist_id, episode_num)
+                sources_response = await stream_cache.get_stream(row['episodeUrl'], row['providerId'])
                 direct_url = ""
-                provider_id = "unknown"
+                provider_id = row['providerId']
                 
                 if sources_response and "sources" in sources_response and len(sources_response["sources"]) > 0:
-                    # Prefer 720p mp4/direct/hls
+                    # STRICTLY 720p only
                     for s in sources_response["sources"]:
                         if s.get("quality") == "720p" and any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
                             direct_url = s.get("raw_url") or s.get("url", "")
                             provider_id = s.get("source", "unknown")
-                            quality_picked = s.get("quality", "720p")
+                            quality_picked = "720p"
                             break
-                    
-                    if not direct_url:
-                        for s in sources_response["sources"]:
-                            if any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
-                                direct_url = s.get("raw_url") or s.get("url", "")
-                                provider_id = s.get("source", "unknown")
-                                quality_picked = s.get("quality", "Auto")
-                                break
-                                
-                    if not direct_url:
-                        direct_url = sources_response["sources"][0].get("raw_url") or sources_response["sources"][0].get("url", "")
-                        provider_id = sources_response["sources"][0].get("source", "unknown")
-                        quality_picked = sources_response["sources"][0].get("quality", "Auto")
+                            
+                if not direct_url:
+                    logger.warning(f"Could not resolve 720p direct URL for {anilist_id} Ep {episode_num}. Skipping.")
+                    await upstash_del(lock_key)
+                    continue
                 
                 if direct_url and "tg-proxy" not in direct_url:
                     # Only process if we found a direct stream URL that isn't already ingested

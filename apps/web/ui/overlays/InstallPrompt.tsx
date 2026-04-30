@@ -38,7 +38,7 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-[9999] flex items-center justify-center pointer-events-none">
-      <div className="pointer-events-auto max-w-sm w-full relative overflow-hidden rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10 p-4 shadow-2xl transition-all duration-500 ease-out animate-in slide-in-from-bottom-8 fade-in">
+      <div className="pointer-events-auto max-w-sm w-full relative overflow-hidden rounded-2xl bg-[#13111a]/60 backdrop-blur-xl border border-white/10 p-4 shadow-2xl transition-all duration-500 ease-out animate-in slide-in-from-bottom-8 fade-in">
         
         {/* Tombol Tutup */}
         <button

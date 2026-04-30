@@ -32,7 +32,7 @@ function SpecialPopularRowInner({ title, items }: Props) {
   }
 
   return (
-    <section className="mb-12 w-full overflow-hidden relative py-14 bg-[#151E32] text-white shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
+    <section className="mb-12 w-full overflow-hidden relative py-14 bg-[#1f1c29] text-white shadow-[inset_0_0_100px_rgba(0,0,0,0.4)]">
       {/* Abstract Texture Line Background (Topography style) */}
       <div 
         className="absolute inset-0 z-0 opacity-[0.05] pointer-events-none" 
@@ -83,7 +83,7 @@ function Rank1Card({ item, rank }: { item: any, rank: number }) {
   const img = item.coverImage?.extraLarge || item.coverImage?.large || item.img;
 
   return (
-    <Link href={href} prefetch={true} className="block relative w-full aspect-[9/16] rounded-[24px] overflow-hidden group shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-[#151E32] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(0,0,0,0.7)] hover:border-white/20">
+    <Link href={href} prefetch={true} className="block relative w-full aspect-[9/16] rounded-[24px] overflow-hidden group shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-[#1f1c29] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_rgba(0,0,0,0.7)] hover:border-white/20">
       {img && (
         <img 
           src={img} 
@@ -93,7 +93,7 @@ function Rank1Card({ item, rank }: { item: any, rank: number }) {
         />
       )}
       
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#13111a]/95 via-[#13111a]/30 to-transparent pointer-events-none" />
       <div className="absolute inset-0 rounded-[24px] border border-white/5 pointer-events-none" />
       
       <div className="absolute top-4 left-4 z-10">
@@ -109,7 +109,7 @@ function Rank1Card({ item, rank }: { item: any, rank: number }) {
         
         <div className="flex flex-wrap items-center gap-2">
           {(item.score || item.averageScore) ? (
-            <span className="text-xs font-bold text-[#FFD60A] flex items-center gap-1 drop-shadow-sm bg-black/60 backdrop-blur-xl px-3 py-2 rounded-full border border-white/10">
+            <span className="text-xs font-bold text-[#FFD60A] flex items-center gap-1 drop-shadow-sm bg-[#13111a]/60 backdrop-blur-xl px-3 py-2 rounded-full border border-white/10">
               ★ {((item.score || item.averageScore) / 10).toFixed(1)}
             </span>
           ) : null}
@@ -127,7 +127,7 @@ function PairedCard({ item, rank }: { item: any, rank: number }) {
   const img = item.coverImage?.extraLarge || item.coverImage?.large || item.img;
 
   return (
-    <Link href={href} prefetch={true} className="block relative w-full h-[calc(50%-6px)] md:h-[calc(50%-8px)] rounded-[20px] overflow-hidden group shadow-[0_12px_24px_rgba(0,0,0,0.3)] bg-[#1E2942]">
+    <Link href={href} prefetch={true} className="block relative w-full h-[calc(50%-6px)] md:h-[calc(50%-8px)] rounded-[20px] overflow-hidden group shadow-[0_12px_24px_rgba(0,0,0,0.3)] bg-[#2a2536]">
       {img && (
         <img 
           src={img} 
@@ -137,7 +137,7 @@ function PairedCard({ item, rank }: { item: any, rank: number }) {
         />
       )}
       
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#13111a]/90 via-[#13111a]/20 to-transparent pointer-events-none" />
       
       <div className="absolute top-3 left-3 z-10">
         <div className="bg-white/90 backdrop-blur-md text-black font-black text-sm italic px-2.5 py-0.5 rounded-lg shadow-sm border border-white/20">
@@ -152,12 +152,12 @@ function PairedCard({ item, rank }: { item: any, rank: number }) {
         
         <div className="flex flex-wrap items-center gap-1.5">
           {(item.score || item.averageScore) ? (
-            <span className="text-[10px] font-bold text-[#FFD60A] flex items-center gap-0.5 bg-black/50 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10">
+            <span className="text-[10px] font-bold text-[#FFD60A] flex items-center gap-0.5 bg-[#13111a]/50 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10">
               ★ {((item.score || item.averageScore) / 10).toFixed(1)}
             </span>
           ) : null}
           {item.views != null && item.views > 0 ? (
-            <span className="text-[10px] font-bold text-[#8e8e93] flex items-center gap-0.5 bg-black/50 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10">
+            <span className="text-[10px] font-bold text-[#8e8e93] flex items-center gap-0.5 bg-[#13111a]/50 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               {item.views >= 1000000 ? (item.views / 1000000).toFixed(1) + "M" : item.views >= 1000 ? (item.views / 1000).toFixed(1) + "K" : item.views}
             </span>

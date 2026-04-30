@@ -22,7 +22,7 @@ export default function WatchClientWrapper({ id, episode }: { id: string; episod
 
   if (loading) {
     return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
+      <div className="w-full h-screen bg-[#13111a] flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
       </div>
     );
@@ -30,7 +30,7 @@ export default function WatchClientWrapper({ id, episode }: { id: string; episod
 
   if (!data) {
     return (
-      <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white">
+      <div className="w-full h-screen bg-[#13111a] flex flex-col items-center justify-center text-white">
         <h1 className="text-xl font-bold text-[#ff453a] mb-2">Gagal memuat anime</h1>
       </div>
     );

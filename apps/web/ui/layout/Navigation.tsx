@@ -40,7 +40,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const isMainTab = TABS.some(t => pathname === t.id);
 
   return (
-    <div className="w-full min-h-[100dvh] bg-[#0B101E] text-white flex flex-col relative select-none antialiased min-w-0 transition-colors duration-500">
+    <div className="w-full min-h-[100dvh] bg-[#13111a] text-white flex flex-col relative select-none antialiased min-w-0 transition-colors duration-500">
       {/* Main content */}
       <div className="flex-1 w-full min-h-[100dvh] relative flex flex-col min-w-0">
         <main className={`flex-1 w-full min-w-0 ${mounted && isMainTab ? 'pb-[calc(100px+env(safe-area-inset-bottom))]' : 'pb-[env(safe-area-inset-bottom)]'}`}>
@@ -49,7 +49,7 @@ export function Navigation({ children }: { children: React.ReactNode }) {
 
         {/* Global Bottom Nav - Render when mounted and on a main tab */}
         {mounted && isMainTab && (
-          <div className="fixed bottom-0 left-0 right-0 z-[90] pointer-events-auto bg-[#0B101E] border-t border-white/[0.02] shadow-[0_-4px_16px_rgba(0,0,0,0.4)] pb-safe" aria-hidden="true" title="Bottom Navigation Area">
+          <div className="fixed bottom-0 left-0 right-0 z-[90] pointer-events-auto bg-[#13111a] border-t border-white/[0.02] pb-safe" aria-hidden="true" title="Bottom Navigation Area">
             <nav className="relative w-full max-w-md mx-auto z-[100]" aria-hidden="false">
               <div className="flex justify-around items-center px-2 h-[48px]">
                 {TABS.map((t) => {

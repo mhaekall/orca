@@ -18,7 +18,7 @@ export function LiquidImage({ src, fallbackSrc, color, className = "", alt, ...p
 
   return (
     <div 
-      className={`relative overflow-hidden flex items-center justify-center ${className} ${!color ? "bg-[#151E32]" : ""}`}
+      className={`relative overflow-hidden flex items-center justify-center ${className} ${!color ? "bg-[#1f1c29]" : ""}`}
       style={color ? { backgroundColor: `${color}40` } : undefined}
     >
       {/* Skeleton / Liquid color base while loading */}

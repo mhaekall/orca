@@ -204,7 +204,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
   const { data: streamData, isLoading: streamLoading, mutate } = useSWR(
     `stream-${id}-${activeEpisode}`,
     async () => {
-      const res = await fetch(`${API}/api/v2/anime/${id}/episodes/${activeEpisode}/stream?t=${Date.now()}`);
+      const res = await fetch(`${API}/api/v2/anime/${id}/episodes/${activeEpisode}/stream`);
       if (!res.ok) throw new Error('Failed to fetch');
       return res.json();
     },
@@ -220,6 +220,13 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
   const nextEp = currentIndex > -1 && currentIndex < sortedEpisodes.length - 1 ? sortedEpisodes[currentIndex + 1] : null;
   const prevEp = currentIndex > 0 ? sortedEpisodes[currentIndex - 1] : null;
 
+  // Prefetch next episode to warm up cache
+  useEffect(() => {
+    if (nextEp) {
+      fetch(`${API}/api/v2/anime/${id}/episodes/${nextEp.number}/stream`).catch(() => {});
+    }
+  }, [streamData, nextEp, id]);
+
   const handleSeek = (time: number) => {
     const v = document.querySelector("video");
     if (v) v.currentTime = time;
@@ -229,29 +236,29 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
     <>
       {/* Background Anime Details when minimized */}
       {isMinimized && animeDetails && (
-        <div className="fixed inset-0 z-[100] bg-black overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-[100] bg-[#13111a] overflow-y-auto no-scrollbar">
           <DetailClient detail={animeDetails} id={id} />
         </div>
       )}
 
-      <div className={isMinimized ? "fixed bottom-24 right-4 w-64 md:w-80 z-[600] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20 transition-all duration-300 anim-fade" : "w-full min-h-[100dvh] bg-black flex flex-col anim-fade items-center"}>
+      <div className={isMinimized ? "fixed bottom-24 right-4 w-64 md:w-80 z-[600] rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/20 transition-all duration-300 anim-fade" : "w-full min-h-[100dvh] bg-[#13111a] flex flex-col anim-fade items-center"}>
         
         {/* Sticky/Fixed Player (Full Width or Mini) */}
-        <div className={isMinimized ? "relative w-full aspect-video flex flex-col justify-center min-h-0 bg-black overflow-hidden group" : "fixed md:sticky top-0 z-[500] w-full bg-black shadow-xl border-b border-[#1E2942]/50 max-w-[1200px] mx-auto"}>
+        <div className={isMinimized ? "relative w-full aspect-video flex flex-col justify-center min-h-0 bg-[#13111a] overflow-hidden group" : "fixed md:sticky top-0 z-[500] w-full bg-[#13111a] shadow-xl border-b border-[#2a2536]/50 max-w-[1200px] mx-auto"}>
           
           {!isMinimized && (
-            <button onClick={handleMinimize} className="absolute top-4 left-4 z-50 w-9 h-9 bg-black/40 rounded-full flex items-center justify-center text-white border border-white/10 active:scale-90 transition-transform">
+            <button onClick={handleMinimize} className="absolute top-4 left-4 z-50 w-9 h-9 bg-[#13111a]/40 rounded-full flex items-center justify-center text-white border border-white/10 active:scale-90 transition-transform">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
           )}
 
           {isMinimized && (
-            <div onClick={handleMaximize} className="absolute inset-0 z-50 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+            <div onClick={handleMaximize} className="absolute inset-0 z-50 bg-[#13111a]/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
               <IconFullscreen className="w-8 h-8 text-white drop-shadow-lg" />
             </div>
           )}
 
-          <div className="relative w-full aspect-video flex flex-col justify-center min-h-0 bg-black overflow-hidden">
+          <div className="relative w-full aspect-video flex flex-col justify-center min-h-0 bg-[#13111a] overflow-hidden">
             <VideoPlayer 
               anilistId={parseInt(id, 10)}
               title={`${title} - Eps ${activeEpisode}`} 
@@ -394,7 +401,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                     className={`flex items-center justify-center w-full aspect-square rounded-[10px] border text-[14px] font-bold transition-all ${
                       isActive 
                         ? "bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.2)]" 
-                        : "bg-[#151E32] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
+                        : "bg-[#1f1c29] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {ep.number}
@@ -414,7 +421,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                     className={`shrink-0 flex items-center justify-center min-w-[64px] px-4 h-12 rounded-[14px] border text-[15px] font-bold transition-all snap-start ${
                       isActive 
                         ? "bg-white text-black border-white shadow-[0_0_12px_rgba(255,255,255,0.2)]" 
-                        : "bg-[#151E32] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
+                        : "bg-[#1f1c29] text-[#8e8e93] border-transparent hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {isActive && <IconPlay className="w-4 h-4 text-black mr-1 -ml-1 fill-black" />}
@@ -437,7 +444,7 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                 
                 return (
                   <Link key={rec.id} href={`/anime/${rec.id}`} className="block group shrink-0 w-[140px] md:w-[160px] snap-start">
-                    <div className="aspect-[3/4] bg-[#151E32] rounded-xl overflow-hidden relative shadow-md">
+                    <div className="aspect-[3/4] bg-[#1f1c29] rounded-xl overflow-hidden relative shadow-md">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       {recImage ? (
                         <img 
@@ -447,11 +454,11 @@ export default function WatchClient({ id, episode: initialEpisode, title, poster
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full bg-[#1E2942] flex items-center justify-center text-[10px] text-[#8e8e93] p-4 text-center">
+                        <div className="w-full h-full bg-[#2a2536] flex items-center justify-center text-[10px] text-[#8e8e93] p-4 text-center">
                           {recTitle}
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#13111a]/80 via-transparent to-transparent" />
                       <div className="absolute bottom-0 inset-x-0 p-2.5">
                         <p className="text-white font-bold text-[12px] leading-tight line-clamp-2">{recTitle}</p>
                       </div>

@@ -15,11 +15,11 @@ const ProfileView = dynamicNext(() => import("@/features/profile/ProfileView"));
 const NotificationsPage = dynamicNext(() => import("@/app/notifications/page"));
 
 const DetailClientWrapper = dynamicNext(() => import("./DetailClientWrapper"), {
-  loading: () => <div className="min-h-screen bg-black"></div>
+  loading: () => <div className="min-h-screen bg-[#13111a]"></div>
 });
 
 const WatchClientWrapper = dynamicNext(() => import("./WatchClientWrapper"), {
-  loading: () => <div className="min-h-screen bg-black"></div>
+  loading: () => <div className="min-h-screen bg-[#13111a]"></div>
 });
 
 export function CapacitorRouter({ children }: { children: React.ReactNode }) {
@@ -43,8 +43,8 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
               const { Browser } = await import('@capacitor/browser');
               await Browser.close();
               
-              // Force reload agar authClient membaca token baru
-              window.location.reload();
+              // Emit custom event for auth success instead of full reload
+              window.dispatchEvent(new CustomEvent('cap:auth-success'));
             }
           }
         });
@@ -62,6 +62,11 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
 
       window.addEventListener("popstate", handlePopState);
       window.addEventListener("cap:pushstate", handlePushState);
+      window.addEventListener("cap:auth-success", () => {
+        const newPath = "/profile";
+        window.history.pushState(null, "", newPath);
+        setCurrentUrl(newPath);
+      });
 
       // Global click interceptor for all <Link> and <a> tags
       const handleGlobalClick = (e: MouseEvent) => {
@@ -145,7 +150,7 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
 
   // Fallback 404 Capacitor
   return (
-    <div className="w-full h-screen bg-black flex flex-col items-center justify-center text-white">
+    <div className="w-full h-screen bg-[#13111a] flex flex-col items-center justify-center text-white">
       <h1 className="text-4xl font-black mb-2 text-[#ff453a]">404</h1>
       <p className="text-[#8e8e93] text-sm">Halaman {path} tidak ditemukan (Capacitor).</p>
     </div>

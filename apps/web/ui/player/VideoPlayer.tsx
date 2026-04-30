@@ -82,6 +82,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
   const videoRef = useRef<HTMLVideoElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<any>(null);
+  const currentSrcRef = useRef<string | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const saveTimer = useRef<ReturnType<typeof setInterval>>(undefined);
   const progressRef = useRef(0);
@@ -150,6 +151,15 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
   const loadSource = useCallback(async (src: VideoSource, seekTo?: number, autoQuality = true) => {
     const video = videoRef.current;
     if (!video || !src) return;
+
+    // Kalau src sama, cukup seek — jangan reload
+    if (hlsRef.current && currentSrcRef.current === src.url) {
+      if (seekTo != null) video.currentTime = seekTo;
+      safePlay(video);
+      return;
+    }
+    
+    currentSrcRef.current = src.url;
     setLoading(true);
     setError(null);
 
@@ -166,15 +176,16 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
           const hls = new Hls({ 
             startLevel: autoQuality ? -1 : undefined, 
             capLevelToPlayerSize: true, 
-            maxMaxBufferLength: 30, 
-            maxBufferSize: 30 * 1000 * 1000,
+            maxMaxBufferLength: 60, 
+            maxBufferSize: 60 * 1000 * 1000,
             enableWorker: true,
             lowLatencyMode: true,
             // Agresif Fast-Load Options:
             startFragPrefetch: true, // Langsung unduh fragmen pertama sebelum player siap
             appendErrorMaxRetry: 3,
-            maxBufferLength: 10, // Kurangi buffer awal yang dibutuhkan untuk mulai memutar
+            maxBufferLength: 30, // Kurangi buffer awal yang dibutuhkan untuk mulai memutar
             maxStarvationDelay: 1, // Berapa lama boleh lapar data sebelum buffering
+            progressive: true,
           });
           hlsRef.current = hls;
           hls.loadSource(src.url);
@@ -446,13 +457,13 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
     <div 
       ref={containerRef} 
       tabIndex={-1} 
-      className="relative w-full aspect-video bg-black md:rounded-2xl overflow-hidden outline-none select-none border border-white/5 group flex" 
+      className="relative w-full aspect-video bg-[#13111a] md:rounded-2xl overflow-hidden outline-none select-none border border-white/5 group flex" 
       onMouseMove={(e) => { if (!isTouch.current) reveal(); }} 
       onMouseLeave={() => !isDragging.current && playing && setControls(false)} 
       onClick={() => toggleControls()} 
       onTouchStart={(e) => { isTouch.current = true; handleTouchStart(e); }}
     >
-      <div className="relative flex-1 w-full h-full bg-black overflow-hidden flex flex-col justify-center cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
+      <div className="relative flex-1 w-full h-full bg-[#13111a] overflow-hidden flex flex-col justify-center cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
         <video 
           ref={videoRef} 
         autoPlay={true} 
@@ -460,24 +471,24 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
         className={`w-full h-full cursor-pointer ${!playing && progress === 0 ? 'object-cover' : 'object-contain'}`} 
         playsInline 
         muted={muted} 
-        preload="none" 
+        preload="metadata" 
         onContextMenu={(e) => e.preventDefault()} 
         onClick={(e) => { e.stopPropagation(); toggleControls(e); }} 
       />
 
       {ripple && (
         <div className={`absolute top-0 bottom-0 w-1/2 pointer-events-none flex items-center justify-center overflow-hidden z-30 ${ripple.side === 'left' ? 'left-0' : 'right-0'}`}>
-          <div className="flex flex-col items-center justify-center gap-1 bg-black/40 rounded-full w-20 h-20">
+          <div className="flex flex-col items-center justify-center gap-1 bg-[#13111a]/40 rounded-full w-20 h-20">
              {ripple.side === 'left' ? <SkipBackwardIcon className="w-6 h-6 text-white" /> : <SkipForwardIcon className="w-6 h-6 text-white" />}
              <span className="text-white font-bold text-xs">10s</span>
           </div>
         </div>
       )}
 
-      {loading && !error && <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none z-40"><div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full anim-spin" /></div>}
+      {loading && !error && <div className="absolute inset-0 flex items-center justify-center bg-[#13111a]/40 pointer-events-none z-40"><div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full anim-spin" /></div>}
 
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-3 p-6 text-center z-40">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13111a]/80 gap-3 p-6 text-center z-40">
           <p className="text-[#ff453a] text-sm font-bold bg-[#ff453a]/10 px-4 py-2 rounded-lg border border-[#ff453a]/20">{error}</p>
           <button onClick={() => window.location.reload()} className="px-6 py-2 mt-2 bg-white hover:bg-gray-200 transition-colors text-black text-xs font-bold rounded-full">Muat Ulang Halaman</button>
         </div>
@@ -487,15 +498,15 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
           <div className="flex items-center justify-center gap-6 md:gap-12 pointer-events-auto" onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
             {onPrevious ? (
-              <button onClick={(e) => { e.stopPropagation(); onPrevious(); }} className="w-12 h-12 md:w-14 md:h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all text-white">
+              <button onClick={(e) => { e.stopPropagation(); onPrevious(); }} className="w-12 h-12 md:w-14 md:h-14 bg-[#13111a]/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all text-white">
                  <IconChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
               </button>
             ) : <div className="w-12 h-12 md:w-14 md:h-14 opacity-0 pointer-events-none" />}
-            <div onClick={(e) => togglePlay(e)} className="w-20 h-20 md:w-24 md:h-24 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all cursor-pointer">
+            <div onClick={(e) => togglePlay(e)} className="w-20 h-20 md:w-24 md:h-24 bg-[#13111a]/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all cursor-pointer">
               {playing ? <IconPause className="w-10 h-10 md:w-12 md:h-12 fill-white text-white" /> : <IconPlay className="w-10 h-10 md:w-12 md:h-12 ml-1.5 fill-white text-white" />}
             </div>
             {onNext ? (
-              <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="w-12 h-12 md:w-14 md:h-14 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all text-white">
+              <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="w-12 h-12 md:w-14 md:h-14 bg-[#13111a]/40 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all text-white">
                  <IconChevronRight className="w-6 h-6 md:w-8 md:h-8" />
               </button>
             ) : <div className="w-12 h-12 md:w-14 md:h-14 opacity-0 pointer-events-none" />}
@@ -504,7 +515,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
       )}
 
       {showSettings && (
-        <div className="absolute bottom-16 right-4 z-50 bg-[#151E32]/95 border border-white/10 rounded-2xl shadow-2xl min-w-[220px] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute bottom-16 right-4 z-50 bg-[#1f1c29]/95 border border-white/10 rounded-2xl shadow-2xl min-w-[220px] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
           {menuView === "main" && (
             <div className="p-1.5 flex flex-col">
               <div className="px-3 py-2 border-b border-white/5 mb-1 flex items-center justify-between">
@@ -550,10 +561,10 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
       )}
 
       <div className={`absolute inset-0 flex flex-col justify-between transition-opacity duration-200 z-20 pointer-events-none ${controls ? "opacity-100" : "opacity-0"}`}>
-        <div className={`bg-gradient-to-b from-black/80 to-transparent p-4 md:p-6 ${controls ? 'pointer-events-auto' : 'pointer-events-none'}`} onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
+        <div className={`bg-gradient-to-b from-[#13111a]/80 to-transparent p-4 md:p-6 ${controls ? 'pointer-events-auto' : 'pointer-events-none'}`} onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
           <p className="text-white font-bold text-sm md:text-base lg:text-lg truncate max-w-[80%] drop-shadow-md">{title}</p>
         </div>
-        <div className={`bg-gradient-to-t from-black/90 to-transparent px-safe pb-0 md:pb-4 pt-12 flex flex-col ${controls ? 'pointer-events-auto' : 'pointer-events-none'}`} onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
+        <div className={`bg-gradient-to-t from-[#13111a]/90 to-transparent px-safe pb-0 md:pb-4 pt-12 flex flex-col ${controls ? 'pointer-events-auto' : 'pointer-events-none'}`} onClick={(e) => { e.stopPropagation(); toggleControls(e); }}>
           <div className="flex items-center justify-between gap-2 mb-2 md:mb-0 md:mt-3 order-1 px-2 md:px-0">
             <div className="flex items-center gap-2 md:gap-4">
               <span className="text-white/90 text-xs md:text-sm font-medium tabular-nums ml-1">{fmt(progress)} <span className="text-white/50 mx-1">/</span> {fmt(duration)}</span>
@@ -576,7 +587,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
           >
             {previewPos !== null && duration > 0 && (
               <div className="absolute bottom-full mb-4 -translate-x-1/2 pointer-events-none flex flex-col items-center gap-1" style={{ left: `${previewPos}%` }}>
-                <div className="px-2 py-1 bg-black/80 border border-white/20 rounded-lg shadow-2xl flex items-center justify-center">
+                <div className="px-2 py-1 bg-[#13111a]/80 border border-white/20 rounded-lg shadow-2xl flex items-center justify-center">
                    <span className="text-[13px] font-bold text-white drop-shadow-md">{fmt((previewPos / 100) * duration)}</span>
                 </div>
               </div>

@@ -108,9 +108,8 @@ export default function ProfileView() {
                   if (isCapacitor()) {
                     const { Browser } = await import('@capacitor/browser');
                     
-                    // Gunakan redirect Better Auth bawaan, tapi dengan custom callbackURL deep link
-                    // Endpoint login Better Auth: /api/auth/sign-in/social/google
-                    const authUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://orcanime.pages.dev'}/api/auth/sign-in/google?callbackURL=orca://app/auth-callback`;
+                    // Gunakan proxy page Mobile Login untuk trigger sign-in dan callback
+                    const authUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://orcanime.pages.dev'}/mobile-login?provider=google`;
                     
                     await Browser.open({ url: authUrl });
                     

@@ -4,7 +4,7 @@ import { db } from "@/core/lib/db";
 import { watchHistory } from "@/core/lib/schema";
 import { eq, desc } from "drizzle-orm";
 
-export const runtime = 'edge';
+export const runtime = "edge";
 
 export async function GET(req: Request) {
   const session = await auth.api.getSession({

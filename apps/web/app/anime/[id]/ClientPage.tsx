@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import DetailClient from "@/features/detail/DetailClient";
 import DetailSkeleton from "@/features/detail/DetailSkeleton";
 import { API } from "@/core/lib/api";
 
 export default function AnimeClientPage() {
+  const params = useParams();
   const searchParams = useSearchParams();
-  const id = searchParams.get("id");
+  
+  const paramIdRaw = params?.id;
+  const paramId = Array.isArray(paramIdRaw) ? paramIdRaw[0] : paramIdRaw;
+  const resolvedParamId = paramId && paramId !== "fallback" ? paramId : null;
+  const id = resolvedParamId || searchParams.get("id");
+  
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

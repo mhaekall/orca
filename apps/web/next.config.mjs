@@ -16,9 +16,8 @@ const nextConfig = {
   images: {
     unoptimized: isCapacitorBuild,
     remotePatterns: [
-      { protocol: 'https', hostname: 's4.anilist.co' },
-      { protocol: 'https', hostname: 'img.anili.st' },
-      { protocol: 'https', hostname: 'media.kitsu.app' },
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'http', hostname: '**' },
     ],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400,

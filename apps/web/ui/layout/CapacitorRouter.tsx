@@ -29,10 +29,24 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
     if (isCapacitor()) {
-      // Initialize Google Auth globally on app startup to prevent race conditions
-      import('@codetrix-studio/capacitor-google-auth').then(({ GoogleAuth }) => {
-        GoogleAuth.initialize({
-          scopes: ['profile', 'email'],
+      // Listen for Deep Links (orca://app/...)
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appUrlOpen', async (data) => {
+          if (data.url.includes('auth-callback') || data.url.includes('token=')) {
+            const urlObj = new URL(data.url);
+            const token = urlObj.searchParams.get('token');
+            if (token) {
+              // Simpan session token asli ke Local Storage
+              localStorage.setItem('better_auth_session', token);
+              
+              // Tutup in-app browser
+              const { Browser } = await import('@capacitor/browser');
+              await Browser.close();
+              
+              // Force reload agar authClient membaca token baru
+              window.location.reload();
+            }
+          }
         });
       }).catch(console.error);
 

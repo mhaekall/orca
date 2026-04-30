@@ -7,6 +7,7 @@ import Link from "next/link";
 import { IconPlay, IconInfo } from "@/ui/icons";
 import { useSettings } from "@/core/stores/app-store";
 import type { AnimeHome } from "@/core/types/anime";
+import { LiquidImage } from "@/ui/primitives/LiquidImage";
 
 function HeroCarouselInner({ items }: { items: AnimeHome[] }) {
   const accent = "#0A84FF";
@@ -38,8 +39,19 @@ function HeroCarouselInner({ items }: { items: AnimeHome[] }) {
           const cover = a.img || a.banner;
           const c = a.color || accent;
           return (
-            <div key={a.id + i} className="min-w-full snap-center relative h-[380px] md:h-[460px] rounded-3xl overflow-hidden border border-white/5">
-              {cover && <img src={cover} alt={a.title} className="absolute inset-0 w-full h-full object-cover" loading={i === 0 ? "eager" : "lazy"} decoding="async" />}
+            <div key={a.id + i} className="min-w-full snap-center relative h-[380px] md:h-[460px] rounded-3xl overflow-hidden border border-white/5 bg-[#1c1c1e]">
+              {cover && (
+                <div className="absolute inset-0">
+                  <LiquidImage 
+                    src={cover} 
+                    alt={a.title} 
+                    color={c}
+                    className="w-full h-full"
+                    priority={i === 0}
+                    sizes="(max-width: 768px) 100vw, 80vw"
+                  />
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
               <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ background: `linear-gradient(to top, ${c}, transparent)` }} />
 

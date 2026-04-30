@@ -106,23 +106,15 @@ export default function ProfileView() {
               onClick={async () => {
                 try {
                   if (isCapacitor()) {
-                    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-
-                    const user = await GoogleAuth.signIn();
-                    if (user?.authentication?.idToken) {
-                      const res = await authClient.signIn.social({
-                        provider: "google",
-                        idToken: { 
-                          token: user.authentication.idToken,
-                          accessToken: user.authentication.accessToken 
-                        }
-                      });
-                      if (res.error) {
-                        alert("BetterAuth Error: " + res.error.message);
-                      } else {
-                        window.location.reload();
-                      }
-                    }
+                    const { Browser } = await import('@capacitor/browser');
+                    
+                    // Gunakan redirect Better Auth bawaan, tapi dengan custom callbackURL deep link
+                    // Endpoint login Better Auth: /api/auth/sign-in/social/google
+                    const authUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://orcanime.pages.dev'}/api/auth/sign-in/google?callbackURL=orca://app/auth-callback`;
+                    
+                    await Browser.open({ url: authUrl });
+                    
+                    // Nanti kita buat Listener di _app atau CapacitorRouter untuk menangkap orca://app/auth-callback?token=xxx
                   } else {
                     await authClient.signIn.social({
                       provider: "google",

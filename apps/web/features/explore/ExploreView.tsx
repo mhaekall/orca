@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/core/lib/api";
 import { AnimeCard } from "@/ui/cards/AnimeCard";
+import { AnimeCardSkeleton } from "@/ui/cards/AnimeCardSkeleton";
 import { IconSearch, IconClose, IconClock } from "@/ui/icons";
 
 // Full list of genres for retention
@@ -140,7 +141,7 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
         {query || genre ? (
           loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 lg:gap-4">
-              {Array.from({ length: 12 }).map((_, i) => <div key={i} className="w-full aspect-[2/3] bg-[#1c1c1e] rounded-2xl animate-pulse" />)}
+              {Array.from({ length: 12 }).map((_, i) => <div key={i} className="w-full"><AnimeCardSkeleton variant="vertical" /></div>)}
             </div>
           ) : results.length > 0 ? (
             <div className="anim-fade">
@@ -204,9 +205,27 @@ function ExploreViewInner({ initialResults = [] }: { initialResults?: any[] }) {
   );
 }
 
+function ExploreSkeleton() {
+  return (
+    <div className="w-full pb-32 min-h-screen bg-black">
+      <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-2xl px-5 md:px-8 pt-[env(safe-area-inset-top)] pb-4 border-b border-white/5">
+        <div className="relative max-w-2xl mx-auto mt-4">
+           <div className="w-full bg-[#1c1c1e] rounded-[16px] h-[52px] animate-pulse" />
+        </div>
+      </div>
+      <div className="px-5 md:px-8 pt-6 max-w-5xl mx-auto">
+         <div className="h-6 w-48 bg-white/10 rounded animate-pulse mb-4" />
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+           {Array.from({ length: 16 }).map((_, i) => <div key={i} className="h-16 rounded-2xl bg-white/5 animate-pulse" />)}
+         </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ExploreView(props: { initialResults?: any[] }) {
   return (
-    <Suspense fallback={<div className="w-full min-h-screen bg-black" />}>
+    <Suspense fallback={<ExploreSkeleton />}>
       <ExploreViewInner {...props} />
     </Suspense>
   );

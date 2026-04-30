@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { HomeSearchBar } from "./HomeSearchBar";
 import { ContinueWatching } from "./ContinueWatching";
-import { LatestGrid } from "@/ui/cards/LatestGrid";
+import { LatestGrid, LatestGridSkeleton } from "@/ui/cards/LatestGrid";
 import { authClient } from "@/core/lib/auth-client";
-import { OrcaLogo } from "@/ui/icons/OrcaLogo";
 import useSWR from "swr";
 import { API } from "@/core/lib/api";
 
@@ -20,7 +19,7 @@ const greet = () => {
 };
 
 // Lazy rendering wrapper untuk performa 0ms dan meringankan DOM HP
-function LazySection({ children, minHeight = "400px" }: { children: React.ReactNode, minHeight?: string }) {
+function LazySection({ children, fallback }: { children: React.ReactNode, fallback?: React.ReactNode }) {
   const [inView, setInView] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -37,8 +36,8 @@ function LazySection({ children, minHeight = "400px" }: { children: React.ReactN
   }, []);
 
   return (
-    <div ref={ref} style={{ minHeight: inView ? "auto" : minHeight }}>
-      {inView ? children : null}
+    <div ref={ref}>
+      {inView ? children : fallback}
     </div>
   );
 }
@@ -100,8 +99,7 @@ export default function HomeView({
       {/* Static Orca Logo */}
       <div className="px-6 md:px-10 pt-8 pb-2">
         <h1 className="text-[28px] font-black text-white tracking-tight flex items-center gap-2">
-          <OrcaLogo className="w-8 h-8 text-white" animated={false} />
-          Orca<span className="text-[#0A84FF]">.</span>
+          Orca
         </h1>
       </div>
 
@@ -134,14 +132,14 @@ export default function HomeView({
       <div className="space-y-4">
         {/* Section 2: Best Completed & Popular */}
         {bestItems.length > 0 && (
-          <LazySection>
+          <LazySection fallback={<LatestGridSkeleton title="Terpopuler & Terbaik" count={12} />}>
             <LatestGrid title="Terpopuler & Terbaik" items={bestItems} badge="BEST" />
           </LazySection>
         )}
         
         {/* Section 3: Movies */}
         {initialMovies.length > 0 && (
-          <LazySection>
+          <LazySection fallback={<LatestGridSkeleton title="Film Anime (Movies)" count={12} />}>
             <LatestGrid title="Film Anime (Movies)" items={initialMovies} badge="MOVIE" />
           </LazySection>
         )}

@@ -10,6 +10,7 @@ import { useCollection } from "@/core/hooks/use-collection";
 import { authClient } from "@/core/lib/auth-client";
 import { EpisodeList } from "./EpisodeList";
 import { AnimeCard } from "@/ui/cards/AnimeCard";
+import { LiquidImage } from "@/ui/primitives/LiquidImage";
 
 const ShareArrowIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m15 5 6 6-6 6"/><path d="M21 11H9C4.029 11 2 14 2 18"/></svg>
@@ -105,7 +106,18 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
     <main className="min-h-screen bg-black pb-24 text-white overflow-y-auto no-scrollbar">
       {/* Hero */}
       <div className="w-full h-[600px] md:h-[700px] relative bg-black anim-fade">
-        {d.poster && <img src={d.poster} className="absolute top-0 w-full h-[70%] md:h-[80%] object-cover object-[center_85%] opacity-80" alt="" loading="eager" fetchPriority="high" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
+        {d.poster && (
+          <div className="absolute top-0 w-full h-[70%] md:h-[80%] opacity-80">
+            <LiquidImage 
+              src={d.poster} 
+              alt={d.title || "Poster"} 
+              color={d.color || accent}
+              className="w-full h-full object-[center_85%]" 
+              priority 
+              sizes="100vw"
+            />
+          </div>
+        )}
         
         {/* Accent Glow */}
         <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 100%, ${accent}, transparent 70%)` }} />

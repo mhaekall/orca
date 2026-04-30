@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { AnimeCard } from "./AnimeCard";
+import { AnimeCardSkeleton } from "./AnimeCardSkeleton";
 
 interface Props {
   title: string;
@@ -74,6 +75,24 @@ export function LatestGrid({ title, items, isNew = false, badge }: Props) {
             Tampilkan Lebih Sedikit
           </button>
         )}
+      </div>
+    </section>
+  );
+}
+
+export function LatestGridSkeleton({ title, count = 12 }: { title: string; count?: number }) {
+  return (
+    <section className="mb-12 px-5 md:px-8 max-w-7xl mx-auto w-full">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">{title}</h2>
+      </div>
+      
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4 anim-fade">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="w-full">
+            <AnimeCardSkeleton variant="vertical" />
+          </div>
+        ))}
       </div>
     </section>
   );

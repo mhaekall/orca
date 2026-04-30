@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #000000;
+  --bg: #121212;
   --fg: #f5f5f7;
   --surface: rgba(28, 28, 30, 0.6);
   --surface-solid: #1c1c1e;
@@ -13,6 +13,7 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--fg);
+  --color-black: #121212;
 }
 
 * { -webkit-tap-highlight-color: transparent; }

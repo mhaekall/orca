@@ -16,9 +16,23 @@ export async function GET(request: Request) {
     }
   }
 
-  if (token) {
-    return NextResponse.redirect(`orca://app/auth-callback?token=${token}`);
-  }
-  
-  return NextResponse.redirect(`orca://app/auth-callback?error=no_token`);
+  const deepLink = token 
+    ? `orca://app/auth-callback?token=${token}`
+    : `orca://app/auth-callback?error=no_token`;
+
+  return new Response(
+    `<!DOCTYPE html>
+<html>
+<head><meta name="viewport" content="width=device-width"></head>
+<body style="background:black;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+  <p>Kembali ke Orca...</p>
+  <script>
+    window.location.href = "${deepLink}";
+    // Fallback: close tab setelah 2 detik
+    setTimeout(() => window.close(), 2000);
+  </script>
+</body>
+</html>`,
+    { headers: { 'Content-Type': 'text/html' } }
+  );
 }

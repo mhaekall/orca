@@ -37,7 +37,14 @@ export async function GET(request: Request) {
       a.href = deepLink;
       a.click();
 
-      // Fallback
+      // Fallback intent Android scheme (untuk Chrome yang block custom scheme)
+      setTimeout(() => {
+        window.location.href = "intent://app/auth-callback?token=" 
+          + encodeURIComponent(token || '')
+          + "#Intent;scheme=orca;package=com.animescraperpro.app;end";
+      }, 500);
+
+      // Fallback close
       setTimeout(() => window.close(), 2000);
     }
 

@@ -32,6 +32,7 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
       // Listen for Deep Links (orca://app/...)
       import('@capacitor/app').then(({ App }) => {
         App.addListener('appUrlOpen', async (data) => {
+          alert('Deep link received: ' + data.url);
           if (data.url.includes('auth-callback') || data.url.includes('token=')) {
             const urlObj = new URL(data.url);
             const token = urlObj.searchParams.get('token');

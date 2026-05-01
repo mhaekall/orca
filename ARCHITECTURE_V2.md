@@ -51,14 +51,15 @@ graph TD
 ---
 
 ## 5. 🗺️ Pemetaan Folder Inti
-- `apps/api`: Mesin utama Python (FastAPI).
+- `apps/api`: Mesin utama Python (FastAPI). Menangani route dan resolver ringan.
     - `services/providers`: Logika spesifik sumber (Oploverz, Otakudesu, Kuronime, Samehadaku, dll).
-    - `services/ingestion`: Mesin Pemotong (FFmpeg Slicer) dan Pengunggah (Telegram Uploader).
     - `routes`: Endpoint API (termasuk webhook QStash).
+- `services/ingestion`: Mesin Pemotong (FFmpeg Slicer) dan Pengunggah (Telegram Uploader) yang di-decouple dari API utama.
 - `apps/web`: Antarmuka Next.js.
     - `app`: Rute UI (Home, Watch, Detail).
     - `ui/player`: Komponen VideoPlayer canggih pendukung HLS.js dan *Multi-Resolution Switcher*.
-- `archive`: Kumpulan skrip *debugging*, injeksi manual, dan *testing* yang diarsipkan agar *root directory* tetap bersih.
+- `apps/tele-proxy`: Cloudflare Worker modern untuk melakukan proxy streaming dari Telegram ke pengguna tanpa membebani server utama.
+- `apps/admin`: Dashboard admin Vite/React.
 
 ---
 

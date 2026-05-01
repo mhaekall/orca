@@ -8,7 +8,7 @@ import { useMounted } from "@/core/hooks/use-mounted";
 import { useKonami } from "@/core/hooks/use-konami";
 import { useViewTransition } from "@/core/hooks/use-view-transition";
 import { SnakeGame } from "@/ui/games/SnakeGame";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authClient } from "@/core/lib/auth-client";
 import { useHardwareBackButton } from "@/core/hooks/use-back-button";
 import { useStatusBar } from "@/core/hooks/use-status-bar";
@@ -27,7 +27,15 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const navigate = useViewTransition();
   const mounted = useMounted();
   const [snakeActive, setSnakeActive] = useState(false);
-  const { data: session } = authClient.useSession();
+  const { data: session, refetch } = authClient.useSession();
+
+  useEffect(() => {
+    const handleAuthSuccess = () => {
+      if (typeof refetch === 'function') refetch();
+    };
+    window.addEventListener("cap:auth-success", handleAuthSuccess);
+    return () => window.removeEventListener("cap:auth-success", handleAuthSuccess);
+  }, [refetch]);
 
   // Capacitor: hardware back button, status bar, deep linking
   useHardwareBackButton();

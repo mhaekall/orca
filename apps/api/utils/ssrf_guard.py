@@ -1,6 +1,7 @@
 import ipaddress
 import socket
 from urllib.parse import urlparse
+
 import httpx
 
 # RFC-defined private/reserved ranges
@@ -32,8 +33,10 @@ EXPLICITLY_BLOCKED_DOMAINS = {
 
 ALLOWED_SCHEMES = {"http", "https"}
 
+
 class SSRFError(ValueError):
     pass
+
 
 def is_ip_blocked(ip_str: str) -> bool:
     try:
@@ -42,19 +45,20 @@ def is_ip_blocked(ip_str: str) -> bool:
     except ValueError:
         return True
 
+
 def resolve_and_validate(url: str) -> str:
     parsed = urlparse(url)
-    
+
     if parsed.scheme not in ALLOWED_SCHEMES:
         raise SSRFError(f"Scheme '{parsed.scheme}' not allowed")
-    
+
     hostname = parsed.hostname
     if not hostname:
         raise SSRFError("URL missing hostname")
-    
+
     if hostname.lower() in EXPLICITLY_BLOCKED_DOMAINS:
         raise SSRFError(f"Domain '{hostname}' explicitly blocked")
-    
+
     try:
         direct_ip = ipaddress.ip_address(hostname)
         if is_ip_blocked(str(direct_ip)):
@@ -62,7 +66,7 @@ def resolve_and_validate(url: str) -> str:
         return str(direct_ip)
     except ValueError:
         pass
-    
+
     try:
         infos = socket.getaddrinfo(hostname, None)
         for info in infos:
@@ -73,21 +77,23 @@ def resolve_and_validate(url: str) -> str:
     except socket.gaierror as e:
         raise SSRFError(f"DNS resolution failed for '{hostname}': {e}")
 
+
 def validate_scrape_url(url: str) -> None:
     if not url or not isinstance(url, str):
         raise SSRFError("Invalid URL")
-    
+
     if len(url) > 2048:
         raise SSRFError("URL too long")
-    
+
     parsed = urlparse(url)
     if not parsed.netloc:
         raise SSRFError("URL missing netloc")
-    
+
     resolve_and_validate(url)
-    
+
     if parsed.username or parsed.password:
         raise SSRFError("URL with embedded credentials not allowed")
+
 
 class SSRFSafeTransport(httpx.AsyncHTTPTransport):
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
@@ -98,5 +104,5 @@ class SSRFSafeTransport(httpx.AsyncHTTPTransport):
         except SSRFError as e:
             print(f"[SSRF ERROR] blocked '{url_str}': {e}")
             raise httpx.HTTPError(f"SSRF protection blocked request: {e}")
-        
+
         return await super().handle_async_request(request)

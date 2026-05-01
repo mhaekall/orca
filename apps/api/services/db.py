@@ -1,41 +1,44 @@
 import json
+
 from db.connection import database
-from db.models import anime_mappings, anime_metadata
+
 
 async def upsert_anime_db(anilist_data, provider_id: str, provider_slug: str):
-    if not anilist_data or not anilist_data.get('anilistId'):
+    if not anilist_data or not anilist_data.get("anilistId"):
         return
-        
+
     # BLOKIR OTOMATIS GENRE HENTAI
-    genres = anilist_data.get('genres', [])
+    genres = anilist_data.get("genres", [])
     if isinstance(genres, list):
-        if any('hentai' in str(g).lower() for g in genres):
-            print(f"[BLOCKED] Mengabaikan anime Hentai: {anilist_data.get('cleanTitle', '')} ({provider_id})")
+        if any("hentai" in str(g).lower() for g in genres):
+            print(
+                f"[BLOCKED] Mengabaikan anime Hentai: {anilist_data.get('cleanTitle', '')} ({provider_id})"
+            )
             return
-            
+
     # OTOMATIS TAMBAHKAN GENRE ISEKAI JIKA SINOPSIS/JUDUL MENDUKUNG
-    synopsis = anilist_data.get('description') or ""
-    title = anilist_data.get('cleanTitle') or ""
-    isekai_keywords = ['isekai', 'reincarnat', 'another world']
+    synopsis = anilist_data.get("description") or ""
+    title = anilist_data.get("cleanTitle") or ""
+    isekai_keywords = ["isekai", "reincarnat", "another world"]
     if any(kw in synopsis.lower() or kw in title.lower() for kw in isekai_keywords):
         if "Isekai" not in genres:
             genres.append("Isekai")
-            anilist_data['genres'] = genres
-            
+            anilist_data["genres"] = genres
+
     try:
         # ── METADATA RECONCILIATION LOGIC ──
-        # If AniList says 'NOT_YET_RELEASED', but we know we are scraping episodes for it, 
+        # If AniList says 'NOT_YET_RELEASED', but we know we are scraping episodes for it,
         # forcefully reconcile the status to 'RELEASING' to match reality.
-        final_status = anilist_data.get('status', '')
-        if final_status == 'NOT_YET_RELEASED':
+        final_status = anilist_data.get("status", "")
+        if final_status == "NOT_YET_RELEASED":
             # Fast check if episodes exist for this anilistId
             eps = await database.fetch_val(
                 'SELECT COUNT(*) FROM episodes WHERE "anilistId" = :aid',
-                values={'aid': anilist_data.get('anilistId')}
+                values={"aid": anilist_data.get("anilistId")},
             )
             if eps and eps > 0:
-                final_status = 'RELEASING'
-                
+                final_status = "RELEASING"
+
         query_meta = """
             INSERT INTO anime_metadata (
                 "anilistId", "cleanTitle", "nativeTitle", "coverImage", "bannerImage", 
@@ -68,26 +71,29 @@ async def upsert_anime_db(anilist_data, provider_id: str, provider_slug: str):
                 "nextAiringEpisode" = EXCLUDED."nextAiringEpisode",
                 "updatedAt" = NOW()
         """
-        await database.execute(query=query_meta, values={
-            'anilistId': anilist_data.get('anilistId'),
-            'cleanTitle': anilist_data.get('cleanTitle', ''),
-            'nativeTitle': anilist_data.get('nativeTitle', ''),
-            'coverImage': anilist_data.get('hdImage', ''),
-            'bannerImage': anilist_data.get('banner', ''),
-            'synopsis': anilist_data.get('description', ''),
-            'score': anilist_data.get('score'),
-            'popularity': anilist_data.get('popularity', 0),
-            'trending': anilist_data.get('trending', 0),
-            'status': final_status,
-            'totalEpisodes': anilist_data.get('totalEpisodes'),
-            'season': anilist_data.get('season', ''),
-            'year': anilist_data.get('year'),
-            'studios': json.dumps(anilist_data.get('studios', [])),
-            'genres': json.dumps(anilist_data.get('genres', [])),
-            'recommendations': json.dumps(anilist_data.get('recommendations', [])),
-            'nextAiringEpisode': json.dumps(anilist_data.get('nextAiringEpisode'))
-        })
-        
+        await database.execute(
+            query=query_meta,
+            values={
+                "anilistId": anilist_data.get("anilistId"),
+                "cleanTitle": anilist_data.get("cleanTitle", ""),
+                "nativeTitle": anilist_data.get("nativeTitle", ""),
+                "coverImage": anilist_data.get("hdImage", ""),
+                "bannerImage": anilist_data.get("banner", ""),
+                "synopsis": anilist_data.get("description", ""),
+                "score": anilist_data.get("score"),
+                "popularity": anilist_data.get("popularity", 0),
+                "trending": anilist_data.get("trending", 0),
+                "status": final_status,
+                "totalEpisodes": anilist_data.get("totalEpisodes"),
+                "season": anilist_data.get("season", ""),
+                "year": anilist_data.get("year"),
+                "studios": json.dumps(anilist_data.get("studios", [])),
+                "genres": json.dumps(anilist_data.get("genres", [])),
+                "recommendations": json.dumps(anilist_data.get("recommendations", [])),
+                "nextAiringEpisode": json.dumps(anilist_data.get("nextAiringEpisode")),
+            },
+        )
+
         query_map = """
             INSERT INTO anime_mappings ("anilistId", "providerId", "providerSlug", "updatedAt")
             VALUES (:anilistId, :providerId, :providerSlug, NOW())
@@ -95,13 +101,17 @@ async def upsert_anime_db(anilist_data, provider_id: str, provider_slug: str):
                 "anilistId" = EXCLUDED."anilistId",
                 "updatedAt" = NOW()
         """
-        await database.execute(query=query_map, values={
-            'anilistId': anilist_data.get('anilistId'),
-            'providerId': provider_id,
-            'providerSlug': provider_slug
-        })
+        await database.execute(
+            query=query_map,
+            values={
+                "anilistId": anilist_data.get("anilistId"),
+                "providerId": provider_id,
+                "providerSlug": provider_slug,
+            },
+        )
     except Exception as e:
         print(f"[DB Upsert Error] {e}")
+
 
 async def upsert_mapping_atomic(
     anilist_id: int,
@@ -118,10 +128,10 @@ async def upsert_mapping_atomic(
         )
         """,
         values={
-            "anilist_id":    anilist_id,
-            "provider_id":   provider_id,
+            "anilist_id": anilist_id,
+            "provider_id": provider_id,
             "provider_slug": provider_slug,
-            "clean_title":   clean_title,
-            "cover_image":   cover_image,
+            "clean_title": clean_title,
+            "cover_image": cover_image,
         },
     )

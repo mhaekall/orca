@@ -1,7 +1,7 @@
-import sys
-import os
 import asyncio
 import logging
+import os
+import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -10,15 +10,16 @@ from db.connection import database
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def migrate_watch_events():
     await database.connect()
     try:
         logger.info("Migrating legacy watch_events to watch_sessions...")
-        
+
         # Insert into watch_sessions from watch_events
         # Group by user_id, anilistId, episodeNumber to create a session
         # We take the max timestamp_sec as watch_duration_sec, and min created_at as started_at
-        
+
         query = """
             INSERT INTO watch_sessions (
                 session_id, user_id, anilist_id, episode_number, 
@@ -44,13 +45,14 @@ async def migrate_watch_events():
                 started_at = LEAST(watch_sessions.started_at, EXCLUDED.started_at),
                 ended_at = GREATEST(watch_sessions.ended_at, EXCLUDED.ended_at);
         """
-        
+
         await database.execute(query)
         logger.info("Migration of watch_events completed successfully!")
     except Exception as e:
         logger.error(f"Migration failed: {e}")
     finally:
         await database.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(migrate_watch_events())

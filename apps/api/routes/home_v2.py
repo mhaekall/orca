@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Response
-from db.connection import database
 import json
 
+from fastapi import APIRouter, Response
+
+from db.connection import database
+
 router = APIRouter()
+
 
 @router.get("/v2/home")
 async def get_home_v2(response: Response):
@@ -13,8 +16,8 @@ async def get_home_v2(response: Response):
     """
     # Run queries concurrently to save round-trips
     import asyncio
-    
-    hero_query = '''
+
+    hero_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."synopsis", m."score", m.popularity,
@@ -31,9 +34,9 @@ async def get_home_v2(response: Response):
             COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'watching' AND ms.source_name = 'jikan_api'), 0)
         ) DESC, m.trending DESC NULLS LAST, m.popularity DESC NULLS LAST, m.score DESC NULLS LAST
         LIMIT 10
-    '''
-    
-    airing_query = '''
+    """
+
+    airing_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -50,9 +53,9 @@ async def get_home_v2(response: Response):
             COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'watching' AND ms.source_name = 'jikan_api'), 0)
         ) DESC, m.popularity DESC NULLS LAST
         LIMIT 20
-    '''
-    
-    latest_query = '''
+    """
+
+    latest_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -68,9 +71,9 @@ async def get_home_v2(response: Response):
         GROUP BY m."anilistId", c.id, c.title_preferred, m."cleanTitle", m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity, m."totalEpisodes", c.episode_count_actual
         ORDER BY last_up DESC
         LIMIT 20
-    '''
-    
-    popular_query = '''
+    """
+
+    popular_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -87,9 +90,9 @@ async def get_home_v2(response: Response):
             COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'watching' AND ms.source_name = 'jikan_api'), 0)
         ) DESC, m.popularity DESC NULLS LAST, m.score DESC NULLS LAST
         LIMIT 20
-    '''
+    """
 
-    completed_query = '''
+    completed_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -102,9 +105,9 @@ async def get_home_v2(response: Response):
         WHERE m.status = 'FINISHED' AND EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
         ORDER BY local_views DESC, m.popularity DESC NULLS LAST, m.score DESC NULLS LAST
         LIMIT 20
-    '''
+    """
 
-    top_rated_query = '''
+    top_rated_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -117,9 +120,9 @@ async def get_home_v2(response: Response):
         WHERE EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
         ORDER BY m.score DESC NULLS LAST, local_views DESC, m.popularity DESC NULLS LAST
         LIMIT 20
-    '''
+    """
 
-    isekai_query = '''
+    isekai_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -133,9 +136,9 @@ async def get_home_v2(response: Response):
           AND EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
         ORDER BY local_views DESC, m.popularity DESC NULLS LAST
         LIMIT 20
-    '''
+    """
 
-    movies_query = '''
+    movies_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -148,9 +151,9 @@ async def get_home_v2(response: Response):
         WHERE (m."totalEpisodes" = 1 OR c.episode_count_actual = 1) AND EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
         ORDER BY local_views DESC, m.popularity DESC NULLS LAST
         LIMIT 20
-    '''
+    """
 
-    trending_query = '''
+    trending_query = """
         SELECT m."anilistId", 
                COALESCE(c.title_preferred, m."cleanTitle") as "cleanTitle", 
                m."nativeTitle", m."coverImage", m."bannerImage", m."score", m.popularity,
@@ -167,9 +170,19 @@ async def get_home_v2(response: Response):
             COALESCE((SELECT MAX(raw_value::numeric) FROM metadata_sources ms WHERE ms.canonical_id = c.id AND ms.field_name = 'watching' AND ms.source_name = 'jikan_api'), 0)
         ) DESC, m.trending DESC NULLS LAST, m.popularity DESC NULLS LAST
         LIMIT 20
-    '''
+    """
 
-    hero_rows, airing_rows, latest_rows, popular_rows, completed_rows, top_rated_rows, isekai_rows, movies_rows, trending_rows = await asyncio.gather(
+    (
+        hero_rows,
+        airing_rows,
+        latest_rows,
+        popular_rows,
+        completed_rows,
+        top_rated_rows,
+        isekai_rows,
+        movies_rows,
+        trending_rows,
+    ) = await asyncio.gather(
         database.fetch_all(hero_query),
         database.fetch_all(airing_query),
         database.fetch_all(latest_query),
@@ -178,7 +191,7 @@ async def get_home_v2(response: Response):
         database.fetch_all(top_rated_query),
         database.fetch_all(isekai_query),
         database.fetch_all(movies_query),
-        database.fetch_all(trending_query)
+        database.fetch_all(trending_query),
     )
 
     def format_anime(r):
@@ -188,27 +201,27 @@ async def get_home_v2(response: Response):
                 d["nextAiringEpisode"] = json.loads(d["nextAiringEpisode"])
             except Exception:
                 pass
-                
+
         # Override score with local_score if it exists
         final_score = d.get("score")
         if d.get("local_score") is not None:
             val = float(d["local_score"])
             final_score = int(val * 10) if val <= 10 else int(val)
-            
+
         # Get views (it might be aliased as local_views or local_trending)
         local_v = d.get("local_views") or d.get("local_trending") or 0
         jikan_v = d.get("jikan_views") or 0
-        
+
         pop_v = d.get("popularity")
         if not pop_v:
             # Deterministic fallback for anime missing popularity data
             pop_v = (int(d["anilistId"]) % 900) + 100
-            
+
         eps_v = d.get("totalEpisodes") or 12
         base_v = int(pop_v * eps_v * 0.7)
-        
+
         final_views = max(int(local_v), int(jikan_v)) + base_v
-        
+
         return {
             "id": str(d["anilistId"]),
             "title": d.get("cleanTitle") or d.get("nativeTitle"),
@@ -221,7 +234,7 @@ async def get_home_v2(response: Response):
             "url": f"/anime/{d['anilistId']}",
             "anilistId": d["anilistId"],
             "latestEpisode": d.get("latestEpisode"),
-            "episodes": d.get("totalEpisodes")
+            "episodes": d.get("totalEpisodes"),
         }
 
     return {
@@ -236,5 +249,5 @@ async def get_home_v2(response: Response):
             "isekai": [format_anime(r) for r in isekai_rows],
             "movies": [format_anime(r) for r in movies_rows],
             "trending": [format_anime(r) for r in trending_rows],
-        }
+        },
     }

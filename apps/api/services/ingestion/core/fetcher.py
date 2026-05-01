@@ -1,20 +1,20 @@
-import os
 import asyncio
 import logging
+import os
 import random
-import httpx
-from typing import Optional
 from urllib.parse import urlparse
+
+import httpx
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ── Konfigurasi ────────────────────────────────────────────────────────────
-CHUNK_WORKERS   = 3      # Diturunkan ke 3 (jika 2 proses jalan, total 6 workers) agar balance antara speed dan RAM Android
-CHUNK_SIZE_MB   = 10     # Ukuran tiap chunk dalam MB
+CHUNK_WORKERS = 3  # Diturunkan ke 3 (jika 2 proses jalan, total 6 workers) agar balance antara speed dan RAM Android
+CHUNK_SIZE_MB = 10  # Ukuran tiap chunk dalam MB
 CONNECT_TIMEOUT = 15.0
-READ_TIMEOUT    = 60.0
-MAX_RETRIES     = 3
+READ_TIMEOUT = 60.0
+MAX_RETRIES = 3
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -43,10 +43,12 @@ def _make_headers(url: str) -> dict:
     }
 
 
-async def _get_file_size(url: str, headers: dict) -> Optional[int]:
+async def _get_file_size(url: str, headers: dict) -> int | None:
     """HEAD request untuk dapat Content-Length, fallback ke Range: bytes=0-0."""
     try:
-        async with httpx.AsyncClient(timeout=CONNECT_TIMEOUT, follow_redirects=True, verify=False) as client:
+        async with httpx.AsyncClient(
+            timeout=CONNECT_TIMEOUT, follow_redirects=True, verify=False
+        ) as client:
             r = await client.head(url, headers=headers)
             if r.status_code == 200:
                 cl = r.headers.get("content-length")
@@ -66,8 +68,13 @@ async def _get_file_size(url: str, headers: dict) -> Optional[int]:
 
 
 async def _download_chunk(
-    url: str, headers: dict, start: int, end: int,
-    chunk_index: int, output_path: str, semaphore: asyncio.Semaphore,
+    url: str,
+    headers: dict,
+    start: int,
+    end: int,
+    chunk_index: int,
+    output_path: str,
+    semaphore: asyncio.Semaphore,
 ) -> bool:
     """Download satu chunk via Range request, tulis langsung ke posisi yang benar di file."""
     async with semaphore:
@@ -77,12 +84,14 @@ async def _download_chunk(
                 async with httpx.AsyncClient(
                     timeout=httpx.Timeout(CONNECT_TIMEOUT, read=READ_TIMEOUT),
                     follow_redirects=True,
-                    verify=False
+                    verify=False,
                 ) as client:
                     async with client.stream("GET", url, headers=range_header) as r:
                         if r.status_code not in (200, 206):
-                            logger.warning(f"[Fetcher] Chunk {chunk_index} HTTP {r.status_code}, retry {attempt+1}")
-                            await asyncio.sleep(2 ** attempt)
+                            logger.warning(
+                                f"[Fetcher] Chunk {chunk_index} HTTP {r.status_code}, retry {attempt + 1}"
+                            )
+                            await asyncio.sleep(2**attempt)
                             continue
                         written = 0
                         with open(output_path, "r+b") as f:
@@ -90,17 +99,19 @@ async def _download_chunk(
                             async for data in r.aiter_bytes(chunk_size=65536):
                                 f.write(data)
                                 written += len(data)
-                        
+
                         expected_bytes = end - start + 1
                         if written != expected_bytes:
-                            logger.warning(f"[Fetcher] Chunk {chunk_index} incomplete: {written}/{expected_bytes} bytes. Retrying...")
+                            logger.warning(
+                                f"[Fetcher] Chunk {chunk_index} incomplete: {written}/{expected_bytes} bytes. Retrying..."
+                            )
                             raise Exception("Incomplete chunk download")
-                            
+
                         logger.info(f"[Fetcher] Chunk {chunk_index} OK ({start}-{end})")
                         return True
             except Exception as e:
-                logger.warning(f"[Fetcher] Chunk {chunk_index} error attempt {attempt+1}: {e}")
-                await asyncio.sleep(2 ** attempt)
+                logger.warning(f"[Fetcher] Chunk {chunk_index} error attempt {attempt + 1}: {e}")
+                await asyncio.sleep(2**attempt)
         logger.error(f"[Fetcher] Chunk {chunk_index} FAILED after {MAX_RETRIES} retries")
         return False
 
@@ -119,7 +130,9 @@ async def _parallel_download(url: str, output_path: str, file_size: int) -> bool
         offset = end + 1
         idx += 1
 
-    logger.info(f"[Fetcher] {len(chunks)} chunks x {CHUNK_SIZE_MB}MB | {CHUNK_WORKERS} workers paralel")
+    logger.info(
+        f"[Fetcher] {len(chunks)} chunks x {CHUNK_SIZE_MB}MB | {CHUNK_WORKERS} workers paralel"
+    )
 
     part_file = f"{output_path}.part"
 
@@ -153,17 +166,24 @@ async def _parallel_download(url: str, output_path: str, file_size: int) -> bool
 
 async def _single_stream_download(url: str, output_path: str) -> bool:
     """Fallback: FFmpeg single stream untuk HLS atau server yang tidak support Range."""
-    logger.info(f"[Fetcher] Menggunakan FFmpeg single stream")
+    logger.info("[Fetcher] Menggunakan FFmpeg single stream")
     headers = _make_headers(url)
     headers_str = "".join([f"{k}: {v}\r\n" for k, v in headers.items()])
     command = [
-        "ffmpeg", "-y",
-        "-timeout", "15000000",
-        "-rw_timeout", "15000000",
-        "-headers", headers_str,
-        "-i", url,
-        "-c", "copy",
-        "-bsf:a", "aac_adtstoasc",
+        "ffmpeg",
+        "-y",
+        "-timeout",
+        "15000000",
+        "-rw_timeout",
+        "15000000",
+        "-headers",
+        headers_str,
+        "-i",
+        url,
+        "-c",
+        "copy",
+        "-bsf:a",
+        "aac_adtstoasc",
         output_path,
     ]
     process = await asyncio.create_subprocess_exec(
@@ -181,7 +201,7 @@ async def _single_stream_download(url: str, output_path: str) -> bool:
         except:
             pass
         return False
-        
+
     if process.returncode != 0:
         logger.error(f"[Fetcher] FFmpeg gagal: {stderr.decode()[-400:] if stderr else 'No stderr'}")
         return False
@@ -193,7 +213,7 @@ class VideoFetcher:
         self.output_dir = output_dir or os.getenv("INGEST_TMP_DIR", "./tmp_ingest")
         os.makedirs(self.output_dir, exist_ok=True)
 
-    async def fetch(self, url: str, output_filename: str, provider_id: str = "") -> Optional[str]:
+    async def fetch(self, url: str, output_filename: str, provider_id: str = "") -> str | None:
         """
         Download video dari URL ke disk.
 
@@ -206,23 +226,31 @@ class VideoFetcher:
         logger.info(f"[Fetcher] Target: {url[:80]}...")
 
         headers = _make_headers(url)
-        
+
         # Determine file size first to verify existing file
         file_size = None
-        if not ".m3u8" in url.lower():
+        if ".m3u8" not in url.lower():
             file_size = await _get_file_size(url, headers)
 
         # Skip kalau file sudah ada dan ukurannya sama persis (atau m3u8 yang sulit dicek ukurannya tapi filenya lumayan besar)
         if os.path.exists(output_path):
             local_size = os.path.getsize(output_path)
             if file_size and local_size == file_size:
-                logger.info(f"[Fetcher] Sudah ada dan ukuran cocok ({local_size} bytes), skip download: {output_path}")
+                logger.info(
+                    f"[Fetcher] Sudah ada dan ukuran cocok ({local_size} bytes), skip download: {output_path}"
+                )
                 return output_path
-            elif not file_size and local_size > 1024 * 1024: # Asumsi > 1MB cukup untuk m3u8 hasil ffmpeg
-                logger.info(f"[Fetcher] Sudah ada (HLS/Unknown Size) > 1MB, skip download: {output_path}")
+            elif (
+                not file_size and local_size > 1024 * 1024
+            ):  # Asumsi > 1MB cukup untuk m3u8 hasil ffmpeg
+                logger.info(
+                    f"[Fetcher] Sudah ada (HLS/Unknown Size) > 1MB, skip download: {output_path}"
+                )
                 return output_path
             else:
-                logger.info(f"[Fetcher] File corrupt/incomplete (Local: {local_size}, Server: {file_size}). Menghapus file lama...")
+                logger.info(
+                    f"[Fetcher] File corrupt/incomplete (Local: {local_size}, Server: {file_size}). Menghapus file lama..."
+                )
                 os.remove(output_path)
 
         # HLS → langsung FFmpeg
@@ -235,11 +263,13 @@ class VideoFetcher:
         file_size = await _get_file_size(url, headers)
 
         if file_size and file_size > 0:
-            logger.info(f"[Fetcher] Ukuran file: {file_size/1024/1024:.1f}MB → parallel download")
+            logger.info(
+                f"[Fetcher] Ukuran file: {file_size / 1024 / 1024:.1f}MB → parallel download"
+            )
             success = await _parallel_download(url, output_path, file_size)
         else:
             # Server tidak support Range atau tidak return size
-            logger.info(f"[Fetcher] Ukuran tidak diketahui → FFmpeg fallback")
+            logger.info("[Fetcher] Ukuran tidak diketahui → FFmpeg fallback")
             success = await _single_stream_download(url, output_path)
 
         if not success:
@@ -248,5 +278,5 @@ class VideoFetcher:
             return None
 
         actual = os.path.getsize(output_path)
-        logger.info(f"[Fetcher] Selesai: {actual/1024/1024:.1f}MB → {output_path}")
+        logger.info(f"[Fetcher] Selesai: {actual / 1024 / 1024:.1f}MB → {output_path}")
         return output_path

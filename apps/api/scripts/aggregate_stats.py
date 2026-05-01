@@ -1,16 +1,17 @@
-import sys
-import os
 import asyncio
 import logging
+import os
+import sys
 
 # Ensure we can import from the api root
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+
 from db.connection import database
-from sqlalchemy import text
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 async def aggregate_stats():
     """
@@ -20,9 +21,9 @@ async def aggregate_stats():
     await database.connect()
     try:
         logger.info("Starting data aggregation pipeline...")
-        
+
         # 1. Aggregate Daily Anime Stats
-        # We roll up watch sessions into daily stats. 
+        # We roll up watch sessions into daily stats.
         # Using simple heuristics: 1 unique user = 10 popularity, 1 view = 2 trending
         logger.info("Aggregating daily anime stats...")
         query_anime_stats = """
@@ -43,7 +44,7 @@ async def aggregate_stats():
                 "updatedAt" = NOW();
         """
         await database.execute(query_anime_stats)
-        
+
         # 2. Update overall anime popularity & trending based on recent stats
         logger.info("Updating overall anime_metadata stats...")
         query_update_metadata = """
@@ -82,6 +83,7 @@ async def aggregate_stats():
         raise
     finally:
         await database.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(aggregate_stats())

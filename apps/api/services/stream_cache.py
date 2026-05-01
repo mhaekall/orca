@@ -36,17 +36,16 @@ import urllib.parse
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Coroutine, Optional
 
 from db.connection import database
-from services.cache import upstash_get, upstash_set, upstash_del
+from services.cache import upstash_del, upstash_get, upstash_set
 from services.providers import (
+    doronime_provider,
+    extractor,
+    kuronime_provider,
     oploverz_provider,
     otakudesu_provider,
     samehadaku_provider,
-    doronime_provider,
-    kuronime_provider,
-    extractor,
 )
 
 logger = logging.getLogger("StreamCacheEngine")
@@ -56,46 +55,47 @@ logger = logging.getLogger("StreamCacheEngine")
 # § 1. CONSTANTS & CONFIGURATION
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class Config:
     # L0 LRU — in-process (per instance)
-    L0_MAX_ENTRIES    = 512        # max episode cache entries in RAM
-    L0_TTL_SECONDS    = 900        # 15 menit — hot entries; evicted after this
+    L0_MAX_ENTRIES = 512  # max episode cache entries in RAM
+    L0_TTL_SECONDS = 900  # 15 menit — hot entries; evicted after this
 
     # L1 Redis TTLs
-    L1_FRESH_TTL      = 4 * 3600   # 4 jam — considered fresh
-    L1_STALE_TTL      = 24 * 3600  # 24 jam — stale-while-revalidate window
-    L1_LOCK_TTL       = 30         # 30 detik — scrape dedup lock
+    L1_FRESH_TTL = 4 * 3600  # 4 jam — considered fresh
+    L1_STALE_TTL = 24 * 3600  # 24 jam — stale-while-revalidate window
+    L1_LOCK_TTL = 30  # 30 detik — scrape dedup lock
 
     # L2 Postgres
-    L2_FALLBACK_TTL   = 4 * 3600   # jika tidak ada URL expiry
+    L2_FALLBACK_TTL = 4 * 3600  # jika tidak ada URL expiry
 
     # Probabilistic early expiry (Beta eviction)
     # Sumber: Vattani et al., "Cache stampede" paper
-    BETA              = 1.0        # higher = more aggressive early refresh
+    BETA = 1.0  # higher = more aggressive early refresh
 
     # Prefetch
-    PREFETCH_LOOKAHEAD = 2         # pre-resolve N episodes ke depan
-    PREFETCH_DELAY     = 0.3       # detik delay antar prefetch (rate limiting)
+    PREFETCH_LOOKAHEAD = 2  # pre-resolve N episodes ke depan
+    PREFETCH_DELAY = 0.3  # detik delay antar prefetch (rate limiting)
 
     # Circuit breaker
-    CB_FAILURE_THRESHOLD = 3       # trip after N failures
-    CB_RESET_TIMEOUT     = 60      # detik sebelum half-open retry
+    CB_FAILURE_THRESHOLD = 3  # trip after N failures
+    CB_RESET_TIMEOUT = 60  # detik sebelum half-open retry
 
     # Provider scrape priority (lower = preferred)
     PROVIDER_PRIORITY = {
-        "kuronime":   1,
+        "kuronime": 1,
         "samehadaku": 2,
-        "oploverz":   3,
-        "doronime":   4,
-        "otakudesu":  5,
+        "oploverz": 3,
+        "doronime": 4,
+        "otakudesu": 5,
     }
 
     PROVIDERS = {
-        "oploverz":   oploverz_provider,
-        "otakudesu":  otakudesu_provider,
+        "oploverz": oploverz_provider,
+        "otakudesu": otakudesu_provider,
         "samehadaku": samehadaku_provider,
-        "doronime":   doronime_provider,
-        "kuronime":   kuronime_provider,
+        "doronime": doronime_provider,
+        "kuronime": kuronime_provider,
     }
 
     QUALITY_RANK = {"1080p": 5, "720p": 4, "480p": 3, "360p": 2, "Auto": 1}
@@ -105,14 +105,16 @@ class Config:
 # § 2. DATA MODELS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class CachedPayload:
     """Payload yang disimpan di semua layer cache."""
-    sources:    list[dict]
-    downloads:  list[dict]
+
+    sources: list[dict]
+    downloads: list[dict]
     created_at: float
     expires_at: float  # waktu expired sebenarnya (dari URL param atau default)
-    stale_at:   float  # setelah ini, SWR background refresh dipicu
+    stale_at: float  # setelah ini, SWR background refresh dipicu
 
     def is_fresh(self) -> bool:
         return time.time() < self.stale_at
@@ -127,7 +129,7 @@ class CachedPayload:
         Sumber: https://en.wikipedia.org/wiki/Cache_stampede#Probabilistic_early_expiration
         Mencegah semua request serentak merevalidasi cache saat mendekati expiry.
         """
-        delta   = self.expires_at - self.stale_at  # lebar stale window
+        delta = self.expires_at - self.stale_at  # lebar stale window
         elapsed = time.time() - self.created_at
         if delta <= 0 or elapsed <= 0:
             return False
@@ -136,21 +138,21 @@ class CachedPayload:
 
     def to_redis(self) -> dict:
         return {
-            "sources":    self.sources,
-            "downloads":  self.downloads,
+            "sources": self.sources,
+            "downloads": self.downloads,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
-            "stale_at":   self.stale_at,
+            "stale_at": self.stale_at,
         }
 
     @staticmethod
-    def from_redis(data: dict) -> "CachedPayload":
+    def from_redis(data: dict) -> CachedPayload:
         return CachedPayload(
-            sources    = data.get("sources", []),
-            downloads  = data.get("downloads", []),
-            created_at = data.get("created_at", time.time()),
-            expires_at = data.get("expires_at", time.time() + Config.L2_FALLBACK_TTL),
-            stale_at   = data.get("stale_at",   time.time() + Config.L1_FRESH_TTL),
+            sources=data.get("sources", []),
+            downloads=data.get("downloads", []),
+            created_at=data.get("created_at", time.time()),
+            expires_at=data.get("expires_at", time.time() + Config.L2_FALLBACK_TTL),
+            stale_at=data.get("stale_at", time.time() + Config.L1_FRESH_TTL),
         )
 
     def to_response(self) -> dict:
@@ -161,6 +163,7 @@ class CachedPayload:
 # § 3. L0 — IN-PROCESS LRU CACHE
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class LRUCache:
     """
     Thread-safe LRU dengan TTL per-entry.
@@ -168,12 +171,12 @@ class LRUCache:
     """
 
     def __init__(self, max_size: int, default_ttl: int):
-        self._store:    OrderedDict[str, tuple[CachedPayload, float]] = OrderedDict()
-        self._max_size  = max_size
-        self._ttl       = default_ttl
-        self._lock      = asyncio.Lock()
+        self._store: OrderedDict[str, tuple[CachedPayload, float]] = OrderedDict()
+        self._max_size = max_size
+        self._ttl = default_ttl
+        self._lock = asyncio.Lock()
 
-    async def get(self, key: str) -> Optional[CachedPayload]:
+    async def get(self, key: str) -> CachedPayload | None:
         async with self._lock:
             if key not in self._store:
                 return None
@@ -207,9 +210,10 @@ class LRUCache:
 # § 4. CIRCUIT BREAKER
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class CBState(Enum):
-    CLOSED    = "closed"     # normal operation
-    OPEN      = "open"       # failing, skip calls
+    CLOSED = "closed"  # normal operation
+    OPEN = "open"  # failing, skip calls
     HALF_OPEN = "half_open"  # testing recovery
 
 
@@ -219,12 +223,13 @@ class CircuitBreaker:
     Circuit breaker per-provider.
     CLOSED → gagal N kali → OPEN (skip) → timeout → HALF_OPEN → sukses → CLOSED
     """
+
     provider_id: str
-    threshold:   int   = Config.CB_FAILURE_THRESHOLD
-    reset_time:  float = Config.CB_RESET_TIMEOUT
-    _state:      CBState = field(default=CBState.CLOSED, init=False)
-    _failures:   int     = field(default=0, init=False)
-    _opened_at:  float   = field(default=0.0, init=False)
+    threshold: int = Config.CB_FAILURE_THRESHOLD
+    reset_time: float = Config.CB_RESET_TIMEOUT
+    _state: CBState = field(default=CBState.CLOSED, init=False)
+    _failures: int = field(default=0, init=False)
+    _opened_at: float = field(default=0.0, init=False)
 
     @property
     def state(self) -> CBState:
@@ -240,13 +245,13 @@ class CircuitBreaker:
     def record_success(self) -> None:
         if self._state in (CBState.HALF_OPEN, CBState.CLOSED):
             self._failures = 0
-            self._state    = CBState.CLOSED
+            self._state = CBState.CLOSED
 
     def record_failure(self) -> None:
         self._failures += 1
         if self._failures >= self.threshold:
             if self._state != CBState.OPEN:
-                self._state    = CBState.OPEN
+                self._state = CBState.OPEN
                 self._opened_at = time.time()
                 logger.warning(
                     f"[CB:{self.provider_id}] OPEN — tripped after {self._failures} failures"
@@ -256,6 +261,7 @@ class CircuitBreaker:
 # ══════════════════════════════════════════════════════════════════════════════
 # § 5. CACHE KEY FACTORY
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class CacheKey:
     """Konsisten, deterministic key generation untuk semua layer."""
@@ -278,6 +284,7 @@ class CacheKey:
 # ══════════════════════════════════════════════════════════════════════════════
 # § 6. URL UTILITY
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def extract_url_expiry(url: str) -> float:
     """
@@ -318,18 +325,18 @@ def build_cached_payload(sources: list[dict], downloads: list[dict]) -> CachedPa
 
     # Beri buffer 5 menit sebelum actual expiry untuk safety margin
     safe_expiry = max(now + 600, min_expiry - 300)
-    stale_at    = now + Config.L1_FRESH_TTL
+    stale_at = now + Config.L1_FRESH_TTL
 
     # stale_at tidak boleh melewati expires_at
     if stale_at > safe_expiry:
         stale_at = safe_expiry - 60
 
     return CachedPayload(
-        sources    = sources,
-        downloads  = downloads,
-        created_at = now,
-        expires_at = safe_expiry,
-        stale_at   = stale_at,
+        sources=sources,
+        downloads=downloads,
+        created_at=now,
+        expires_at=safe_expiry,
+        stale_at=stale_at,
     )
 
 
@@ -340,7 +347,7 @@ def build_cached_payload(sources: list[dict], downloads: list[dict]) -> CachedPa
 QUALITY_RANK = Config.QUALITY_RANK
 
 
-async def _live_scrape(episode_url: str, provider_id: str) -> Optional[CachedPayload]:
+async def _live_scrape(episode_url: str, provider_id: str) -> CachedPayload | None:
     """
     Panggil provider scraper → ekstrak raw video → buat CachedPayload.
     Ini adalah L3, hanya dipanggil saat cache miss total.
@@ -355,14 +362,14 @@ async def _live_scrape(episode_url: str, provider_id: str) -> Optional[CachedPay
         raw_sources, downloads = raw_result, []
     else:
         raw_sources = raw_result.get("sources", [])
-        downloads   = raw_result.get("downloads", [])
+        downloads = raw_result.get("downloads", [])
 
     if not raw_sources:
         return None
 
     sem = asyncio.Semaphore(4)
 
-    async def resolve_one(src: dict) -> Optional[dict]:
+    async def resolve_one(src: dict) -> dict | None:
         raw_url = src.get("url") or src.get("resolved", "")
         if not raw_url:
             return None
@@ -375,27 +382,36 @@ async def _live_scrape(episode_url: str, provider_id: str) -> Optional[CachedPay
 
         resolved_lower = resolved.lower()
         original_type = src.get("type", "")
-        
+
         is_direct = (
-            ("mp4upload" not in resolved_lower and "doodstream" not in resolved_lower and "dsvplay" not in resolved_lower) and (
+            (
+                "mp4upload" not in resolved_lower
+                and "doodstream" not in resolved_lower
+                and "dsvplay" not in resolved_lower
+            )
+            and (
                 any(resolved.split("?")[0].endswith(ext) for ext in (".m3u8", ".mp4", ".webm"))
                 or "googlevideo.com/videoplayback" in resolved_lower
-                or "kuroplayer.xyz"               in resolved_lower
-                or ".mp4"                         in resolved_lower
-                or ".m3u8"                        in resolved_lower
+                or "kuroplayer.xyz" in resolved_lower
+                or ".mp4" in resolved_lower
+                or ".m3u8" in resolved_lower
             )
         ) or ("direct" in original_type)
-        
-        video_type = original_type if "direct" in original_type else ("hls" if ".m3u8" in resolved_lower else ("mp4" if is_direct else "iframe"))
+
+        video_type = (
+            original_type
+            if "direct" in original_type
+            else ("hls" if ".m3u8" in resolved_lower else ("mp4" if is_direct else "iframe"))
+        )
         final_url = resolved if is_direct else raw_url
 
         return {
             "provider": src.get("provider") or provider_id,
-            "quality":  src.get("quality", "Auto"),
-            "url":      final_url,
-            "raw_url":  resolved if is_direct else raw_url,
-            "type":     video_type,
-            "source":   provider_id,
+            "quality": src.get("quality", "Auto"),
+            "url": final_url,
+            "raw_url": resolved if is_direct else raw_url,
+            "type": video_type,
+            "source": provider_id,
         }
 
     resolved_list = await asyncio.gather(*(resolve_one(s) for s in raw_sources))
@@ -414,6 +430,7 @@ async def _live_scrape(episode_url: str, provider_id: str) -> Optional[CachedPay
 
     try:
         from utils.signed_url import sign_stream_url
+
         for source in final_sources:
             if source.get("type") in ("hls", "mp4", "direct"):
                 raw_url = source.get("raw_url") or source.get("url")
@@ -433,6 +450,7 @@ async def _live_scrape(episode_url: str, provider_id: str) -> Optional[CachedPay
 # § 8. WRITE-THROUGH PERSISTENCE
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 async def _write_l1(key: str, payload: CachedPayload) -> None:
     """Tulis ke Upstash Redis dengan TTL = expires_at - now."""
     ttl = max(300, int(payload.expires_at - time.time()))
@@ -445,8 +463,9 @@ async def _write_l1(key: str, payload: CachedPayload) -> None:
 async def _write_l2(episode_url: str, provider_id: str, payload: CachedPayload) -> None:
     """Tulis ke Neon Postgres (video_cache table)."""
     from datetime import datetime, timedelta
+
     ttl_seconds = max(300, int(payload.expires_at - time.time()))
-    expires_dt  = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+    expires_dt = datetime.utcnow() + timedelta(seconds=ttl_seconds)
     try:
         await database.execute(
             """
@@ -459,8 +478,8 @@ async def _write_l2(episode_url: str, provider_id: str, payload: CachedPayload) 
                 "updatedAt" = NOW()
             """,
             values={
-                "url":     episode_url,
-                "pid":     provider_id,
+                "url": episode_url,
+                "pid": provider_id,
                 "payload": json.dumps(payload.to_redis()),
                 "expires": expires_dt,
             },
@@ -472,16 +491,20 @@ async def _write_l2(episode_url: str, provider_id: str, payload: CachedPayload) 
 async def _write_all(episode_url: str, provider_id: str, payload: CachedPayload) -> None:
     """Fan-out write ke L1 + L2 secara concurrent."""
     key = CacheKey.stream(episode_url)
-    await asyncio.gather(
+    results = await asyncio.gather(
         _write_l1(key, payload),
         _write_l2(episode_url, provider_id, payload),
         return_exceptions=True,
     )
+    for r in results:
+        if isinstance(r, Exception):
+            logger.error(f"[_write_all] Exception: {r}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # § 9. THE ENGINE — Core Get Logic
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class StreamCacheEngine:
     """
@@ -500,8 +523,8 @@ class StreamCacheEngine:
     """
 
     def __init__(self) -> None:
-        self._l0    = LRUCache(Config.L0_MAX_ENTRIES, Config.L0_TTL_SECONDS)
-        self._cbs   = {pid: CircuitBreaker(pid) for pid in Config.PROVIDERS}
+        self._l0 = LRUCache(Config.L0_MAX_ENTRIES, Config.L0_TTL_SECONDS)
+        self._cbs = {pid: CircuitBreaker(pid) for pid in Config.PROVIDERS}
         self._inflight: dict[str, asyncio.Future] = {}  # dedup in-flight scrapes
         self._inflight_lock = asyncio.Lock()
 
@@ -526,9 +549,7 @@ class StreamCacheEngine:
         if l0_hit and l0_hit.is_usable():
             if not l0_hit.is_fresh() and not l0_hit.should_early_refresh():
                 # SWR: kick off background revalidation, serve stale
-                asyncio.create_task(
-                    self._background_revalidate(episode_url, provider_id, key)
-                )
+                asyncio.create_task(self._background_revalidate(episode_url, provider_id, key))
             return self._hit(l0_hit, "L0", t0)
 
         # ── L1: Upstash Redis (1–5ms) ─────────────────────────────────────────
@@ -618,13 +639,13 @@ class StreamCacheEngine:
         if current_idx is None:
             return
 
-        lookahead = sorted_eps[current_idx + 1: current_idx + 1 + Config.PREFETCH_LOOKAHEAD]
+        lookahead = sorted_eps[current_idx + 1 : current_idx + 1 + Config.PREFETCH_LOOKAHEAD]
 
         for ep in lookahead:
-            ep_url     = ep.get("episodeUrl", "")
-            ep_num     = ep.get("episodeNumber")
-            provider   = ep.get("providerId", "samehadaku")
-            cache_key  = CacheKey.stream(ep_url)
+            ep_url = ep.get("episodeUrl", "")
+            ep_num = ep.get("episodeNumber")
+            provider = ep.get("providerId", "samehadaku")
+            cache_key = CacheKey.stream(ep_url)
 
             # Jangan prefetch jika sudah ada di L0
             if await self._l0.get(cache_key):
@@ -664,7 +685,11 @@ class StreamCacheEngine:
                 if not row["payload"]:
                     continue
                 try:
-                    raw     = row["payload"] if isinstance(row["payload"], dict) else json.loads(row["payload"])
+                    raw = (
+                        row["payload"]
+                        if isinstance(row["payload"], dict)
+                        else json.loads(row["payload"])
+                    )
                     payload = CachedPayload.from_redis(raw)
                     if payload.is_usable():
                         key = CacheKey.stream(row["episodeUrl"])
@@ -682,19 +707,17 @@ class StreamCacheEngine:
         """Kembalikan snapshot kesehatan engine untuk monitoring / debug endpoint."""
         try:
             pg_total = await database.fetch_one(
-                "SELECT COUNT(*) AS cnt FROM video_cache WHERE \"expiresAt\" > NOW()"
+                'SELECT COUNT(*) AS cnt FROM video_cache WHERE "expiresAt" > NOW()'
             )
             pg_count = pg_total["cnt"] if pg_total else 0
         except Exception:
             pg_count = -1
 
         return {
-            "l0_entries":   self._l0.size,
-            "l0_max":       Config.L0_MAX_ENTRIES,
+            "l0_entries": self._l0.size,
+            "l0_max": Config.L0_MAX_ENTRIES,
             "l2_pg_entries": pg_count,
-            "circuit_breakers": {
-                pid: cb._state.value for pid, cb in self._cbs.items()
-            },
+            "circuit_breakers": {pid: cb._state.value for pid, cb in self._cbs.items()},
             "inflight_scrapes": len(self._inflight),
         }
 
@@ -705,7 +728,7 @@ class StreamCacheEngine:
         return {
             **payload.to_response(),
             "cache_layer": layer,
-            "latency_ms":  StreamCacheEngine._ms(t0),
+            "latency_ms": StreamCacheEngine._ms(t0),
         }
 
     @staticmethod
@@ -716,7 +739,7 @@ class StreamCacheEngine:
         self,
         episode_url: str,
         provider_id: str,
-    ) -> Optional[CachedPayload]:
+    ) -> CachedPayload | None:
         """
         Request coalescing: jika dua request datang untuk URL yang sama secara
         bersamaan, hanya satu scrape yang berjalan; yang lain menunggu hasilnya.
@@ -758,7 +781,7 @@ class StreamCacheEngine:
         self,
         episode_url: str,
         provider_id: str,
-    ) -> Optional[CachedPayload]:
+    ) -> CachedPayload | None:
         """
         Scrape dengan Redis distributed lock — mencegah scrape redundan
         dari multiple HF Space instances (jika di-scale).
@@ -806,7 +829,7 @@ class StreamCacheEngine:
         self,
         episode_url: str,
         failed_provider: str,
-    ) -> Optional[CachedPayload]:
+    ) -> CachedPayload | None:
         """
         Coba provider lain berdasarkan prioritas jika provider utama circuit-open.
         Ini memerlukan lookup DB untuk episode yang sama dari provider berbeda.
@@ -838,8 +861,8 @@ class StreamCacheEngine:
             )
             for row in rows:
                 alt_provider = row["providerId"]
-                alt_url      = row["episodeUrl"]
-                alt_cb       = self._cbs.get(alt_provider)
+                alt_url = row["episodeUrl"]
+                alt_cb = self._cbs.get(alt_provider)
                 if alt_cb and not alt_cb.is_allowed():
                     continue
                 logger.info(f"[Fallback] Trying {alt_provider} for {episode_url}")
@@ -874,7 +897,9 @@ class StreamCacheEngine:
                     _write_l2(episode_url, provider_id, payload),
                     return_exceptions=True,
                 )
-                logger.info(f"[SWR] Revalidated {episode_url} — new expiry in {int(payload.expires_at - time.time())}s")
+                logger.info(
+                    f"[SWR] Revalidated {episode_url} — new expiry in {int(payload.expires_at - time.time())}s"
+                )
         except Exception as e:
             logger.warning(f"[SWR] Revalidation failed for {episode_url}: {e}")
 
@@ -913,10 +938,11 @@ stream_cache = StreamCacheEngine()
 
 # ── Drop-in untuk pipeline.py get_episode_stream() ───────────────────────────
 
+
 async def get_cached_stream(
     anilist_id: int,
     ep_num: float,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Drop-in pengganti pipeline.get_episode_stream().
     Tambahkan ke main.py lifespan warmup dengan memanggil
@@ -937,16 +963,20 @@ async def get_cached_stream(
         if row:
             ep_url = row["episodeUrl"]
             return {
-                "sources": [{
-                    "provider": "Swarm Storage (Telegram)",
-                    "quality":  "1080p",
-                    "url":      ep_url,
-                    "type":     "hls" if ("tg-proxy" in ep_url or ep_url.endswith(".m3u8")) else "mp4",
-                    "source":   "telegram_swarm",
-                }],
-                "downloads":   [],
+                "sources": [
+                    {
+                        "provider": "Swarm Storage (Telegram)",
+                        "quality": "1080p",
+                        "url": ep_url,
+                        "type": "hls"
+                        if ("tg-proxy" in ep_url or ep_url.endswith(".m3u8"))
+                        else "mp4",
+                        "source": "telegram_swarm",
+                    }
+                ],
+                "downloads": [],
                 "cache_layer": "L0-Telegram",
-                "latency_ms":  0,
+                "latency_ms": 0,
             }
     except Exception:
         pass
@@ -975,11 +1005,15 @@ async def get_cached_stream(
     for row in rows:
         result = await stream_cache.get_stream(row["episodeUrl"], row["providerId"])
         if result.get("sources"):
-            result["episodeUrl"]  = row["episodeUrl"]
+            result["episodeUrl"] = row["episodeUrl"]
             result["usedProvider"] = row["providerId"]
 
             # Trigger ingestion ke Telegram jika ada direct link (fire-and-forget)
-            direct = [s for s in result["sources"] if s.get("type") in ("hls", "mp4", "direct", "mp4 (direct)", "hls (direct)")]
+            direct = [
+                s
+                for s in result["sources"]
+                if s.get("type") in ("hls", "mp4", "direct", "mp4 (direct)", "hls (direct)")
+            ]
             if direct:
                 raw_url = direct[0].get("raw_url") or direct[0].get("url", "")
                 if raw_url and "workers.dev" not in raw_url and "tg-proxy" not in raw_url:
@@ -997,6 +1031,7 @@ async def get_cached_stream(
 
 
 # ── Debug / Admin Endpoint ────────────────────────────────────────────────────
+
 
 async def cache_stats_handler() -> dict:
     """

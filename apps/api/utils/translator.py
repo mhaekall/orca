@@ -1,19 +1,13 @@
 import httpx
-import urllib.parse
+
 
 async def translate_en_to_id(text: str) -> str:
     if not text:
         return text
-    
+
     url = "https://translate.googleapis.com/translate_a/single"
-    params = {
-        "client": "gtx",
-        "sl": "en",
-        "tl": "id",
-        "dt": "t",
-        "q": text
-    }
-    
+    params = {"client": "gtx", "sl": "en", "tl": "id", "dt": "t", "q": text}
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(url, params=params)

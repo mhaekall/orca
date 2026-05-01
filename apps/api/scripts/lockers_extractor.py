@@ -1,10 +1,8 @@
-import asyncio
 import hashlib
 import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import httpx
 from bs4 import BeautifulSoup
@@ -22,15 +20,30 @@ _DEFAULT_UA = (
 )
 
 _GOFILE_TOKEN_SALT = "5d4f7g8sd45fsd"
-_GOFILE_TOKEN_BUCKET_SEC = 14400 
+_GOFILE_TOKEN_BUCKET_SEC = 14400
 
 _DEFAULT_TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=15.0, pool=10.0)
 
-class LockerExtractionError(Exception): pass
-class TokenNotFoundError(LockerExtractionError): pass
-class DirectUrlNotFoundError(LockerExtractionError): pass
-class UpstreamHttpError(LockerExtractionError): pass
-class PasswordRequiredError(LockerExtractionError): pass
+
+class LockerExtractionError(Exception):
+    pass
+
+
+class TokenNotFoundError(LockerExtractionError):
+    pass
+
+
+class DirectUrlNotFoundError(LockerExtractionError):
+    pass
+
+
+class UpstreamHttpError(LockerExtractionError):
+    pass
+
+
+class PasswordRequiredError(LockerExtractionError):
+    pass
+
 
 @dataclass(slots=True, frozen=True)
 class DirectLink:
@@ -40,12 +53,10 @@ class DirectLink:
     required_headers: dict[str, str] = field(default_factory=dict)
     host: str = ""
 
-_RE_KRAKEN_TOKEN = re.compile(
-    r'id=["\']dl-token["\']\s+[^>]*value=["\']([^"\']+)["\']', re.I
-)
-_RE_KRAKEN_HASH = re.compile(
-    r'data-file-hash=["\']([a-f0-9]+)["\']', re.I
-)
+
+_RE_KRAKEN_TOKEN = re.compile(r'id=["\']dl-token["\']\s+[^>]*value=["\']([^"\']+)["\']', re.I)
+_RE_KRAKEN_HASH = re.compile(r'data-file-hash=["\']([a-f0-9]+)["\']', re.I)
+
 
 async def extract_krakenfiles(url: str, client: httpx.AsyncClient) -> str:
     headers = {
@@ -116,17 +127,22 @@ async def extract_krakenfiles(url: str, client: httpx.AsyncClient) -> str:
 
     if direct.startswith("//"):
         direct = "https:" + direct
-        
+
     return direct
 
+
 _RE_GOFILE_FOLDER_ID = re.compile(r"gofile\.io/d/([^/?#]+)", re.I)
+
 
 def _gofile_generate_website_token(user_agent: str, account_token: str, lang: str = "en-US") -> str:
     bucket = int(time.time() / _GOFILE_TOKEN_BUCKET_SEC)
     payload = f"{user_agent}::{lang}::{account_token}::{bucket}::{_GOFILE_TOKEN_SALT}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-async def extract_gofile(url: str, client: httpx.AsyncClient, *, password: str | None = None, lang: str = "en-US") -> DirectLink:
+
+async def extract_gofile(
+    url: str, client: httpx.AsyncClient, *, password: str | None = None, lang: str = "en-US"
+) -> DirectLink:
     m = _RE_GOFILE_FOLDER_ID.search(url)
     if not m:
         raise TokenNotFoundError("Gofile URL tidak valid")
@@ -142,7 +158,9 @@ async def extract_gofile(url: str, client: httpx.AsyncClient, *, password: str |
     }
 
     try:
-        acc_resp = await client.post("https://api.gofile.io/accounts", headers=base_headers, json={})
+        acc_resp = await client.post(
+            "https://api.gofile.io/accounts", headers=base_headers, json={}
+        )
     except httpx.HTTPError as e:
         raise UpstreamHttpError(f"Gofile accounts gagal: {e!r}") from e
 
@@ -150,8 +168,10 @@ async def extract_gofile(url: str, client: httpx.AsyncClient, *, password: str |
         raise UpstreamHttpError("Gofile accounts HTTP error")
 
     acc_data = acc_resp.json()
-    account_token = acc_data.get("data", {}).get("token") if isinstance(acc_data.get("data"), dict) else None
-    
+    account_token = (
+        acc_data.get("data", {}).get("token") if isinstance(acc_data.get("data"), dict) else None
+    )
+
     if not account_token:
         raise UpstreamHttpError("Gofile accounts tanpa token")
 
@@ -166,7 +186,7 @@ async def extract_gofile(url: str, client: httpx.AsyncClient, *, password: str |
         "sortField": "name",
         "sortDirection": "1",
     }
-    
+
     api_headers = {
         **base_headers,
         "Authorization": f"Bearer {account_token}",
@@ -190,10 +210,11 @@ async def extract_gofile(url: str, client: httpx.AsyncClient, *, password: str |
 
     data = body.get("data") or {}
     children = data.get("children") or {}
-    
+
     chosen = None
     for item in children.values():
-        if not isinstance(item, dict): continue
+        if not isinstance(item, dict):
+            continue
         mime = str(item.get("mimetype") or "")
         if mime.startswith("video/"):
             chosen = item
@@ -223,6 +244,7 @@ async def extract_gofile(url: str, client: httpx.AsyncClient, *, password: str |
         host="gofile",
     )
 
+
 def build_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         timeout=_DEFAULT_TIMEOUT,
@@ -230,4 +252,3 @@ def build_client() -> httpx.AsyncClient:
         headers={"User-Agent": _DEFAULT_UA},
         limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
     )
-

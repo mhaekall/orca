@@ -1,11 +1,12 @@
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.connection import database
 from services.pipeline import sync_anime_episodes
+
 
 async def resync_missing_episodes():
     print("🚀 Looking for mapped anime with 0 episodes...")
@@ -18,7 +19,7 @@ async def resync_missing_episodes():
         GROUP BY m."anilistId", m."cleanTitle"
         HAVING COUNT(e.id) = 0
     """)
-    
+
     if not rows:
         print("✅ No missing episodes found for mapped anime.")
         return
@@ -37,10 +38,12 @@ async def resync_missing_episodes():
 
     print("\n✅ Resync Finished.")
 
+
 async def main():
     await database.connect()
     await resync_missing_episodes()
     await database.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

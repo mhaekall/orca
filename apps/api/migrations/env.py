@@ -1,17 +1,17 @@
 import asyncio
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,10 +31,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from db.connection import metadata
-import db.models  # ensure models are loaded before assigning target_metadata
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -47,9 +47,17 @@ target_metadata = metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    if type_ == "table" and name in ["user", "session", "account", "verification", "watch_history", "bookmarks"]:
+    if type_ == "table" and name in [
+        "user",
+        "session",
+        "account",
+        "verification",
+        "watch_history",
+        "bookmarks",
+    ]:
         return False
     return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -78,7 +86,7 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
-        connection=connection, 
+        connection=connection,
         target_metadata=target_metadata,
         include_object=include_object,
     )

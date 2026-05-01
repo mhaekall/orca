@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class CollectionUpdate(BaseModel):
     user_id: str
     anilistId: str

@@ -14,38 +14,34 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
-import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
-from typing import Optional
 
 import httpx
+from dotenv import load_dotenv
 
 from db.connection import database
 from services.anilist import fetch_anilist_info
 from utils.ssrf_guard import SSRFSafeTransport
-
-import os
-
-from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
 # ─────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────
-GEMINI_API_KEY  = os.environ.get("GEMINI_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     print("[WARNING] GEMINI_API_KEY is not set.")
-GEMINI_MODEL    = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 GEMINI_ENDPOINT = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"{GEMINI_MODEL}:generateContent"
     f"?key={GEMINI_API_KEY}"
 )
-DIFFLIB_THRESHOLD = 0.70   # Below this → ask Gemini
-GEMINI_TIMEOUT    = 8.0    # seconds — keep it snappy on Termux
+DIFFLIB_THRESHOLD = 0.70  # Below this → ask Gemini
+GEMINI_TIMEOUT = 8.0  # seconds — keep it snappy on Termux
 
 
 # ─────────────────────────────────────────────
@@ -53,29 +49,29 @@ GEMINI_TIMEOUT    = 8.0    # seconds — keep it snappy on Termux
 # ─────────────────────────────────────────────
 @dataclass
 class ProviderCandidate:
-    provider_id:   str          # "oploverz" | "otakudesu" | "samehadaku"
-    provider_slug: str          # URL slug
-    raw_title:     str          # Title as seen on provider
-    anilist_id:    Optional[int] = None
-    confidence:    float = 0.0
-    matched_via:   str = "none" # "difflib" | "gemini" | "exact"
+    provider_id: str  # "oploverz" | "otakudesu" | "samehadaku"
+    provider_slug: str  # URL slug
+    raw_title: str  # Title as seen on provider
+    anilist_id: int | None = None
+    confidence: float = 0.0
+    matched_via: str = "none"  # "difflib" | "gemini" | "exact"
 
 
 @dataclass
 class ReconciliationResult:
     canonical_anilist_id: int
-    canonical_title:      str
-    anilist_metadata:     Optional[dict] = None # Include full data here
-    providers:            list[ProviderCandidate] = field(default_factory=list)
-    conflicts_resolved:   int = 0
-    migrated_records:     int = 0
+    canonical_title: str
+    anilist_metadata: dict | None = None  # Include full data here
+    providers: list[ProviderCandidate] = field(default_factory=list)
+    conflicts_resolved: int = 0
+    migrated_records: int = 0
 
 
 # ─────────────────────────────────────────────
 # Gemini Semantic Matcher  (lazy singleton)
 # ─────────────────────────────────────────────
 class GeminiMatcher:
-    _client: Optional[httpx.AsyncClient] = None
+    _client: httpx.AsyncClient | None = None
 
     @classmethod
     def _get_client(cls) -> httpx.AsyncClient:
@@ -96,7 +92,7 @@ class GeminiMatcher:
         prompt = (
             "You are an anime expert. Given a messy provider slug or dirty title, "
             "return ONLY the canonical anime title in romaji — no explanation, no markdown.\n\n"
-            f"Input: \"{dirty_title}\"\n"
+            f'Input: "{dirty_title}"\n'
             "Output (title only):"
         )
         payload = {
@@ -111,9 +107,9 @@ class GeminiMatcher:
                 return ""
             text = (
                 raw.get("candidates", [{}])[0]
-                   .get("content", {})
-                   .get("parts", [{}])[0]
-                   .get("text", "")
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
             )
             return text.strip().strip('"').strip("'")
         except Exception as e:
@@ -133,16 +129,16 @@ class GeminiMatcher:
         prompt = (
             "You are an anime title matcher. "
             "Reply ONLY with a JSON object — no markdown, no explanation.\n\n"
-            f"Provider title: \"{provider_title}\"\n"
+            f'Provider title: "{provider_title}"\n'
             f"AniList candidates: {json.dumps(anilist_candidates)}\n\n"
-            "Return: {\"matched\": true/false, \"best_match\": \"<title or empty>\"}"
+            'Return: {"matched": true/false, "best_match": "<title or empty>"}'
         )
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
-                "maxOutputTokens": 80, 
+                "maxOutputTokens": 80,
                 "temperature": 0,
-                "responseMimeType": "application/json"
+                "responseMimeType": "application/json",
             },
         }
         try:
@@ -150,9 +146,9 @@ class GeminiMatcher:
             raw = r.json()
             text = (
                 raw.get("candidates", [{}])[0]
-                   .get("content", {})
-                   .get("parts", [{}])[0]
-                   .get("text", "{}")
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "{}")
             )
             # Strip possible markdown fences
             text = re.sub(r"```json|```", "", text).strip()
@@ -195,19 +191,18 @@ class AnimeReconciler:
             titles_to_check.append(anilist_data["romajiTitle"])
         if anilist_data.get("synonyms"):
             titles_to_check.extend(anilist_data["synonyms"])
-            
+
         best_score = 0.0
         for t in titles_to_check:
-            if not t: continue
+            if not t:
+                continue
             score = cls._difflib_score(raw_title, t)
             if score > best_score:
                 best_score = score
         return best_score
 
     @staticmethod
-    async def _get_existing_mapping(
-        provider_id: str, provider_slug: str
-    ) -> Optional[dict]:
+    async def _get_existing_mapping(provider_id: str, provider_slug: str) -> dict | None:
         row = await database.fetch_one(
             """
             SELECT m."anilistId", meta."cleanTitle", meta."nativeTitle"
@@ -233,7 +228,7 @@ class AnimeReconciler:
     async def _migrate_history(old_id: int, new_id: int) -> int:
         tables = [
             ("user_bookmarks", "anilistId"),
-            ("watch_history",  "anilistId"),
+            ("watch_history", "anilistId"),
         ]
         migrated = 0
         for table, col in tables:
@@ -252,7 +247,7 @@ class AnimeReconciler:
                     {"new_id": new_id, "old_id": old_id},
                 )
                 migrated += result or 0
-            except Exception as e:
+            except Exception:
                 pass
         return migrated
 
@@ -262,17 +257,18 @@ class AnimeReconciler:
         and records the metadata source in metadata_sources.
         """
         # 1. Upsert canonical_anime
-        title_preferred = anilist_data.get("cleanTitle") or anilist_data.get("nativeTitle") or "Unknown"
+        title_preferred = (
+            anilist_data.get("cleanTitle") or anilist_data.get("nativeTitle") or "Unknown"
+        )
         episode_count = anilist_data.get("totalEpisodes")
         genres = anilist_data.get("genres")
         mal_id = anilist_data.get("mal_id")
-        
+
         # Check if canonical_anime exists
         row = await database.fetch_one(
-            "SELECT id FROM canonical_anime WHERE anilist_id = :id",
-            {"id": anilist_id}
+            "SELECT id FROM canonical_anime WHERE anilist_id = :id", {"id": anilist_id}
         )
-        
+
         canonical_id = None
         if row:
             canonical_id = row["id"]
@@ -284,7 +280,7 @@ class AnimeReconciler:
                 SET title_preferred = :title, mal_id = COALESCE(:mal_id, mal_id), last_reconciled_at = NOW()
                 WHERE id = :cid
                 """,
-                {"title": title_preferred, "mal_id": mal_id, "cid": canonical_id}
+                {"title": title_preferred, "mal_id": mal_id, "cid": canonical_id},
             )
         else:
             query = """
@@ -293,6 +289,7 @@ class AnimeReconciler:
                 RETURNING id
             """
             import json
+
             canonical_id = await database.execute(
                 query,
                 {
@@ -300,10 +297,10 @@ class AnimeReconciler:
                     "title": title_preferred,
                     "eps": episode_count,
                     "genres": json.dumps(genres) if genres else "[]",
-                    "mal_id": mal_id
-                }
+                    "mal_id": mal_id,
+                },
             )
-            
+
         # 2. Record metadata source for AniList
         if canonical_id:
             await self.record_metadata_source(
@@ -311,35 +308,45 @@ class AnimeReconciler:
                 source_name="anilist",
                 field_name="episode_count",
                 raw_value=str(episode_count) if episode_count is not None else "",
-                confidence=0.8  # AniList base confidence
+                confidence=0.8,  # AniList base confidence
             )
             await self.record_metadata_source(
                 canonical_id=canonical_id,
                 source_name="anilist",
                 field_name="title",
                 raw_value=title_preferred,
-                confidence=1.0  # AniList title is canonical
+                confidence=1.0,  # AniList title is canonical
             )
 
-    async def record_metadata_source(self, canonical_id: int, source_name: str, field_name: str, raw_value: str, confidence: float):
+    async def record_metadata_source(
+        self,
+        canonical_id: int,
+        source_name: str,
+        field_name: str,
+        raw_value: str,
+        confidence: float,
+    ):
         query = """
             INSERT INTO metadata_sources (canonical_id, source_name, field_name, raw_value, confidence, fetched_at)
             VALUES (:cid, :src, :field, :val, :conf, NOW())
         """
-        await database.execute(query, {
-            "cid": canonical_id,
-            "src": source_name,
-            "field": field_name,
-            "val": raw_value,
-            "conf": confidence
-        })
+        await database.execute(
+            query,
+            {
+                "cid": canonical_id,
+                "src": source_name,
+                "field": field_name,
+                "val": raw_value,
+                "conf": confidence,
+            },
+        )
 
     async def reconcile(
         self,
-        provider_id:   str,
+        provider_id: str,
         provider_slug: str,
-        raw_title:     str,
-    ) -> Optional[ReconciliationResult]:
+        raw_title: str,
+    ) -> ReconciliationResult | None:
         candidate = ProviderCandidate(
             provider_id=provider_id,
             provider_slug=provider_slug,
@@ -353,7 +360,9 @@ class AnimeReconciler:
         if not anilist_data:
             sanitized = sanitize_slug_title(raw_title)
             if sanitized and sanitized != raw_title:
-                print(f"[Reconciler] AniList miss for '{raw_title}', retrying sanitized: '{sanitized}'")
+                print(
+                    f"[Reconciler] AniList miss for '{raw_title}', retrying sanitized: '{sanitized}'"
+                )
                 anilist_data = await fetch_anilist_info(sanitized)
 
         # ── Step 3: Still failed → ask Gemini to guess the real title ─────────
@@ -367,20 +376,20 @@ class AnimeReconciler:
             print(f"[Reconciler] All strategies exhausted for '{raw_title}' — giving up.")
             return None
 
-        new_id    = anilist_data["anilistId"]
+        new_id = anilist_data["anilistId"]
         new_title = anilist_data["cleanTitle"] or anilist_data.get("nativeTitle", "")
 
         existing = await self._get_existing_mapping(provider_id, provider_slug)
         conflicts_resolved = 0
-        migrated           = 0
+        migrated = 0
 
         if existing:
-            old_id    = existing["anilistId"]
+            old_id = existing["anilistId"]
             old_title = existing["cleanTitle"] or ""
 
             if old_id == new_id:
-                candidate.anilist_id  = new_id
-                candidate.confidence  = 1.0
+                candidate.anilist_id = new_id
+                candidate.confidence = 1.0
                 candidate.matched_via = "exact"
             else:
                 score = self._get_best_score(raw_title, anilist_data)
@@ -391,12 +400,15 @@ class AnimeReconciler:
                     best = ""
                     # Check cache first
                     try:
-                        from services.cache import upstash_get, upstash_set
                         import hashlib
-                        
-                        cache_key = f"title_match:{hashlib.md5(raw_title.encode()).hexdigest()[:12]}"
+
+                        from services.cache import upstash_get, upstash_set
+
+                        cache_key = (
+                            f"title_match:{hashlib.md5(raw_title.encode()).hexdigest()[:12]}"
+                        )
                         cached_match = await upstash_get(cache_key)
-                        
+
                         if cached_match is not None and isinstance(cached_match, dict):
                             gemini_match = cached_match.get("matched", False)
                             best = cached_match.get("best_match", "")
@@ -407,9 +419,11 @@ class AnimeReconciler:
                             gemini_match, best = await GeminiMatcher.is_same_anime(
                                 raw_title, alt_titles
                             )
-                            await upstash_set(cache_key, {"matched": gemini_match, "best_match": best}, ex=604800)
+                            await upstash_set(
+                                cache_key, {"matched": gemini_match, "best_match": best}, ex=604800
+                            )
                             matched_via = "gemini"
-                    except Exception as e:
+                    except Exception:
                         # Fallback without cache if it fails
                         alt_titles = await self._get_anilist_alt_titles(old_id)
                         alt_titles.append(new_title)
@@ -420,12 +434,12 @@ class AnimeReconciler:
 
                     if gemini_match and best:
                         if _normalize(best) == _normalize(old_title):
-                            new_id    = old_id
+                            new_id = old_id
                             new_title = old_title
                         score = 0.9
                     else:
-                        candidate.anilist_id  = old_id
-                        candidate.confidence  = score
+                        candidate.anilist_id = old_id
+                        candidate.confidence = score
                         candidate.matched_via = "gemini_uncertain"
 
                         if anilist_data:
@@ -441,8 +455,8 @@ class AnimeReconciler:
                     migrated = await self._migrate_history(old_id, new_id)
                     conflicts_resolved = 1
 
-                candidate.anilist_id  = new_id
-                candidate.confidence  = score
+                candidate.anilist_id = new_id
+                candidate.confidence = score
                 candidate.matched_via = matched_via
 
             if anilist_data:
@@ -457,7 +471,7 @@ class AnimeReconciler:
                 migrated_records=migrated,
             )
         else:
-            score       = self._get_best_score(raw_title, anilist_data)
+            score = self._get_best_score(raw_title, anilist_data)
             matched_via = "difflib_extended"
 
             if score < DIFFLIB_THRESHOLD:
@@ -467,13 +481,13 @@ class AnimeReconciler:
                 if anilist_data.get("synonyms"):
                     alt.extend(anilist_data["synonyms"])
                 gemini_match, _ = await GeminiMatcher.is_same_anime(raw_title, alt)
-                matched_via     = "gemini"
+                matched_via = "gemini"
                 if not gemini_match:
                     return None
                 score = 0.85
 
-            candidate.anilist_id  = new_id
-            candidate.confidence  = score
+            candidate.anilist_id = new_id
+            candidate.confidence = score
             candidate.matched_via = matched_via
 
             if anilist_data:
@@ -500,9 +514,7 @@ class AnimeReconciler:
                 await asyncio.sleep(0.3)
                 return await self.reconcile(**item)
 
-        results = await asyncio.gather(
-            *(bounded(i) for i in items), return_exceptions=True
-        )
+        results = await asyncio.gather(*(bounded(i) for i in items), return_exceptions=True)
         valid = [r for r in results if isinstance(r, ReconciliationResult)]
         return valid
 
@@ -520,6 +532,7 @@ _SLUG_NOISE_WORDS = re.compile(
     r"episode|eps?|season|part|the|and|of|wa|no|wo|ni|ga|to)\b",
     re.IGNORECASE,
 )
+
 
 def sanitize_slug_title(raw: str) -> str:
     """
@@ -542,5 +555,6 @@ def sanitize_slug_title(raw: str) -> str:
     # Collapse whitespace
     t = re.sub(r"\s+", " ", t).strip()
     return t
+
 
 reconciler = AnimeReconciler()

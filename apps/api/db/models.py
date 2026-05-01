@@ -1,9 +1,20 @@
 from sqlalchemy import (
-    Table, Column, Integer, Float, String, Text, Boolean,
-    DateTime, Date, JSON, MetaData, ForeignKey, UniqueConstraint, Index
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+
 from .connection import metadata
 
 # ── existing tables ────────────────────────────────────────────────────────────
@@ -11,23 +22,23 @@ from .connection import metadata
 anime_metadata = Table(
     "anime_metadata",
     metadata,
-    Column("anilistId",       Integer, primary_key=True),
-    Column("cleanTitle",      Text,    nullable=False),
-    Column("nativeTitle",     Text),
-    Column("coverImage",      Text),
-    Column("bannerImage",     Text),
-    Column("synopsis",        Text),
-    Column("score",           Integer),
-    Column("status",          Text),
-    Column("totalEpisodes",   Integer),
-    Column("season",          Text),
-    Column("year",            Integer),
-    Column("studios",         JSONB),
-    Column("genres",          JSONB),
+    Column("anilistId", Integer, primary_key=True),
+    Column("cleanTitle", Text, nullable=False),
+    Column("nativeTitle", Text),
+    Column("coverImage", Text),
+    Column("bannerImage", Text),
+    Column("synopsis", Text),
+    Column("score", Integer),
+    Column("status", Text),
+    Column("totalEpisodes", Integer),
+    Column("season", Text),
+    Column("year", Integer),
+    Column("studios", JSONB),
+    Column("genres", JSONB),
     Column("recommendations", JSONB),
     Column("nextAiringEpisode", JSONB),
-    Column("popularity",      Integer, default=0),
-    Column("trending",        Integer, default=0),
+    Column("popularity", Integer, default=0),
+    Column("trending", Integer, default=0),
     Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
 )
 
@@ -50,12 +61,19 @@ watch_history = Table(
 anime_mappings = Table(
     "anime_mappings",
     metadata,
-    Column("id",           Integer, primary_key=True, autoincrement=True),
-    Column("anilistId",    Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), nullable=False),
-    Column("providerId",   Text, nullable=False),   # "oploverz" | "otakudesu" | "samehadaku"
-    Column("providerSlug", Text, nullable=False),   # slug on that provider's website
-    Column("updatedAt",    DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
-    UniqueConstraint("providerId", "providerSlug", name="anime_mappings_providerId_providerSlug_key"),
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "anilistId",
+        Integer,
+        ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("providerId", Text, nullable=False),  # "oploverz" | "otakudesu" | "samehadaku"
+    Column("providerSlug", Text, nullable=False),  # slug on that provider's website
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
+    UniqueConstraint(
+        "providerId", "providerSlug", name="anime_mappings_providerId_providerSlug_key"
+    ),
 )
 
 # ── NEW: structured episode list ───────────────────────────────────────────────
@@ -67,14 +85,19 @@ anime_mappings = Table(
 episodes = Table(
     "episodes",
     metadata,
-    Column("id",            Integer, primary_key=True, autoincrement=True),
-    Column("anilistId",     Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), nullable=False),
-    Column("providerId",    Text,    nullable=False),
-    Column("episodeNumber", Float,   nullable=False),   # float to handle ep 12.5, OVA etc
-    Column("episodeTitle",  Text),
-    Column("episodeUrl",    Text,    nullable=False),   # full URL on the provider site
-    Column("thumbnailUrl",  Text),                      # optional cover per episode
-    Column("updatedAt",     DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "anilistId",
+        Integer,
+        ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("providerId", Text, nullable=False),
+    Column("episodeNumber", Float, nullable=False),  # float to handle ep 12.5, OVA etc
+    Column("episodeTitle", Text),
+    Column("episodeUrl", Text, nullable=False),  # full URL on the provider site
+    Column("thumbnailUrl", Text),  # optional cover per episode
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
     UniqueConstraint("anilistId", "providerId", "episodeNumber", name="uq_episode_provider_num"),
     # Fast lookup: all episodes for an anime
     Index("idx_episodes_anilist_num", "anilistId", "episodeNumber"),
@@ -91,14 +114,14 @@ episodes = Table(
 video_cache = Table(
     "video_cache",
     metadata,
-    Column("id",          Integer, primary_key=True, autoincrement=True),
-    Column("episodeUrl",  Text,    nullable=False, unique=True),
-    Column("providerId",  Text,    nullable=False),
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("episodeUrl", Text, nullable=False, unique=True),
+    Column("providerId", Text, nullable=False),
     # JSON shape: {"sources": [{provider, quality, url, type}], "downloads": [...]}
-    Column("payload",     JSONB,    nullable=False),
-    Column("expiresAt",   DateTime, nullable=False),
-    Column("updatedAt",   DateTime, nullable=False, server_default=func.now()),
-    Index("idx_video_cache_url",     "episodeUrl"),
+    Column("payload", JSONB, nullable=False),
+    Column("expiresAt", DateTime, nullable=False),
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now()),
+    Index("idx_video_cache_url", "episodeUrl"),
     Index("idx_video_cache_expires", "expiresAt"),
 )
 
@@ -115,7 +138,7 @@ users = Table(
     Column("tier", String, nullable=False, server_default="FREE"),
     Column("subscription_expiry", DateTime, nullable=True),
     Column("createdAt", DateTime, nullable=False, server_default=func.now()),
-    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
 )
 
 comments = Table(
@@ -179,7 +202,7 @@ payment_logs = Table(
     "payment_logs",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("provider", String, nullable=False), # "trakteer" | "saweria"
+    Column("provider", String, nullable=False),  # "trakteer" | "saweria"
     Column("external_id", String, unique=True),  # ID transaksi dari provider
     Column("amount", Float, nullable=False),
     Column("message", Text),
@@ -207,7 +230,12 @@ watch_sessions = Table(
     metadata,
     Column("session_id", String, primary_key=True),
     Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
-    Column("anilist_id", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), nullable=False),
+    Column(
+        "anilist_id",
+        Integer,
+        ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("episode_number", Float, nullable=False),
     Column("started_at", DateTime, nullable=False, server_default=func.now()),
     Column("ended_at", DateTime, nullable=False, server_default=func.now()),
@@ -229,8 +257,16 @@ collections = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("userId", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
     Column("animeSlug", String, nullable=False),
-    Column("status", String, nullable=False, default="plan_to_watch"), # watching, plan_to_watch, completed, dropped
-    Column("progress", Float, nullable=False, default=0, comment="Tracks the latest episode number watched (can be fractional like 12.5)"),
+    Column(
+        "status", String, nullable=False, default="plan_to_watch"
+    ),  # watching, plan_to_watch, completed, dropped
+    Column(
+        "progress",
+        Float,
+        nullable=False,
+        default=0,
+        comment="Tracks the latest episode number watched (can be fractional like 12.5)",
+    ),
     Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
     UniqueConstraint("userId", "animeSlug", name="uq_user_anime_collection"),
 )
@@ -242,7 +278,12 @@ daily_anime_stats = Table(
     "daily_anime_stats",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("anilistId", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), nullable=False),
+    Column(
+        "anilistId",
+        Integer,
+        ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("date", Date, nullable=False),
     Column("views", Integer, default=0),
     Column("popularity", Integer, default=0),
@@ -270,7 +311,13 @@ canonical_anime = Table(
     "canonical_anime",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("anilist_id", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), unique=True, nullable=False),
+    Column(
+        "anilist_id",
+        Integer,
+        ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    ),
     Column("mal_id", Integer),
     Column("kitsu_id", Integer),
     Column("title_preferred", Text, nullable=False),
@@ -278,15 +325,26 @@ canonical_anime = Table(
     Column("air_schedule_wib", Text),
     Column("genres_local", JSONB),
     Column("confidence_score", Float, default=0.0),
-    Column("last_reconciled_at", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
+    Column(
+        "last_reconciled_at",
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
 )
 
 metadata_sources = Table(
     "metadata_sources",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("canonical_id", Integer, ForeignKey("canonical_anime.id", ondelete="CASCADE"), nullable=False),
-    Column("source_name", String, nullable=False), # e.g., "anilist", "oploverz_scrape"
+    Column(
+        "canonical_id",
+        Integer,
+        ForeignKey("canonical_anime.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("source_name", String, nullable=False),  # e.g., "anilist", "oploverz_scrape"
     Column("field_name", String, nullable=False),  # e.g., "episode_count"
     Column("raw_value", Text),
     Column("confidence", Float, default=0.0),

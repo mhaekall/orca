@@ -1,13 +1,13 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-from db.connection import database
-from db.models import collections, users as user_table, anime_metadata
-from sqlalchemy import select, delete, func, String
+from fastapi import APIRouter
+from sqlalchemy import delete, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from db.connection import database
+from db.models import collections
 from schemas.collection import CollectionUpdate
 
 router = APIRouter()
+
 
 @router.get("")
 async def get_collection(user_id: str):
@@ -27,22 +27,30 @@ async def get_collection(user_id: str):
     rows = await database.fetch_all(query=query, values={"user_id": user_id})
     return [dict(row) for row in rows]
 
+
 @router.post("")
 async def save_collection(coll: CollectionUpdate):
-    stmt = pg_insert(collections).values(
-        userId=coll.user_id,
-        animeSlug=coll.anilistId,
-        status=coll.status,
-        progress=coll.progress
-    ).on_conflict_do_update(
-        index_elements=["userId", "animeSlug"],
-        set_={"status": coll.status, "progress": coll.progress, "updatedAt": func.now()}
+    stmt = (
+        pg_insert(collections)
+        .values(
+            userId=coll.user_id,
+            animeSlug=coll.anilistId,
+            status=coll.status,
+            progress=coll.progress,
+        )
+        .on_conflict_do_update(
+            index_elements=["userId", "animeSlug"],
+            set_={"status": coll.status, "progress": coll.progress, "updatedAt": func.now()},
+        )
     )
     await database.execute(stmt)
     return {"success": True}
 
+
 @router.delete("")
 async def remove_collection(user_id: str, anilistId: str):
-    stmt = delete(collections).where((collections.c.userId == user_id) & (collections.c.animeSlug == anilistId))
+    stmt = delete(collections).where(
+        (collections.c.userId == user_id) & (collections.c.animeSlug == anilistId)
+    )
     await database.execute(stmt)
     return {"success": True}

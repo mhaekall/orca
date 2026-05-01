@@ -45,6 +45,11 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1, a
               AND e."episodeUrl" IS NOT NULL
               AND e."episodeUrl" != ''
               AND vc."expiresAt" > NOW()
+              AND EXISTS (
+                  SELECT 1 FROM jsonb_array_elements(vc."payload"->'sources') AS s
+                  WHERE s->>'quality' = '720p'
+                    AND s->>'type' IN ('mp4', 'direct', 'hls', 'mp4 (direct)', 'hls (direct)')
+              )
               AND NOT EXISTS (
                   SELECT 1 FROM episodes e2 
                   WHERE e2."anilistId" = e."anilistId" 

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useAppRouter } from "@/core/lib/router";
+import { usePathname, useRouter } from "next/navigation";
 import { IconHome, IconCollection, IconUser, IconBell, IconCalendar } from "@/ui/icons";
 import { useMounted } from "@/core/hooks/use-mounted";
 import { useKonami } from "@/core/hooks/use-konami";
@@ -10,9 +9,6 @@ import { useViewTransition } from "@/core/hooks/use-view-transition";
 import { SnakeGame } from "@/ui/games/SnakeGame";
 import { useState, useEffect } from "react";
 import { authClient } from "@/core/lib/auth-client";
-import { useHardwareBackButton } from "@/core/hooks/use-back-button";
-import { useStatusBar } from "@/core/hooks/use-status-bar";
-import { useDeepLink } from "@/core/hooks/use-deep-link";
 
 const TABS = [
   { id: "/", label: "Beranda", icon: IconHome },
@@ -23,21 +19,11 @@ const TABS = [
 
 export function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const router = useAppRouter();
+  const router = useRouter();
   const navigate = useViewTransition();
   const mounted = useMounted();
   const [snakeActive, setSnakeActive] = useState(false);
   const { data: session } = authClient.useSession();
-
-  useEffect(() => {
-    // Only listen for auth success to maybe show a toast or something, 
-    // but the actual state hydration is handled by CapacitorRouter's pushState.
-  }, []);
-
-  // Capacitor: hardware back button, status bar, deep linking
-  useHardwareBackButton();
-  useStatusBar();
-  useDeepLink();
 
   useKonami(() => setSnakeActive(true));
 

@@ -1,8 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Orca</string>
-    <string name="title_activity_main">Orca</string>
-    <string name="package_name">com.animescraperpro.app</string>
-    <string name="custom_url_scheme">com.animescraperpro.app</string>
-    <string name="server_client_id">475749423464-4eqtfgbmjfvj7jsi999vcap2mcug5lip.apps.googleusercontent.com</string>
-</resources>

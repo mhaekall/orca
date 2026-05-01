@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect } from "react";
 import { useCollection } from "@/core/hooks/use-collection";
 import { useWatchHistory } from "@/core/hooks/use-watch-history";
 import { useMounted } from "@/core/hooks/use-mounted";
-import { isCapacitor } from "@/core/lib/capacitor";
 import { 
   LogOut, ChevronRight, Crown, Shield, FileText, 
   Copy, Mail, Hash, RefreshCw, Bell, Users, Settings, 
@@ -106,20 +105,10 @@ export default function ProfileView() {
             <button 
               onClick={async () => {
                 try {
-                  if (isCapacitor()) {
-                    const { Browser } = await import('@capacitor/browser');
-                    
-                    // Gunakan proxy page Mobile Login untuk trigger sign-in dan callback
-                    const authUrl = 'https://orcanime.pages.dev/mobile-login?provider=google';
-
-                    await Browser.open({ url: authUrl });                    
-                    // Nanti kita buat Listener di _app atau CapacitorRouter untuk menangkap orca://app/auth-callback?token=xxx
-                  } else {
-                    await authClient.signIn.social({
-                      provider: "google",
-                      callbackURL: "/profile",
-                    });
-                  }
+                  await authClient.signIn.social({
+                    provider: "google",
+                    callbackURL: "/profile",
+                  });
                 } catch (err: any) {
                   alert("Google login error: " + (err?.message || JSON.stringify(err)));
                   console.error("Google login error:", err);

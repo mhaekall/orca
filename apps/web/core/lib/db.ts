@@ -2,13 +2,13 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema';
 
-let _db: ReturnType<typeof drizzle> | null = null;
-
 export const getDb = () => {
-  if (!_db) {
-    const dbUrl = process.env.DATABASE_URL || "postgres://dummy:dummy@ep-dummy-123456.us-east-2.aws.neon.tech/neondb";
-    const sql = neon(dbUrl);
-    _db = drizzle(sql, { schema });
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.warn("[getDb] DATABASE_URL is missing! Using dummy connection.");
+    return drizzle(neon("postgres://dummy:dummy@ep-dummy-123456.us-east-2.aws.neon.tech/neondb"), { schema });
   }
-  return _db!;
+  
+  // Create a fresh connection on each request to prevent stale Cloudflare Edge environment variable caching
+  return drizzle(neon(dbUrl), { schema });
 };

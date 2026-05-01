@@ -7,18 +7,9 @@
     "build": "next build ",
     "start": "next start",
     "lint": "eslint",
-    "purge:cache": "python ../api/scripts/purge_cache.py",
-    "cap:build": "node scripts/build-cap.js",
-    "cap:sync": "pnpm run cap:build && cap sync",
-    "build:android": "pnpm run cap:build && cap sync android"
+    "purge:cache": "python ../api/scripts/purge_cache.py"
   },
   "dependencies": {
-    "@capacitor/app": "^8.1.0",
-    "@capacitor/browser": "^8.0.3",
-    "@capacitor/core": "^8.3.1",
-    "@capacitor/screen-orientation": "^8.0.1",
-    "@capacitor/status-bar": "^8.0.2",
-    "@codetrix-studio/capacitor-google-auth": "3.3.6",
     "@neondatabase/serverless": "^1.0.2",
     "@serwist/next": "^9.5.7",
     "better-auth": "^1.6.2",
@@ -34,8 +25,6 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.3.1",
-    "@capacitor/cli": "^8.3.1",
     "@cloudflare/next-on-pages": "^1.13.16",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

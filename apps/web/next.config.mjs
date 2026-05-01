@@ -14,7 +14,7 @@ const nextConfig = {
   output: isCapacitorBuild ? 'export' : undefined,
   productionBrowserSourceMaps: false,
   images: {
-    unoptimized: isCapacitorBuild,
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
       { protocol: 'http', hostname: '**' },

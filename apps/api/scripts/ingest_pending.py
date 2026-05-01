@@ -34,15 +34,17 @@ async def ingest_pending(limit: int, shard_id: int = 0, total_shards: int = 1, a
         logger.info(f"Looking for up to {limit} pending episodes to ingest...")
         
         # We find episodes that do not have tg-proxy or workers.dev in their URL
-        # We prioritize popular anime
+        # We prioritize popular anime AND ONLY pick those that are already in video_cache (warmed up)
         query = """
             SELECT e.id, e."anilistId", e."episodeNumber", m."cleanTitle", e."episodeUrl", e."providerId"
             FROM episodes e
             JOIN anime_metadata m ON e."anilistId" = m."anilistId"
+            JOIN video_cache vc ON e."episodeUrl" = vc."episodeUrl"
             WHERE e."episodeUrl" NOT LIKE '%tg-proxy%' 
               AND e."episodeUrl" NOT LIKE '%workers.dev%'
               AND e."episodeUrl" IS NOT NULL
               AND e."episodeUrl" != ''
+              AND vc."expiresAt" > NOW()
               AND NOT EXISTS (
                   SELECT 1 FROM episodes e2 
                   WHERE e2."anilistId" = e."anilistId" 

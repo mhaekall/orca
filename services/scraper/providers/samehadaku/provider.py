@@ -48,8 +48,18 @@ class SamehadakuProvider(BaseProvider):
                         if iframe_match:
                             src['url'] = iframe_match.group(1)
                             url_lower = src['url'].lower()
-                            if "wibufile" in url_lower or "pixeldrain" in url_lower or ".mp4" in url_lower:
+                            
+                            is_direct = False
+                            if "pixeldrain.com/api/file/" in url_lower:
+                                is_direct = True
+                            elif "wibufile.com/video" in url_lower or "s0.wibufile" in url_lower:
+                                is_direct = True
+                            elif url_lower.endswith(".mp4") and "/embed" not in url_lower and "/view" not in url_lower:
+                                is_direct = True
+                                
+                            if is_direct:
                                 src['type'] = 'mp4 (direct)'
+                            
                             resolved.append(src)
                     except Exception as e:
                         print(f"[Samehadaku] AJAX resolve error: {e}")

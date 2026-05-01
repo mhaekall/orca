@@ -14,6 +14,7 @@ from routes import (
     catalog,
     collection,
     comments,
+    config,
     db,
     home,
     home_v2,
@@ -298,6 +299,7 @@ app.include_router(social.router, prefix="/api/v2/social", tags=["Social"])
 app.include_router(comments.router, prefix="/api/v2/comments", tags=["Comments"])
 app.include_router(collection.router, prefix="/api/v2/collection", tags=["Collection"])
 app.include_router(schedule.router, prefix="/api", tags=["Schedule"])
+app.include_router(config.router, prefix="/api", tags=["Config"])
 
 
 @app.get(

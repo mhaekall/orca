@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useCollection } from "@/core/hooks/use-collection";
 import { useWatchHistory } from "@/core/hooks/use-watch-history";
 import { useMounted } from "@/core/hooks/use-mounted";
@@ -16,6 +16,7 @@ import Link from "next/link";
 export default function ProfileView() {
   const mounted = useMounted();
   const { data: session, isPending } = authClient.useSession();
+  
   const { items: watchlist } = useCollection(session?.user?.id);
   const { history } = useWatchHistory();
   

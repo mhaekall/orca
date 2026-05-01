@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[5622],{5622:(e,n,t)=>{t.d(n,{ScreenOrientation:()=>i});let i=(0,t(788).F3)("ScreenOrientation",{web:()=>t.e(6492).then(t.bind(t,6492)).then(e=>new e.ScreenOrientationWeb)})}}]);

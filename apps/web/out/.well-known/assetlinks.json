@@ -1,8 +1,0 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.animescraperpro.app",
-    "sha256_cert_fingerprints": ["FA:C6:17:45:D9:2C:B0:9C:2C:19:D4:57:08:92:B8:DB:78:E5:75:A8:D5:7F:A3:31:0D:37:25:64:FA:2D:FA:7D"]
-  }
-}]

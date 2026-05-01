@@ -66,8 +66,6 @@ jobs:
 
       - name: Build Next.js (Static Export)
         working-directory: ./apps/web
-        env:
-          NEXT_PUBLIC_API_URL: https://orcanime.pages.dev
         run: pnpm run cap:build
 
       - name: Ensure Output Directory Exists

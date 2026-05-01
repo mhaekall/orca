@@ -1,19 +1,14 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const allCookies = cookieStore.getAll();
+  const cookieHeader = request.headers.get('cookie') || '';
   
-  let token = cookieStore.get('better-auth.session_token')?.value || cookieStore.get('__Secure-better-auth.session_token')?.value;
-
-  if (!token) {
-    const tokenCookie = allCookies.find(c => c.name.includes('session_token'));
-    if (tokenCookie) {
-      token = tokenCookie.value;
-    }
+  let tokenMatch = cookieHeader.match(/better-auth\.session_token=([^;]+)/);
+  if (!tokenMatch) {
+    tokenMatch = cookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
   }
+  const token = tokenMatch ? tokenMatch[1] : null;
 
-  return NextResponse.json({ token: token || null, cookies: allCookies.map(c => c.name) });
+  return NextResponse.json({ token: token || null, rawCookie: cookieHeader });
 }

@@ -110,10 +110,9 @@ export default function ProfileView() {
                     const { Browser } = await import('@capacitor/browser');
                     
                     // Gunakan proxy page Mobile Login untuk trigger sign-in dan callback
-                    const authUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://orcanime.pages.dev'}/mobile-login?provider=google`;
-                    
-                    await Browser.open({ url: authUrl });
-                    
+                    const authUrl = 'https://orcanime.pages.dev/mobile-login?provider=google';
+
+                    await Browser.open({ url: authUrl });                    
                     // Nanti kita buat Listener di _app atau CapacitorRouter untuk menangkap orca://app/auth-callback?token=xxx
                   } else {
                     await authClient.signIn.social({

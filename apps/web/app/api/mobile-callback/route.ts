@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+export const runtime = "edge";
 
 export async function GET(request: Request) {
   // Ambil session token dari cookie request secara manual (bypass Next.js cookie parser bug di Edge)

@@ -27,15 +27,12 @@ export function Navigation({ children }: { children: React.ReactNode }) {
   const navigate = useViewTransition();
   const mounted = useMounted();
   const [snakeActive, setSnakeActive] = useState(false);
-  const { data: session, refetch } = authClient.useSession();
+  const { data: session } = authClient.useSession();
 
   useEffect(() => {
-    const handleAuthSuccess = () => {
-      if (typeof refetch === 'function') refetch();
-    };
-    window.addEventListener("cap:auth-success", handleAuthSuccess);
-    return () => window.removeEventListener("cap:auth-success", handleAuthSuccess);
-  }, [refetch]);
+    // Only listen for auth success to maybe show a toast or something, 
+    // but the actual state hydration is handled by CapacitorRouter's pushState.
+  }, []);
 
   // Capacitor: hardware back button, status bar, deep linking
   useHardwareBackButton();

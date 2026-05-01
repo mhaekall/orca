@@ -1,4 +1,4 @@
-import { auth } from "@/core/lib/auth";
+import { getAuth } from "@/core/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
@@ -25,12 +25,12 @@ function setCorsHeaders(res: Response, req: NextRequest): Response {
 }
 
 export async function GET(request: NextRequest) {
-  const response = await auth.handler(request);
+  const response = await getAuth().handler(request);
   return setCorsHeaders(response, request);
 }
 
 export async function POST(request: NextRequest) {
-  const response = await auth.handler(request);
+  const response = await getAuth().handler(request);
   return setCorsHeaders(response, request);
 }
 

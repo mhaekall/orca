@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/core/lib/auth";
-import { db } from "@/core/lib/db";
+import { getAuth } from "@/core/lib/auth";
+import { getDb } from "@/core/lib/db";
 import { watchHistory } from "@/core/lib/schema";
 import { eq, desc } from "drizzle-orm";
 
 export const runtime = "edge";
 
 export async function GET(req: Request) {
-  const session = await auth.api.getSession({
+  const session = await getAuth().api.getSession({
     headers: req.headers,
   });
 
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const history = await db.select()
+    const history = await getDb().select()
       .from(watchHistory)
       .where(eq(watchHistory.userId, session.user.id))
       .orderBy(desc(watchHistory.updatedAt))
@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await auth.api.getSession({
+  const session = await getAuth().api.getSession({
     headers: req.headers,
   });
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const newRecord = await db.insert(watchHistory).values({
+    const newRecord = await getDb().insert(watchHistory).values({
       userId: session.user.id,
       animeSlug,
       episode,

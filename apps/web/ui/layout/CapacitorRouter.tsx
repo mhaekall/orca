@@ -46,12 +46,19 @@ export function CapacitorRouter({ children }: { children: React.ReactNode }) {
               // Force Better Auth client to re-fetch and update its internal store
               try {
                 const { authClient } = await import("@/core/lib/auth-client");
-                if (authClient && typeof authClient.getSession === 'function') {
+                // @ts-ignore - access internal store
+                if (authClient && authClient.$store && typeof authClient.$store.invalidate === 'function') {
+                  // @ts-ignore
+                  authClient.$store.invalidate();
+                } else if (authClient && typeof authClient.getSession === 'function') {
                   await authClient.getSession();
                 }
               } catch (e) {
                 console.error("Failed to refetch session", e);
               }
+
+              // Jeda sebentar agar state SWR dan invalidation cache punya waktu settle
+              await new Promise(r => setTimeout(r, 500));
 
               // Emit custom event for auth success instead of full reload
               window.dispatchEvent(new CustomEvent('cap:auth-success'));

@@ -18,30 +18,38 @@ export async function GET(request: Request) {
 <html>
 <head><meta name="viewport" content="width=device-width"></head>
 <body style="background:black;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-  <p>Kembali ke Orca...</p>
+  <a id="link" style="display:none"></a>
+  <div style="text-align:center;">
+    <div style="width:32px;height:32px;border:4px solid #0A84FF;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px;"></div>
+    <p>Menyelesaikan Login...</p>
+  </div>
+  <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
   <script>
     localStorage.removeItem("orca_auth_tab");
-    
-    // Jika token didapat dari server cookie, langsung pakai deep link
-    if ("${token}" !== "null") {
-      window.location.href = "${deepLink}";
+
+    function redirect(token) {
+      const deepLink = token
+        ? "orca://app/auth-callback?token=" + encodeURIComponent(token)
+        : "orca://app/auth-callback?error=no_token";
+
+      // Simulate user gesture via anchor click — bypass Chrome Custom Tab block
+      const a = document.getElementById("link");
+      a.href = deepLink;
+      a.click();
+
+      // Fallback
       setTimeout(() => window.close(), 2000);
+    }
+
+    const serverToken = "${token}";
+    if (serverToken && serverToken !== "null") {
+      redirect(serverToken);
     } else {
       // Fallback: Fetch session dari client-side AJAX (same-site) 
       fetch('/api/mobile-session', { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.token) {
-            window.location.href = "orca://app/auth-callback?token=" + encodeURIComponent(data.token);
-          } else {
-            window.location.href = "orca://app/auth-callback?error=no_token";
-          }
-          setTimeout(() => window.close(), 2000);
-        })
-        .catch(err => {
-          window.location.href = "orca://app/auth-callback?error=fetch_failed";
-          setTimeout(() => window.close(), 2000);
-        });
+        .then(r => r.json())
+        .then(d => redirect(d.token || null))
+        .catch(() => redirect(null));
     }
   </script>
 </body>

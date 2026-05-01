@@ -56,7 +56,7 @@ export default function AnimeClientPage() {
   const detailObj = {
     title: data.cleanTitle ?? data.nativeTitle ?? "Unknown Title",
     nativeTitle: data.nativeTitle,
-    poster: data.coverImage,
+    poster: data.coverImage || data.image || data.poster || data.thumbnail,
     banner: data.bannerImage,
     synopsis: data.synopsis,
     score: data.score,

@@ -242,11 +242,14 @@ export default function ProfileView() {
       <section className="pt-4 anim-fade">
         <div className="bg-red-500/10 rounded-[24px] border border-red-500/20 overflow-hidden flex flex-col">
           {session?.user && (
-            <button 
-              onClick={() => authClient.signOut()} 
+            <button
+              onClick={async () => {
+                await authClient.signOut();
+                localStorage.removeItem('better_auth_session');
+                window.location.href = '/'; // Redirect to home or reload to clear state
+              }}
               className="w-full flex items-center gap-3 p-4 md:p-5 hover:bg-red-500/20 transition-colors border-b border-red-500/10 text-left"
-            >
-              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-red-500/20">
+            >              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-red-500/20">
                 <LogOut className="w-4 h-4 text-[#FF453A]" />
               </div>
               <span className="font-bold text-[14px] text-[#FF453A]">Keluar Akun</span>

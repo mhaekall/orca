@@ -8,9 +8,9 @@ export const authClient = createAuthClient({
             type: "Bearer",
             token: () => {
                 if (typeof window !== 'undefined' && isCapacitor()) {
-                    return localStorage.getItem('better_auth_session') || '';
+                    return localStorage.getItem('better_auth_session') || undefined;
                 }
-                return '';
+                return undefined;
             }
         },
         onError: (context) => {

@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import WatchClient from "@/features/watch/WatchClient";
-import { API } from "@/core/lib/api";
+import { api } from "@/core/lib/api";
 
-export default function WatchClientPage() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get("id");
-  const episode = searchParams.get("episode");
+export default function WatchClientPage({ id, episode }: { id: string; episode: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,8 +16,7 @@ export default function WatchClientPage() {
       return;
     }
     
-    fetch(`${API}/api/v2/anime/${id}`)
-      .then(r => r.json())
+    api.animeDetail(id)
       .then(json => {
         if (json.success && json.data) {
           setData(json.data);

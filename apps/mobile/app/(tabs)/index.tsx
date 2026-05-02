@@ -87,23 +87,25 @@ function HeroCard({ item }: { item: any }) {
 function SpotlightRow({ items }: { items: any[] }) {
   if (items.length < 3) return null;
   return (
-    <View style={{ flexDirection: "row", gap: 8, height: 220, paddingHorizontal: 16 }}>
-      {[items[0]].map((item, i) => {
-        const id = String(item.anilistId || item.id);
-        const img = item.img || item.coverImage?.extraLarge;
-        const title = item.title?.english || item.title?.romaji || item.title || "";
-        return (
-          <Link key={id} href={`/anime/${id}` as any} asChild>
-            <Pressable style={s.spotBig}>
-              <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
-              <LinearGradient colors={["transparent", "rgba(10,8,18,0.92)"]} style={StyleSheet.absoluteFillObject} />
-              <View style={s.spotBigBadge}><Text style={s.spotBigBadgeText}>#1 TRENDING</Text></View>
-              <Text style={s.spotBigTitle} numberOfLines={2}>{title}</Text>
-            </Pressable>
-          </Link>
-        );
-      })}
-      <View style={{ flex: 0, width: (W - 32 - 8) * 0.38, flexDirection: "column", gap: 8 }}>
+    <View style={{ flexDirection: "row", gap: 10, height: 230, paddingHorizontal: 16 }}>
+      <View style={{ flex: 1.5 }}>
+        {[items[0]].map((item, i) => {
+          const id = String(item.anilistId || item.id);
+          const img = item.img || item.coverImage?.extraLarge;
+          const title = item.title?.english || item.title?.romaji || item.title || "";
+          return (
+            <Link key={id} href={`/anime/${id}` as any} asChild>
+              <Pressable style={s.spotBig}>
+                <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                <LinearGradient colors={["transparent", "rgba(10,8,18,0.95)"]} style={StyleSheet.absoluteFillObject} />
+                <View style={s.spotBigBadge}><Text style={s.spotBigBadgeText}>#1 TRENDING</Text></View>
+                <Text style={s.spotBigTitle} numberOfLines={2}>{title}</Text>
+              </Pressable>
+            </Link>
+          );
+        })}
+      </View>
+      <View style={{ flex: 1, flexDirection: "column", gap: 10 }}>
         {items.slice(1, 3).map((item, i) => {
           const id = String(item.anilistId || item.id);
           const img = item.img || item.coverImage?.extraLarge;
@@ -112,9 +114,9 @@ function SpotlightRow({ items }: { items: any[] }) {
             <Link key={id} href={`/anime/${id}` as any} asChild>
               <Pressable style={s.spotSmall}>
                 <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
-                <LinearGradient colors={["transparent", "rgba(10,8,18,0.88)"]} style={StyleSheet.absoluteFillObject} />
+                <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject} />
                 <View style={s.spotSmallBadge}><Text style={s.spotSmallBadgeText}>#{i + 2}</Text></View>
-                <Text style={s.spotSmallTitle} numberOfLines={1}>{title}</Text>
+                <Text style={s.spotSmallTitle} numberOfLines={2}>{title}</Text>
               </Pressable>
             </Link>
           );
@@ -328,7 +330,7 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, zIndex: 100,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingTop: 54, paddingBottom: 12,
-    backgroundColor: "rgba(10,8,18,0.9)",
+    backgroundColor: "rgba(10,8,18,0.85)",
   },
   logo: { fontSize: 26, fontWeight: "900", color: "#fff", letterSpacing: -1 },
   bellBtn: {
@@ -344,58 +346,60 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
   },
   searchText: { color: "rgba(255,255,255,0.3)", fontSize: 14, fontWeight: "500" },
-  hero: { width: "100%", height: 220, borderRadius: 20, overflow: "hidden", backgroundColor: SURFACE },
+  hero: { width: "100%", height: 240, borderRadius: 24, overflow: "hidden", backgroundColor: SURFACE, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
   heroBadge: {
-    position: "absolute", top: 14, left: 14,
+    position: "absolute", top: 16, left: 16,
     flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#32D74B" },
-  heroBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 },
-  heroTitle: { color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: -0.5, marginBottom: 10, lineHeight: 22 },
+  heroBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
+  heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20 },
+  heroTitle: { color: "#fff", fontSize: 20, fontWeight: "900", letterSpacing: -0.5, marginBottom: 12, lineHeight: 26 },
   heroPlayBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#fff", paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 10,
     borderRadius: 20, alignSelf: "flex-start",
   },
-  heroPlayText: { color: "#000", fontSize: 12, fontWeight: "800" },
+  heroPlayText: { color: "#000", fontSize: 13, fontWeight: "800" },
   spotBig: {
-    flex: 1, borderRadius: 16, overflow: "hidden",
-    backgroundColor: SURFACE, justifyContent: "flex-end", padding: 12,
+    flex: 1, borderRadius: 20, overflow: "hidden",
+    backgroundColor: SURFACE, justifyContent: "flex-end", padding: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.05)"
   },
   spotBigBadge: {
-    position: "absolute", top: 10, left: 10,
-    backgroundColor: "#FF9F0A", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
+    position: "absolute", top: 12, left: 12,
+    backgroundColor: "#FF9F0A", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
   },
-  spotBigBadgeText: { color: "#000", fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
-  spotBigTitle: { color: "#fff", fontSize: 12, fontWeight: "800", lineHeight: 16 },
+  spotBigBadgeText: { color: "#000", fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
+  spotBigTitle: { color: "#fff", fontSize: 14, fontWeight: "800", lineHeight: 18 },
   spotSmall: {
-    flex: 1, borderRadius: 12, overflow: "hidden",
-    backgroundColor: SURFACE, justifyContent: "flex-end", padding: 8,
+    flex: 1, borderRadius: 16, overflow: "hidden",
+    backgroundColor: SURFACE, justifyContent: "flex-end", padding: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.05)"
   },
   spotSmallBadge: {
-    position: "absolute", top: 7, left: 7,
-    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5,
+    position: "absolute", top: 8, left: 8,
+    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6,
   },
   spotSmallBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900" },
-  spotSmallTitle: { color: "#fff", fontSize: 9, fontWeight: "700" },
-  wideCard: { height: 155, borderRadius: 16, overflow: "hidden", backgroundColor: SURFACE, marginRight: 12, justifyContent: "flex-end" },
-  wideContent: { padding: 12 },
-  wideTitle: { color: "#fff", fontSize: 13, fontWeight: "800", marginBottom: 6 },
+  spotSmallTitle: { color: "#fff", fontSize: 11, fontWeight: "700", lineHeight: 14 },
+  wideCard: { height: 165, borderRadius: 20, overflow: "hidden", backgroundColor: SURFACE, marginRight: 12, justifyContent: "flex-end", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
+  wideContent: { padding: 14 },
+  wideTitle: { color: "#fff", fontSize: 14, fontWeight: "800", marginBottom: 6 },
   wideMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  wideScore: { color: "#FFD60A", fontSize: 11, fontWeight: "700" },
+  wideScore: { color: "#FFD60A", fontSize: 12, fontWeight: "700" },
   widePlayBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#fff", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
+    backgroundColor: "#fff", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12,
   },
-  widePlayText: { color: "#000", fontSize: 10, fontWeight: "800" },
-  rankNum: { position: "absolute", top: 8, left: 8, color: "#fff", fontSize: 22, fontWeight: "900", opacity: 0.9, letterSpacing: -1 },
+  widePlayText: { color: "#000", fontSize: 11, fontWeight: "800" },
+  rankNum: { position: "absolute", top: 8, left: 8, color: "#fff", fontSize: 24, fontWeight: "900", opacity: 0.9, letterSpacing: -1 },
   epBadge: {
     position: "absolute", bottom: 8, right: 8,
     backgroundColor: "rgba(0,0,0,0.65)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6,
   },
-  epBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" },
-  cardTitle: { color: "rgba(255,255,255,0.82)", fontSize: 11, fontWeight: "600", lineHeight: 15 },
+  epBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  cardTitle: { color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600", lineHeight: 16, marginTop: 8, minHeight: 32 },
 });

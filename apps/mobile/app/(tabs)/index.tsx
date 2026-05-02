@@ -18,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import useSWR from "swr";
 import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star } from "lucide-react-native";
+import { LatestGrid } from "../../components/LatestGrid";
 
 const { width: W, height: H } = Dimensions.get("window");
 const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
@@ -319,19 +320,16 @@ export default function HomeScreen() {
             </View>
           )}
 
+          {/* Sedang Tayang — Grid 3x3 */}
+          {ongoing.length > 0 && (
+            <LatestGrid title="Sedang Tayang" items={ongoing} badge="NEW" />
+          )}
+
           {/* Trending — Spotlight */}
           {trending.length >= 3 && (
             <View style={{ marginBottom: 32 }}>
               <SecHeader label="Trending" />
               <SpotlightRow items={trending} />
-            </View>
-          )}
-
-          {/* Sedang Tayang — Wide */}
-          {ongoing.length > 0 && (
-            <View style={{ marginBottom: 32 }}>
-              <SecHeader label="Sedang Tayang" />
-              <WideRow items={ongoing} />
             </View>
           )}
 

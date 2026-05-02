@@ -89,7 +89,7 @@ export default function AnimeDetailScreen() {
         {/* Hero Section */}
         <View className="w-full relative" style={{ aspectRatio: 0.75 }}>
           <Image
-            source={{ uri: d.poster || d.coverImage?.extraLarge }}
+            source={{ uri: d.poster || d.img || d.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg" }}
             style={{ width: '100%', height: '100%' }}
             contentFit="cover"
             transition={300}
@@ -144,25 +144,25 @@ export default function AnimeDetailScreen() {
                 </View>
               )}
               {d.score && (
-                <>
+                <View className="flex-row items-center gap-1">
                   <Text className="text-[#48484a] text-[10px]">●</Text>
                   <View className="flex-row items-center gap-1">
                     <Star color="#30D158" fill="#30D158" size={12} />
                     <Text className="text-[#30D158] text-xs font-bold">{(d.score / 10).toFixed(1)}</Text>
                   </View>
-                </>
+                </View>
               )}
               {d.season && d.seasonYear && (
-                <>
+                <View className="flex-row items-center gap-1">
                   <Text className="text-[#48484a] text-[10px]">●</Text>
                   <Text className="text-[#e5e5ea] text-xs capitalize">{d.season.toLowerCase()} {d.seasonYear}</Text>
-                </>
+                </View>
               )}
               {d.studios?.[0] && (
-                <>
+                <View className="flex-row items-center gap-1">
                   <Text className="text-[#48484a] text-[10px]">●</Text>
                   <Text className="text-[#e5e5ea] text-xs">{d.studios[0]}</Text>
-                </>
+                </View>
               )}
             </View>
             
@@ -182,17 +182,28 @@ export default function AnimeDetailScreen() {
         <View className="px-6 pt-4">
           {/* Actions */}
           <View className="flex-row items-center gap-3 mb-8">
-            <Pressable 
-              onPress={() => firstEp && router.push(`/watch/${id}/${firstEp}`)}
-              className={`flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 ${firstEp ? 'bg-[#0A84FF]' : 'bg-[#1f1c29]'}`}
-            >
-              {firstEp && <Play color="white" fill="white" size={18} />}
-              <Text className={`font-bold text-[14px] ${firstEp ? 'text-white' : 'text-[#8e8e93]'}`}>
-                {firstEp ? "Mulai Tonton" : "Belum Tersedia"}
-              </Text>
-            </Pressable>
+            {firstEp ? (
+              <Link href={`/watch/${id}/${firstEp}`} asChild>
+                <Pressable 
+                  className="flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 bg-[#0A84FF] active:opacity-80"
+                >
+                  <Play color="white" fill="white" size={18} />
+                  <Text className="font-bold text-[14px] text-white">
+                    Mulai Tonton
+                  </Text>
+                </Pressable>
+              </Link>
+            ) : (
+              <Pressable 
+                className="flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 bg-[#1f1c29]"
+              >
+                <Text className="font-bold text-[14px] text-[#8e8e93]">
+                  Belum Tersedia
+                </Text>
+              </Pressable>
+            )}
 
-            <Pressable className="flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 bg-[#1f1c29] border border-white/5">
+            <Pressable className="flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 bg-[#1f1c29] border border-white/5 active:opacity-80">
               <Bookmark color="#e5e5ea" size={18} />
               <Text className="font-bold text-[14px] text-[#e5e5ea]">Koleksi</Text>
             </Pressable>
@@ -225,21 +236,24 @@ export default function AnimeDetailScreen() {
               </View>
             ) : (
               <View className="gap-3">
-                {eps.map((ep: any, index: number) => (
-                  <Pressable 
-                    key={index} 
-                    onPress={() => router.push(`/watch/${id}/${ep.number || ep.url?.split("episode=").pop()}`)}
-                    className="flex-row items-center bg-[#1c1c1e] p-3 rounded-2xl border border-white/5 active:bg-white/5"
-                  >
-                    <View className="w-10 h-10 bg-white/5 rounded-full items-center justify-center mr-4">
-                      <Play color="#0A84FF" fill="#0A84FF" size={16} className="ml-1" />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-white font-bold text-sm">Episode {ep.number}</Text>
-                      {ep.title && <Text className="text-[#8e8e93] text-xs mt-0.5" numberOfLines={1}>{ep.title}</Text>}
-                    </View>
-                  </Pressable>
-                ))}
+                {eps.map((ep: any, index: number) => {
+                  const epNum = ep.number || ep.url?.split("episode=").pop();
+                  return (
+                    <Link href={`/watch/${id}/${epNum}`} key={index} asChild>
+                      <Pressable 
+                        className="flex-row items-center bg-[#1c1c1e] p-3 rounded-2xl border border-white/5 active:bg-white/5"
+                      >
+                        <View className="w-10 h-10 bg-white/5 rounded-full items-center justify-center mr-4">
+                          <Play color="#0A84FF" fill="#0A84FF" size={16} className="ml-1" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-white font-bold text-sm">Episode {ep.number}</Text>
+                          {ep.title && <Text className="text-[#8e8e93] text-xs mt-0.5" numberOfLines={1}>{ep.title}</Text>}
+                        </View>
+                      </Pressable>
+                    </Link>
+                  );
+                })}
               </View>
             )}
           </View>

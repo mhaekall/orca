@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import useSWR from 'swr';
-import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign } from 'lucide-react-native';
+import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign, MessageSquare, ChevronDown } from 'lucide-react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Image } from 'expo-image';
 import { useAuth } from '../../../lib/auth';
 import { AnimeCard } from '../../../components/AnimeCard';
+import { CommentSection } from '../../../components/CommentSection';
 
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -16,6 +17,7 @@ export default function WatchScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [showAllEpisodes, setShowAllEpisodes] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   
   const { data: animeData } = useSWR(`${API_URL}/api/v2/anime/${id}`, fetcher);
   const { data: streamData, isLoading: streamLoading } = useSWR(
@@ -180,6 +182,33 @@ export default function WatchScreen() {
               </ScrollView>
             </View>
 
+            {/* Comments Preview Box */}
+            <View className="mb-6">
+              <Pressable 
+                onPress={() => setShowComments(true)}
+                className="bg-[#1f1c29] rounded-2xl p-4 border border-white/5 active:bg-white/5"
+              >
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center">
+                    <Text className="text-white font-black text-sm">Komentar </Text>
+                  </View>
+                  <ChevronDown color="#8e8e93" size={18} />
+                </View>
+                <View className="flex-row items-center gap-3">
+                  <View className="w-8 h-8 rounded-full bg-[#2a2536] items-center justify-center border border-white/10">
+                    {user?.picture ? (
+                      <Image source={{ uri: user.picture }} style={{ width: '100%', height: '100%', borderRadius: 16 }} />
+                    ) : (
+                      <Text className="text-white font-bold text-[10px]">{user?.name ? user.name.charAt(0) : "U"}</Text>
+                    )}
+                  </View>
+                  <Text className="text-[#e5e5ea] text-xs flex-1" numberOfLines={1}>
+                    Bagikan pendapatmu tentang episode ini...
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+
             {/* List Episode */}
             <View className="mb-6">
               <View className="flex-row items-center justify-between mb-4">
@@ -271,6 +300,16 @@ export default function WatchScreen() {
           <ActivityIndicator size="small" color="#0A84FF" className="mt-8" />
         )}
       </ScrollView>
+      
+      {anime && (
+        <CommentSection 
+          anilistId={String(id)} 
+          episode={String(episode)} 
+          user={user} 
+          visible={showComments} 
+          onClose={() => setShowComments(false)} 
+        />
+      )}
     </View>
   );
 }

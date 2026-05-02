@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import useSWR from 'swr';
@@ -269,12 +269,6 @@ export default function WatchScreen() {
           </>
         ) : (
           <ActivityIndicator size="small" color="#0A84FF" className="mt-8" />
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
         )}
       </ScrollView>
     </View>

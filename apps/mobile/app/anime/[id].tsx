@@ -143,8 +143,10 @@ export default function AnimeDetailScreen() {
               </View>
             ) : null}
             
-            <Text className="text-[28px] font-black text-white leading-tight mb-1">{d.title}</Text>
-            {d.nativeTitle && <Text className="text-sm text-[#8e8e93] mb-3">{d.nativeTitle}</Text>}
+            <Text className="text-[28px] font-black text-white leading-tight mb-1">
+              {d.cleanTitle || d.nativeTitle || d.title?.english || d.title?.romaji || d.title}
+            </Text>
+            {d.nativeTitle && d.nativeTitle !== d.cleanTitle && <Text className="text-sm text-[#8e8e93] mb-3">{d.nativeTitle}</Text>}
             
             <View className="flex-row items-center flex-wrap gap-x-2 gap-y-2 mb-6">
               {realViews > 0 && (
@@ -188,13 +190,13 @@ export default function AnimeDetailScreen() {
             </View>
 
             {/* Actions */}
-            <View className="flex-row items-center gap-2.5 w-full">
+            <View className="flex-row items-center gap-2 w-full">
               {firstEp ? (
                 <Link href={`/watch/${id}/${firstEp}`} asChild>
                   <Pressable 
                     className="flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 bg-[#0A84FF] active:opacity-80"
                   >
-                    <Play color="white" fill="white" size={20} />
+                    <Play color="white" fill="white" size={18} />
                     <Text className="font-bold text-[14px] text-white">
                       Mulai Tonton
                     </Text>
@@ -210,9 +212,9 @@ export default function AnimeDetailScreen() {
                 </Pressable>
               )}
 
-              <Pressable className="flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-1.5 bg-[#1f1c29] border border-white/5 active:opacity-80">
+              <Pressable className="flex-1 py-3.5 px-2 rounded-full flex-row items-center justify-center gap-1.5 bg-[#1f1c29] border border-white/5 active:opacity-80">
                 <Bookmark color="#e5e5ea" size={16} />
-                <Text className="font-bold text-[14px] text-[#e5e5ea]">Tambah ke Koleksi</Text>
+                <Text className="font-bold text-[14px] text-[#e5e5ea]" numberOfLines={1} adjustsFontSizeToFit>Tambah ke Koleksi</Text>
               </Pressable>
             </View>
           </View>
@@ -249,7 +251,7 @@ export default function AnimeDetailScreen() {
             ) : (
               <View className="flex-row flex-wrap gap-2.5">
                 {eps.map((ep: any, index: number) => {
-                  const epNum = ep.number || ep.url?.split("episode=").pop();
+                  const epNum = ep.episodeNumber ?? ep.number ?? ep.url?.split("episode=").pop();
                   return (
                     <Link href={`/watch/${id}/${epNum}`} key={index} asChild>
                       <Pressable 

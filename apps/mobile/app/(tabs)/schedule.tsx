@@ -118,22 +118,22 @@ export default function ScheduleScreen() {
                     </Text>
                     <View className="flex-row items-center gap-2 flex-wrap">
                       {item.airingTime && (
-                        <>
+                        <View className="flex-row items-center gap-2">
                           <View className="bg-[#32D74B]/10 px-1.5 py-0.5 rounded">
                             <Text className="text-[#32D74B] text-xs font-bold">{item.airingTime}</Text>
                           </View>
                           <Text className="text-[#48484a] text-[10px]">●</Text>
-                        </>
+                        </View>
                       )}
                       <Text className="text-[#8e8e93] text-xs font-medium">Ep. {item.latestEpisode || '?'}</Text>
                       {item.score ? (
-                        <>
+                        <View className="flex-row items-center gap-1">
                           <Text className="text-[#48484a] text-[10px]">●</Text>
                           <View className="flex-row items-center gap-1">
                             <Star color="#FFD60A" fill="#FFD60A" size={10} />
                             <Text className="text-[#FFD60A] text-xs font-bold">{(item.score / 10).toFixed(1)}</Text>
                           </View>
-                        </>
+                        </View>
                       ) : null}
                     </View>
                   </View>

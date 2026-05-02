@@ -69,8 +69,8 @@ export default function HomeScreen() {
           </Text>
           
           <View className="flex-row items-center gap-2">
-            <View className="w-2 h-2 rounded-full bg-[#32D74B] shadow-[0_0_8px_#32D74B]" />
-            <Text className="text-[#8e8e93] text-[11px] font-bold tracking-[0.2em] uppercase">
+            <View className="w-2 h-2 rounded-full bg-[#32D74B]" />
+            <Text className="text-[#8e8e93] text-[11px] font-bold tracking-widest uppercase">
               {greet()}, Guest
             </Text>
           </View>

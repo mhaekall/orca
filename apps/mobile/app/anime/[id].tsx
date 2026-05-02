@@ -87,7 +87,7 @@ export default function AnimeDetailScreen() {
       
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }} bounces={false}>
         {/* Hero Section */}
-        <View className="w-full aspect-[3/4] relative">
+        <View className="w-full relative" style={{ aspectRatio: 0.75 }}>
           <Image
             source={{ uri: d.poster || d.coverImage?.extraLarge }}
             style={{ width: '100%', height: '100%' }}
@@ -183,6 +183,7 @@ export default function AnimeDetailScreen() {
           {/* Actions */}
           <View className="flex-row items-center gap-3 mb-8">
             <Pressable 
+              onPress={() => firstEp && router.push(`/watch/${id}/${firstEp}`)}
               className={`flex-1 py-3.5 rounded-full flex-row items-center justify-center gap-2 ${firstEp ? 'bg-[#0A84FF]' : 'bg-[#1f1c29]'}`}
             >
               {firstEp && <Play color="white" fill="white" size={18} />}
@@ -225,7 +226,11 @@ export default function AnimeDetailScreen() {
             ) : (
               <View className="gap-3">
                 {eps.map((ep: any, index: number) => (
-                  <Pressable key={index} className="flex-row items-center bg-[#1c1c1e] p-3 rounded-2xl border border-white/5 active:bg-white/5">
+                  <Pressable 
+                    key={index} 
+                    onPress={() => router.push(`/watch/${id}/${ep.number || ep.url?.split("episode=").pop()}`)}
+                    className="flex-row items-center bg-[#1c1c1e] p-3 rounded-2xl border border-white/5 active:bg-white/5"
+                  >
                     <View className="w-10 h-10 bg-white/5 rounded-full items-center justify-center mr-4">
                       <Play color="#0A84FF" fill="#0A84FF" size={16} className="ml-1" />
                     </View>

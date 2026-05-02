@@ -89,7 +89,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      await promptAsync();
+      const result = await promptAsync();
+      
+      // Jika error terjadi di browser (seperti error 400 dari Google), 
+      // user akan menutup browser dan result.type menjadi 'cancel' atau 'dismiss'.
+      // Untuk kebutuhan testing UI di Expo Go, kita tembakkan Mock Session!
+      if (result?.type !== 'success') {
+         console.log("Auth cancelled or blocked by Google in Expo Go. Injecting Mock Session for UI testing.");
+         const mockUser = {
+           name: "Developer (Expo Go)",
+           email: "dev@orcanime.test",
+           picture: "https://api.dicebear.com/7.x/notionists/svg?seed=OrcaDev"
+         };
+         setUser(mockUser);
+         await SecureStore.setItemAsync("auth_session", JSON.stringify({ user: mockUser }));
+      }
     } catch (error) {
       console.error("Google Sign-In Error:", error);
     }

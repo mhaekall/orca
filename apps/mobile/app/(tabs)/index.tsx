@@ -10,13 +10,14 @@ import {
   Dimensions,
   StatusBar as RNStatusBar,
   Platform,
+  Animated,
 } from "react-native";
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import useSWR from "swr";
-import { Search, Play, Bell } from "lucide-react-native";
+import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star } from "lucide-react-native";
 
 const { width: W, height: H } = Dimensions.get("window");
 const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
@@ -68,6 +69,8 @@ function HeroCard({ item }: { item: any }) {
   // Use poster image instead of banner
   const img = item.poster || item.img || item.coverImage?.extraLarge || item.coverImage?.large;
   const title = item.title?.english || item.title?.romaji || item.title || "";
+  const score = item.score || item.averageScore;
+  const views = item.views || 0;
   
   return (
     <Link href={`/watch/${id}/${ep}` as any} asChild>
@@ -87,12 +90,31 @@ function HeroCard({ item }: { item: any }) {
         <View style={s.heroBottom}>
           <View style={s.heroBadge}>
             <View style={s.liveDot} />
-            <Text style={s.heroBadgeText}>EP {ep} TERSEDIA</Text>
+            <Text style={s.heroBadgeText}>EP {ep}</Text>
           </View>
-          <Text style={s.heroTitle} numberOfLines={3}>{title}</Text>
+          <Text style={s.heroTitle} numberOfLines={2}>{title}</Text>
+          
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: -4 }}>
+            {views > 0 && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Eye size={12} color="rgba(255,255,255,0.7)" />
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                  {views > 1000 ? (views/1000).toFixed(1) + 'K' : views}
+                </Text>
+              </View>
+            )}
+            {score ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Star size={12} color="#FFD60A" fill="#FFD60A" />
+                <Text style={{ color: "#FFD60A", fontSize: 11, fontWeight: FONT_BOLD }}>
+                  {(score / 10).toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
           <View style={s.heroPlayBtn}>
-            <Play size={16} color="#fff" fill="#fff" />
-            <Text style={s.heroPlayText}>Mulai Tonton</Text>
+            <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
           </View>
         </View>
       </Pressable>
@@ -228,6 +250,13 @@ export default function HomeScreen() {
     dedupingInterval: 60000,
   });
 
+  const scrollY = React.useRef(new Animated.Value(0)).current;
+  const headerBg = scrollY.interpolate({
+    inputRange: [0, 150],
+    outputRange: ["rgba(19, 17, 26, 0)", "rgba(19, 17, 26, 0.95)"], // from transparent to #13111a
+    extrapolate: "clamp",
+  });
+
   const d = data?.data || {};
   const latest: any[] = d.latest || [];
   const airing: any[] = d.airing || [];
@@ -251,7 +280,7 @@ export default function HomeScreen() {
       <StatusBar style="light" />
 
       {/* Fixed header with Search Bar integrated */}
-      <View style={s.header}>
+      <Animated.View style={[s.header, { backgroundColor: headerBg }]}>
         <Text style={s.logo}>orca</Text>
         
         {/* Search integrated into header */}
@@ -263,14 +292,16 @@ export default function HomeScreen() {
         <Pressable onPress={() => router.push("/notifications" as any)} style={s.bellBtn}>
           <Bell size={21} color="rgba(255,255,255,0.8)" />
         </Pressable>
-      </View>
+      </Animated.View>
 
       {isLoading ? (
         <LoadingState />
       ) : (
-        <ScrollView
+        <Animated.ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 110 }}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={isValidating && !!data}
@@ -335,7 +366,7 @@ export default function HomeScreen() {
               <VertRow items={completed} cw={100} ch={144} />
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       )}
     </View>
   );
@@ -348,7 +379,6 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, zIndex: 100,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingTop: paddingTopSafe + 10, paddingBottom: 16,
-    backgroundColor: "rgba(10,8,18,0.75)",
   },
   logo: { fontSize: 24, fontWeight: FONT_BOLD, color: "#fff", letterSpacing: -0.5 },
   bellBtn: {
@@ -368,19 +398,19 @@ const s = StyleSheet.create({
   hero: { width: "100%", aspectRatio: 3/4, overflow: "hidden", backgroundColor: SURFACE },
   heroBadge: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 20, alignSelf: "flex-start", marginBottom: 12,
+    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 12, alignSelf: "flex-start", marginBottom: 10,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#32D74B" },
-  heroBadgeText: { color: "#fff", fontSize: 10, fontWeight: FONT_BOLD, letterSpacing: 0.5 },
-  heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 24, paddingTop: 40 },
-  heroTitle: { color: "#fff", fontSize: 28, fontWeight: FONT_BOLD, letterSpacing: -0.5, marginBottom: 16, lineHeight: 34 },
+  heroBadgeText: { color: "#fff", fontSize: 9, fontWeight: FONT_BOLD, letterSpacing: 0.5 },
+  heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 40 },
+  heroTitle: { color: "#fff", fontSize: 22, fontWeight: FONT_BOLD, letterSpacing: -0.5, marginBottom: 8, lineHeight: 28, paddingRight: 60 },
   heroPlayBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center",
-    backgroundColor: "#0A84FF", paddingHorizontal: 20, paddingVertical: 12,
-    borderRadius: 24, alignSelf: "stretch",
+    position: "absolute", bottom: 16, right: 16,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#0A84FF", alignItems: "center", justifyContent: "center",
+    elevation: 4, shadowColor: "#0A84FF", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }
   },
-  heroPlayText: { color: "#fff", fontSize: 15, fontWeight: FONT_SEMIBOLD },
   spotBig: {
     flex: 1, borderRadius: 16, overflow: "hidden",
     backgroundColor: SURFACE, justifyContent: "flex-end", padding: 14,

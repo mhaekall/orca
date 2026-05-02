@@ -64,7 +64,7 @@ function LoadingState() {
 }
 
 // ── Hero Carousel ─────────────────────────────────────────────────────────────
-function HeroCard({ item, width, progress }: { item: any, width: number, progress?: number }) {
+function HeroCard({ item, width, progress }: { item: any, width: number, progress?: Animated.Value | number }) {
   const id = String(item.anilistId || item.id);
   const ep = item.latestEpisode ? String(item.latestEpisode) : "1";
   const img = item.poster || item.img || item.coverImage?.extraLarge || item.coverImage?.large;
@@ -122,7 +122,11 @@ function HeroCard({ item, width, progress }: { item: any, width: number, progres
             {/* Progress Bar under play button */}
             {progress !== undefined && (
               <View style={s.heroProgressBg}>
-                <Animated.View style={[s.heroProgressFill, { width: `${progress * 100}%` }]} />
+                <Animated.View style={[s.heroProgressFill, { 
+                  width: progress instanceof Animated.Value 
+                    ? progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) 
+                    : `${progress * 100}%` 
+                }]} />
               </View>
             )}
           </View>
@@ -150,9 +154,9 @@ function HeroCarousel({ items }: { items: any[] }) {
       duration: 5000,
       useNativeDriver: false,
     }).start(({ finished }) => {
-      if (finished) {
+      if (finished && scrollRef.current) {
         const nextIndex = (currentIndex + 1) % items.length;
-        scrollRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        scrollRef.current.scrollToIndex({ index: nextIndex, animated: true });
         setCurrentIndex(nextIndex);
       }
     });
@@ -163,32 +167,30 @@ function HeroCarousel({ items }: { items: any[] }) {
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / W);
-    if (index !== currentIndex) {
+    if (index !== currentIndex && index >= 0 && index < items.length) {
       setCurrentIndex(index);
       progressAnim.setValue(0); // Reset progress on manual scroll
     }
   };
 
   return (
-    <View style={{ marginBottom: 32 }}>
+    <View style={{ marginBottom: 32, height: W * (4/3) }}>
       <FlatList
         ref={scrollRef}
         data={items}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+        onMomentumScrollEnd={handleScroll}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
         onScrollBeginDrag={() => setIsPaused(true)}
-        onMomentumScrollEnd={() => setIsPaused(false)}
         keyExtractor={(item) => String(item.anilistId || item.id)}
         renderItem={({ item, index }) => (
           <HeroCard 
             item={item} 
             width={W} 
-            progress={index === currentIndex ? (progressAnim as any).__getValue() : 0} 
+            progress={index === currentIndex ? progressAnim : 0} 
           />
         )}
       />

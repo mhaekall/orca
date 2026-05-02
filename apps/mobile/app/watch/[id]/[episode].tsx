@@ -42,7 +42,7 @@ export default function WatchScreen() {
 
   useEffect(() => {
     if (player && videoUrl) {
-      player.replace(videoUrl);
+      player.replaceAsync(videoUrl);
       player.play();
     }
   }, [videoUrl]);

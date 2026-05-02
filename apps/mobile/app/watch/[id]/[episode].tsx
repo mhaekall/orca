@@ -29,7 +29,9 @@ export default function WatchScreen() {
   const recommendations = anime?.recommendations || [];
   const realViews = anime?.views || 0;
   
-  const bestSource = sources.find((s: any) => s.quality === "1080p" || s.quality === "720p" || s.quality === "auto" || s.quality === "default") || sources[0];
+  // Filter only direct streams (mp4 or m3u8) because expo-video cannot play iframes
+  const directSources = sources.filter((s: any) => s.type !== "iframe" && !s.url.includes("embed"));
+  const bestSource = directSources.find((s: any) => s.quality === "1080p" || s.quality === "720p" || s.quality === "auto" || s.quality === "default") || directSources[0];
   const videoUrl = bestSource?.url;
 
   const player = useVideoPlayer(videoUrl || null, player => {

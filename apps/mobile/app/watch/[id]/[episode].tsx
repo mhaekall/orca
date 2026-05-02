@@ -35,10 +35,15 @@ export default function WatchScreen() {
   const videoUrl = bestSource?.url;
 
   const player = useVideoPlayer(videoUrl || null, player => {
-    if (videoUrl) {
+    player.play();
+  });
+
+  useEffect(() => {
+    if (player && videoUrl) {
+      player.replace(videoUrl);
       player.play();
     }
-  });
+  }, [videoUrl]);
 
   const handleShare = async () => {
     if (!anime) return;
@@ -264,6 +269,12 @@ export default function WatchScreen() {
           </>
         ) : (
           <ActivityIndicator size="small" color="#0A84FF" className="mt-8" />
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
         )}
       </ScrollView>
     </View>

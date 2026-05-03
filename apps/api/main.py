@@ -422,6 +422,18 @@ async def trigger_retry_ingest(background_tasks: BackgroundTasks):
     return {"success": True, "message": "Retry failed ingestions started in background"}
 
 
+@app.post(
+    "/api/v2/admin/cron/warmup-pending",
+    tags=["Admin", "Cron"],
+    dependencies=[Depends(verify_admin_key)],
+)
+async def trigger_warmup_pending(background_tasks: BackgroundTasks):
+    from scripts.warmup_all_pending import warmup_all_pending
+
+    background_tasks.add_task(warmup_all_pending)
+    return {"success": True, "message": "Warmup all pending started in background"}
+
+
 @app.get("/debug/columns/{table_name}", tags=["Debug"], dependencies=[Depends(verify_admin_key)])
 async def get_columns(table_name: str):
     try:

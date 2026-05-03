@@ -107,7 +107,7 @@ class TelegramUploader:
         tg_proxy = os.getenv("TG_PROXY_BASE_URL", "https://api.telegram.org")
         url = f"{tg_proxy}/bot{bot_token}/{endpoint}"
 
-        await _debug(f"Uploading {os.path.basename(file_path)} using bot {bot_token[-4:]}...")
+        await _debug(f"Uploading {os.path.basename(file_path)} using proxy {tg_proxy} bot {bot_token[-4:]}...")
 
         for attempt in range(max_retries):
             try:

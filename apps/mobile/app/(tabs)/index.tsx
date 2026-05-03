@@ -63,10 +63,11 @@ function LoadingState() {
   );
 }
 
-// ── Hero Carousel ─────────────────────────────────────────────────────────────
-function HeroCard({ item, width, progress }: { item: any, width: number, progress?: Animated.Value | number }) {
+// ── Hero ──────────────────────────────────────────────────────────────────────
+function HeroCard({ item }: { item: any }) {
   const id = String(item.anilistId || item.id);
   const ep = item.latestEpisode ? String(item.latestEpisode) : "1";
+  // Use poster image instead of banner
   const img = item.poster || item.img || item.coverImage?.extraLarge || item.coverImage?.large;
   const title = item.title?.english || item.title?.romaji || item.title || "";
   const score = item.score || item.averageScore;
@@ -74,7 +75,7 @@ function HeroCard({ item, width, progress }: { item: any, width: number, progres
   
   return (
     <Link href={`/watch/${id}/${ep}` as any} asChild>
-      <Pressable style={[s.hero, { width }]}>
+      <Pressable style={s.hero}>
         <Image 
           source={{ uri: img }} 
           style={StyleSheet.absoluteFillObject} 
@@ -82,21 +83,19 @@ function HeroCard({ item, width, progress }: { item: any, width: number, progres
           transition={400} 
         />
         <LinearGradient 
-          colors={["rgba(10,8,18,0.4)", "transparent", "rgba(10,8,18,0.8)", BG]} 
+          colors={["rgba(10,8,18,0.4)", "transparent", "rgba(10,8,18,0.7)", BG]} 
           locations={[0, 0.3, 0.7, 1]} 
           style={StyleSheet.absoluteFillObject} 
         />
         
         <View style={s.heroBottom}>
+          <View style={s.heroBadge}>
+            <View style={s.liveDot} />
+            <Text style={s.heroBadgeText}>EP {ep}</Text>
+          </View>
           <Text style={s.heroTitle} numberOfLines={2}>{title}</Text>
           
-          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-            <View style={{ backgroundColor: "#FF2D55", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-              <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD, letterSpacing: 0.5 }}>NEW</Text>
-            </View>
-            <View style={{ backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-              <Text style={{ color: "#fff", fontSize: 10, fontWeight: FONT_SEMIBOLD }}>Episode {ep}</Text>
-            </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: -4 }}>
             {views > 0 && (
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Eye size={12} color="rgba(255,255,255,0.7)" />
@@ -115,86 +114,12 @@ function HeroCard({ item, width, progress }: { item: any, width: number, progres
             ) : null}
           </View>
 
-          <View style={s.heroPlayBtnContainer}>
-            <View style={s.heroPlayBtn}>
-              <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
-            </View>
-            {/* Progress Bar under play button */}
-            {progress !== undefined && (
-              <View style={s.heroProgressBg}>
-                <Animated.View style={[s.heroProgressFill, { 
-                  width: progress instanceof Animated.Value 
-                    ? progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) 
-                    : `${progress * 100}%` 
-                }]} />
-              </View>
-            )}
+          <View style={s.heroPlayBtn}>
+            <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
           </View>
         </View>
       </Pressable>
     </Link>
-  );
-}
-
-function HeroCarousel({ items }: { items: any[] }) {
-  const scrollRef = React.useRef<FlatList>(null);
-  const [currentIndex, setCurrentIndex] = React.useState(0);
-  const [isPaused, setIsPaused] = React.useState(false);
-  const progressAnim = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    if (isPaused || items.length <= 1) {
-      progressAnim.stopAnimation();
-      return;
-    }
-
-    progressAnim.setValue(0);
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 5000,
-      useNativeDriver: false,
-    }).start(({ finished }) => {
-      if (finished && scrollRef.current) {
-        const nextIndex = (currentIndex + 1) % items.length;
-        scrollRef.current.scrollToIndex({ index: nextIndex, animated: true });
-        setCurrentIndex(nextIndex);
-      }
-    });
-
-    return () => progressAnim.stopAnimation();
-  }, [currentIndex, isPaused, items.length]);
-
-  const handleScroll = (event: any) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / W);
-    if (index !== currentIndex && index >= 0 && index < items.length) {
-      setCurrentIndex(index);
-      progressAnim.setValue(0); // Reset progress on manual scroll
-    }
-  };
-
-  return (
-    <View style={{ marginBottom: 32, height: W * (4/3) }}>
-      <FlatList
-        ref={scrollRef}
-        data={items}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={handleScroll}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
-        onScrollBeginDrag={() => setIsPaused(true)}
-        keyExtractor={(item) => String(item.anilistId || item.id)}
-        renderItem={({ item, index }) => (
-          <HeroCard 
-            item={item} 
-            width={W} 
-            progress={index === currentIndex ? progressAnim : 0} 
-          />
-        )}
-      />
-    </View>
   );
 }
 
@@ -341,6 +266,8 @@ export default function HomeScreen() {
   const completed: any[] = d.completed || [];
   const movies: any[] = d.movies || [];
 
+  const hero = airing[0] || latest[0];
+
   const trendMap = new Map();
   [...popular, ...topRated].forEach((i) => { const k = String(i.anilistId || i.id); if (!trendMap.has(k)) trendMap.set(k, i); });
   const trending = Array.from(trendMap.values());
@@ -348,9 +275,6 @@ export default function HomeScreen() {
   const ongoingMap = new Map();
   [...latest, ...airing].forEach((i) => { const k = String(i.anilistId || i.id); if (!ongoingMap.has(k)) ongoingMap.set(k, i); });
   const ongoing = Array.from(ongoingMap.values());
-
-  const heroOngoing = ongoing.slice(0, 5);
-  const gridOngoing = ongoing.slice(5);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -389,14 +313,16 @@ export default function HomeScreen() {
             />
           }
         >
-          {/* Hero Carousel (Full Width) */}
-          {heroOngoing.length > 0 && (
-            <HeroCarousel items={heroOngoing} />
+          {/* Hero (Full Width, fills top edge) */}
+          {hero && (
+            <View style={{ marginBottom: 32 }}>
+              <HeroCard item={hero} />
+            </View>
           )}
 
-          {/* Sisa Sedang Tayang — Grid 3x3 */}
-          {gridOngoing.length > 0 && (
-            <LatestGrid title="" items={gridOngoing} badge="NEW" />
+          {/* Sedang Tayang — Grid 3x3 */}
+          {ongoing.length > 0 && (
+            <LatestGrid title="Sedang Tayang" items={ongoing} badge="NEW" />
           )}
 
           {/* Trending — Spotlight */}
@@ -467,20 +393,22 @@ const s = StyleSheet.create({
   },
   searchText: { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: FONT_REGULAR },
   // Hero fills the entire top area using poster aspect ratio (approx 3:4)
-  hero: { aspectRatio: 3/4, overflow: "hidden", backgroundColor: SURFACE },
+  hero: { width: "100%", aspectRatio: 3/4, overflow: "hidden", backgroundColor: SURFACE },
+  heroBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 12, alignSelf: "flex-start", marginBottom: 10,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#32D74B" },
+  heroBadgeText: { color: "#fff", fontSize: 9, fontWeight: FONT_BOLD, letterSpacing: 0.5 },
   heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 40 },
-  heroTitle: { color: "#fff", fontSize: 28, fontWeight: FONT_BOLD, letterSpacing: -0.5, marginBottom: 8, lineHeight: 34, paddingRight: 50 },
-  heroPlayBtnContainer: {
-    position: "absolute", bottom: 20, right: 20, alignItems: "center"
-  },
+  heroTitle: { color: "#fff", fontSize: 22, fontWeight: FONT_BOLD, letterSpacing: -0.5, marginBottom: 8, lineHeight: 28, paddingRight: 60 },
   heroPlayBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    position: "absolute", bottom: 16, right: 16,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: "#0A84FF", alignItems: "center", justifyContent: "center",
-    elevation: 4, shadowColor: "#0A84FF", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
-    marginBottom: 8
+    elevation: 4, shadowColor: "#0A84FF", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }
   },
-  heroProgressBg: { width: 30, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)", overflow: "hidden" },
-  heroProgressFill: { height: "100%", backgroundColor: "#fff" },
   spotBig: {
     flex: 1, borderRadius: 16, overflow: "hidden",
     backgroundColor: SURFACE, justifyContent: "flex-end", padding: 14,

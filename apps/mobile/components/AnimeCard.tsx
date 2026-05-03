@@ -22,7 +22,6 @@ interface Props {
   badge?: 'NEW' | 'BEST' | 'MOVIE';
   totalEps?: number | null;
   views?: number | null;
-  // TODO: remove/replace with global state when available
   progressPercent?: number; 
   isCompleted?: boolean;
 }
@@ -53,22 +52,18 @@ function AnimeCardInner({
   const accent = color || '#0A84FF';
   const href = `/anime/${id}`;
 
-  const aspectClass = variant === 'horizontal' ? 'aspect-video' : 'aspect-[2/3]';
   const imageSrc = variant === 'horizontal' ? banner || img : img;
   const currentBadge = badge || (isNew ? 'NEW' : null);
 
-  // Aggressive Prefetching: Ambil data detail anime saat card disentuh
   const handlePrefetch = () => {
     const url = `${API_URL}/api/v2/anime/${id}`;
-    // Memanggil mutate tanpa data kedua memicu fetch ulang di background dan
-    // menyimpannya di cache SWR secara otomatis
     mutate(url);
   };
 
   return (
     <Link href={href} asChild>
-      <Pressable onPressIn={handlePrefetch} className={`flex flex-col w-full mb-4`}>
-        <View className={`w-full ${aspectClass} rounded-2xl relative overflow-hidden mb-2 bg-[#1f1c29] border border-white/5`}>
+      <Pressable onPressIn={handlePrefetch} style={styles.cardContainer}>
+        <View style={[styles.imageContainer, variant === 'horizontal' ? styles.aspectHorizontal : styles.aspectVertical]}>
           <Image
             source={{ uri: imageSrc || 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg' }}
             style={StyleSheet.absoluteFillObject}
@@ -78,34 +73,33 @@ function AnimeCardInner({
 
           <LinearGradient
             colors={['transparent', 'rgba(19, 17, 26, 0.8)']}
-            style={StyleSheet.absoluteFillObject}
-            className="pointer-events-none z-10"
+            style={[StyleSheet.absoluteFillObject, styles.gradient]}
           />
 
           {rank && (
-            <View className="absolute top-0 left-0 w-7 h-9 bg-[#13111a]/60 rounded-br-xl flex items-center justify-center z-20">
-              <Text className="font-black text-sm text-white">{rank}</Text>
+            <View style={styles.rankBadge}>
+              <Text style={styles.rankText}>{rank}</Text>
             </View>
           )}
 
           {!rank && currentBadge === 'NEW' && (
-            <View className="absolute top-2 left-2 px-1.5 py-0.5 bg-[#FF9500] rounded shadow-md z-20">
-              <Text className="text-black text-[9px] font-black uppercase tracking-wider">NEW</Text>
+            <View style={[styles.badgeTopLeft, styles.badgeNew]}>
+              <Text style={styles.badgeTextBlack}>NEW</Text>
             </View>
           )}
           {!rank && currentBadge === 'BEST' && (
-            <View className="absolute top-2 left-2 px-1.5 py-0.5 bg-[#30D158] rounded shadow-md z-20">
-              <Text className="text-black text-[9px] font-black uppercase tracking-wider">BEST</Text>
+            <View style={[styles.badgeTopLeft, styles.badgeBest]}>
+              <Text style={styles.badgeTextBlack}>BEST</Text>
             </View>
           )}
           {!rank && currentBadge === 'MOVIE' && (
-            <View className="absolute top-2 left-2 px-1.5 py-0.5 bg-[#AF52DE] rounded shadow-md z-20">
-              <Text className="text-white text-[9px] font-black uppercase tracking-wider">MOVIE</Text>
+            <View style={[styles.badgeTopLeft, styles.badgeMovie]}>
+              <Text style={styles.badgeTextWhite}>MOVIE</Text>
             </View>
           )}
 
-          <View className="absolute top-2 right-2 px-1.5 py-0.5 bg-[#FF453A]/90 rounded shadow-md z-20">
-            <Text className="text-white text-[9px] font-bold uppercase tracking-wider">
+          <View style={styles.badgeTopRight}>
+            <Text style={styles.badgeTextWhite}>
               {currentBadge === 'MOVIE'
                 ? 'HD'
                 : currentBadge === 'BEST'
@@ -114,36 +108,36 @@ function AnimeCardInner({
             </Text>
           </View>
 
-          <View className="absolute bottom-2 left-2 right-2 z-20 flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
+          <View style={styles.bottomBar}>
+            <View style={styles.statsContainer}>
               {score ? (
-                <View className="flex-row items-center gap-0.5 bg-black/40 px-1.5 py-0.5 rounded">
+                <View style={styles.statBadge}>
                   <Star size={9} color="#FFD60A" fill="#FFD60A" />
-                  <Text className="text-[9px] font-bold text-[#FFD60A]">{(score / 10).toFixed(1)}</Text>
+                  <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
                 </View>
               ) : null}
               {views != null && views > 0 ? (
-                <View className="flex-row items-center gap-0.5 bg-black/40 px-1.5 py-0.5 rounded">
+                <View style={styles.statBadge}>
                   <Eye size={9} color="rgba(255,255,255,0.8)" />
-                  <Text className="text-[9px] font-bold text-white/80">{formatViews(views)}</Text>
+                  <Text style={styles.viewsText}>{formatViews(views)}</Text>
                 </View>
               ) : null}
             </View>
             {isCompleted && (
-              <View className="w-5 h-5 rounded-full bg-[#30D158]/20 flex items-center justify-center">
+              <View style={styles.completedBadge}>
                 <Check size={10} color="#30D158" />
               </View>
             )}
           </View>
 
           {progressPercent > 0 && (
-            <View className="absolute bottom-0 left-0 w-full h-1 bg-white/20 z-30">
-              <View className="h-full" style={{ width: `${progressPercent}%`, backgroundColor: accent }} />
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${progressPercent}%`, backgroundColor: accent }]} />
             </View>
           )}
         </View>
 
-        <Text className="text-[#f2f2f7] font-semibold text-[13px] leading-tight px-0.5" numberOfLines={2}>
+        <Text style={styles.title} numberOfLines={2}>
           {title}
         </Text>
       </Pressable>
@@ -151,4 +145,159 @@ function AnimeCardInner({
   );
 }
 
-export const AnimeCard = memo(AnimeCardInner);
+const styles = StyleSheet.create({
+  cardContainer: {
+    flexDirection: 'column',
+    width: '100%',
+    marginBottom: 16,
+  },
+  imageContainer: {
+    width: '100%',
+    borderRadius: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 8,
+    backgroundColor: '#1f1c29',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  aspectVertical: {
+    aspectRatio: 2 / 3,
+  },
+  aspectHorizontal: {
+    aspectRatio: 16 / 9,
+  },
+  gradient: {
+    zIndex: 10,
+  },
+  rankBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 28,
+    height: 36,
+    backgroundColor: 'rgba(19, 17, 26, 0.6)',
+    borderBottomRightRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+  },
+  rankText: {
+    fontWeight: '900',
+    fontSize: 14,
+    color: 'white',
+  },
+  badgeTopLeft: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 20,
+  },
+  badgeNew: {
+    backgroundColor: '#FF9500',
+  },
+  badgeBest: {
+    backgroundColor: '#30D158',
+  },
+  badgeMovie: {
+    backgroundColor: '#AF52DE',
+  },
+  badgeTopRight: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(255, 69, 58, 0.9)',
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 20,
+  },
+  badgeTextBlack: {
+    color: 'black',
+    fontSize: 9,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  badgeTextWhite: {
+    color: 'white',
+    fontSize: 9,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  scoreText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#FFD60A',
+  },
+  viewsText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.8)',
+  },
+  completedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(48, 209, 88, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    zIndex: 30,
+  },
+  progressBar: {
+    height: '100%',
+  },
+  title: {
+    color: '#f2f2f7',
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 16,
+    paddingHorizontal: 2,
+  },
+});

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { AnimeCard } from './AnimeCard';
 
 interface Props {
@@ -17,20 +17,20 @@ export function LatestGrid({ title, items, badge }: Props) {
   const hasMore = visibleCount < items.length;
 
   return (
-    <View className="mb-8 w-full">
+    <View style={styles.container}>
       {title ? (
-        <View className="flex-row items-center justify-between mb-4 px-4">
-          <Text className="text-xl font-black text-white tracking-tight">{title}</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
         </View>
       ) : null}
 
-      <View className="flex-row flex-wrap px-2">
+      <View style={styles.grid}>
         {visibleItems.map((a, i) => {
           const id = String(a.anilistId || a.id || '');
           if (!id) return null;
           
           return (
-            <View key={`${id}-${i}`} className="w-[33.33%] px-2 mb-4">
+            <View key={`${id}-${i}`} style={styles.gridItem}>
               <AnimeCard
                 id={id}
                 title={a.title?.english || a.title?.romaji || a.title || ''}
@@ -49,24 +49,95 @@ export function LatestGrid({ title, items, badge }: Props) {
         })}
       </View>
 
-      <View className="mt-4 flex-row justify-center gap-3 px-4">
+      <View style={styles.footer}>
         {hasMore && (
           <Pressable
             onPress={() => setVisibleCount(items.length)}
-            className="px-6 py-2.5 bg-white/10 rounded-full border border-white/5 active:bg-white/20"
+            style={({ pressed }) => [styles.btnMore, pressed && styles.btnMorePressed]}
           >
-            <Text className="text-sm font-bold text-white text-center">Lebih Banyak</Text>
+            <Text style={styles.btnMoreText}>Lebih Banyak</Text>
           </Pressable>
         )}
         {visibleCount > 12 && (
           <Pressable
             onPress={() => setVisibleCount(12)}
-            className="px-6 py-2.5 bg-white/5 rounded-full border border-white/5 active:bg-white/10"
+            style={({ pressed }) => [styles.btnLess, pressed && styles.btnLessPressed]}
           >
-            <Text className="text-sm font-bold text-white/60 text-center">Lebih Sedikit</Text>
+            <Text style={styles.btnLessText}>Lebih Sedikit</Text>
           </Pressable>
         )}
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 32,
+    width: '100%',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '900', // black
+    color: 'white',
+    letterSpacing: -0.5, // tracking-tight approx
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 8,
+  },
+  gridItem: {
+    width: '33.33%',
+    paddingHorizontal: 8,
+    marginBottom: 16,
+  },
+  footer: {
+    marginTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  btnMore: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  btnMorePressed: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  btnMoreText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  btnLess: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  btnLessPressed: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  btnLessText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+});

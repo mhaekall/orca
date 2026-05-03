@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import useSWR from 'swr';
 import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign, MessageSquare, ChevronDown } from 'lucide-react-native';
@@ -9,7 +9,6 @@ import { useAuth } from '../../../lib/auth';
 import { AnimeCard } from '../../../components/AnimeCard';
 import { CommentSection } from '../../../components/CommentSection';
 import { Skeleton } from '../../../components/Skeleton';
-import { Dimensions } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
@@ -106,24 +105,24 @@ export default function WatchScreen() {
   const poster = anime?.poster || anime?.img || anime?.coverImage;
 
   return (
-    <View className="flex-1 bg-[#13111a]">
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
       {/* Video Player Container */}
-      <View className="w-full aspect-video bg-black relative justify-center mt-12 md:mt-0">
-        <View className="absolute top-4 left-4 z-50">
+      <View style={styles.videoContainer}>
+        <View style={styles.backButtonWrapper}>
           <Pressable 
             onPress={() => router.back()}
-            className="w-10 h-10 rounded-full bg-black/40 items-center justify-center border border-white/10"
+            style={styles.backButton}
           >
             <ArrowLeft color="white" size={20} />
           </Pressable>
         </View>
 
         {streamLoading ? (
-          <View className="flex-1 items-center justify-center bg-black">
+          <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0A84FF" />
-            <Text className="text-[#8e8e93] text-sm font-medium mt-3">Mencari sumber video...</Text>
+            <Text style={styles.loadingText}>Mencari sumber video...</Text>
           </View>
         ) : videoUrl ? (
           <>
@@ -136,43 +135,43 @@ export default function WatchScreen() {
               contentFit="contain"
             />
             {/* Double Tap Seek Overlays */}
-            <View style={StyleSheet.absoluteFill} pointerEvents="box-none" className="flex-row justify-between z-40">
+            <View style={[StyleSheet.absoluteFill, styles.seekOverlay]} pointerEvents="box-none">
               <Pressable 
                 onPress={handleDoubleTapLeft}
-                className="w-[30%] h-[60%] mt-[10%]" 
+                style={styles.seekArea} 
               />
               <Pressable 
                 onPress={handleDoubleTapRight}
-                className="w-[30%] h-[60%] mt-[10%]" 
+                style={styles.seekArea} 
               />
             </View>
           </>
         ) : (
-          <View className="flex-1 items-center justify-center bg-[#1c1c1e]">
-            <Text className="text-[#8e8e93] font-medium">Video belum tersedia untuk episode ini.</Text>
+          <View style={styles.unavailableContainer}>
+            <Text style={styles.unavailableText}>Video belum tersedia untuk episode ini.</Text>
           </View>
         )}
       </View>
 
       {/* Konten Halaman */}
-      <ScrollView className="flex-1 px-4 lg:px-6 pt-4 space-y-4" contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {anime ? (
           <>
             {/* Judul & Detail Singkat */}
-            <View className="mb-2">
-              <Text className="text-white font-bold text-lg md:text-xl leading-tight">
-                {displayTitle} <Text className="text-white/50 font-medium text-base">· Eps {episode}</Text>
+            <View style={styles.titleSection}>
+              <Text style={styles.titleText}>
+                {displayTitle} <Text style={styles.episodeText}>· Eps {episode}</Text>
               </Text>
             </View>
 
             {/* Scrollable Action Bar */}
-            <View className="mb-6 -mx-4">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, alignItems: 'center' }}>
+            <View style={styles.actionBarWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionBarContent}>
                 <Link href={`/anime/${id}`} asChild>
-                  <Pressable className="mr-1 active:scale-95 transition-transform">
+                  <Pressable style={({pressed}) => [styles.avatarPressable, pressed && styles.pressedState]}>
                     <Image 
                       source={{ uri: poster || "https://api.dicebear.com/7.x/notionists/svg" }} 
-                      style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }} 
+                      style={styles.avatarImage} 
                       contentFit="cover"
                     />
                   </Pressable>
@@ -180,72 +179,70 @@ export default function WatchScreen() {
 
                 <Pressable 
                   onPress={() => handleAuthRequiredAction("Simpan Koleksi")}
-                  className="px-4 py-2 rounded-full bg-white active:bg-gray-200"
+                  style={({pressed}) => [styles.actionButtonWhite, pressed && styles.actionButtonWhitePressed]}
                 >
-                  <Text className="text-black font-bold text-sm">Simpan</Text>
+                  <Text style={styles.actionButtonWhiteText}>Simpan</Text>
                 </Pressable>
 
-                <View className="flex-row items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full">
+                <View style={styles.viewBadge}>
                   <Eye color="#e5e5ea" size={16} />
-                  <Text className="text-white font-bold text-sm">
+                  <Text style={styles.viewBadgeText}>
                     {realViews >= 1000000 ? (realViews/1000000).toFixed(1) + 'M' : realViews >= 1000 ? (realViews/1000).toFixed(1) + 'K' : realViews}
                   </Text>
                 </View>
 
                 <Pressable 
                   onPress={() => handleAuthRequiredAction("Suka")}
-                  className="flex-row items-center gap-2 px-4 py-2 bg-white/10 rounded-full active:bg-white/20"
+                  style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
                 >
                   <Heart color="white" size={16} />
-                  <Text className="text-white font-bold text-sm">0</Text>
+                  <Text style={styles.actionButtonDarkText}>0</Text>
                 </Pressable>
 
                 <Pressable 
                   onPress={handleShare}
-                  className="px-4 py-2 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+                  style={({pressed}) => [styles.iconOnlyButton, pressed && styles.actionButtonDarkPressed]}
                 >
                   <ShareIcon color="white" size={16} />
                 </Pressable>
 
                 <Pressable 
                   onPress={() => handleAuthRequiredAction("Kirim Dukungan")}
-                  className="flex-row items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full active:bg-white/20"
+                  style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
                 >
                   <DollarSign color="white" size={14} />
-                  <Text className="text-white font-bold text-sm">Thanks</Text>
+                  <Text style={styles.actionButtonDarkText}>Thanks</Text>
                 </Pressable>
 
                 <Pressable 
                   onPress={() => Alert.alert("Laporkan", "Fitur pelaporan akan segera hadir")}
-                  className="flex-row items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full active:bg-white/20"
+                  style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
                 >
                   <Flag color="white" size={14} />
-                  <Text className="text-white font-bold text-sm">Lapor</Text>
+                  <Text style={styles.actionButtonDarkText}>Lapor</Text>
                 </Pressable>
               </ScrollView>
             </View>
 
             {/* Comments Preview Box */}
-            <View className="mb-6">
+            <View style={styles.commentsPreviewSection}>
               <Pressable 
                 onPress={() => setShowComments(true)}
-                className="bg-[#1f1c29] rounded-2xl p-4 border border-white/5 active:bg-white/5"
+                style={({pressed}) => [styles.commentsBox, pressed && styles.commentsBoxPressed]}
               >
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <Text className="text-white font-black text-sm">Komentar </Text>
-                  </View>
+                <View style={styles.commentsHeader}>
+                  <Text style={styles.commentsTitle}>Komentar </Text>
                   <ChevronDown color="#8e8e93" size={18} />
                 </View>
-                <View className="flex-row items-center gap-3">
-                  <View className="w-8 h-8 rounded-full bg-[#2a2536] items-center justify-center border border-white/10">
+                <View style={styles.commentsInputRow}>
+                  <View style={styles.userAvatarContainer}>
                     {user?.picture ? (
-                      <Image source={{ uri: user.picture }} style={{ width: '100%', height: '100%', borderRadius: 16 }} />
+                      <Image source={{ uri: user.picture }} style={styles.userAvatarImage} />
                     ) : (
-                      <Text className="text-white font-bold text-[10px]">{user?.name ? user.name.charAt(0) : "U"}</Text>
+                      <Text style={styles.userAvatarText}>{user?.name ? user.name.charAt(0) : "U"}</Text>
                     )}
                   </View>
-                  <Text className="text-[#e5e5ea] text-xs flex-1" numberOfLines={1}>
+                  <Text style={styles.commentsPlaceholderText} numberOfLines={1}>
                     Bagikan pendapatmu tentang episode ini...
                   </Text>
                 </View>
@@ -253,21 +250,21 @@ export default function WatchScreen() {
             </View>
 
             {/* List Episode */}
-            <View className="mb-6">
-              <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-white font-bold text-base tracking-tight">
+            <View style={styles.episodesSection}>
+              <View style={styles.episodesHeader}>
+                <Text style={styles.episodesTitle}>
                   {showAllEpisodes ? `Episode (${sortedEpisodes.length})` : 'Episode'}
                 </Text>
                 <Pressable 
                   onPress={() => setShowAllEpisodes(!showAllEpisodes)}
-                  className="bg-[#0a84ff]/10 active:bg-[#0a84ff]/20 px-3 py-1.5 rounded-lg"
+                  style={({pressed}) => [styles.episodesToggleButton, pressed && styles.episodesToggleButtonPressed]}
                 >
-                  <Text className="text-[#0a84ff] text-sm font-bold">{showAllEpisodes ? "Tutup" : "Semua"}</Text>
+                  <Text style={styles.episodesToggleText}>{showAllEpisodes ? "Tutup" : "Semua"}</Text>
                 </Pressable>
               </View>
               
               {showAllEpisodes ? (
-                <View className="flex-row flex-wrap gap-2">
+                <View style={styles.allEpisodesGrid}>
                   {sortedEpisodes.map((ep: any) => {
                     const epNum = getEpNumStr(ep);
                     const isActive = String(epNum) === String(episode);
@@ -275,13 +272,13 @@ export default function WatchScreen() {
                       <Pressable 
                         key={epNum}
                         onPress={() => handleEpisodeChange(String(epNum))}
-                        className={`w-[18%] aspect-square rounded-[10px] items-center justify-center border ${
-                          isActive 
-                            ? 'bg-white border-white' 
-                            : 'bg-[#1f1c29] border-transparent active:bg-white/10'
-                        }`}
+                        style={({pressed}) => [
+                          styles.allEpisodeItem,
+                          isActive ? styles.episodeItemActive : styles.episodeItemInactive,
+                          pressed && !isActive && styles.episodeItemPressed
+                        ]}
                       >
-                        <Text className={`font-bold text-[14px] ${isActive ? 'text-black' : 'text-[#8e8e93]'}`}>
+                        <Text style={[styles.episodeItemText, isActive ? styles.episodeTextActive : styles.episodeTextInactive]}>
                           {epNum}
                         </Text>
                       </Pressable>
@@ -289,8 +286,7 @@ export default function WatchScreen() {
                   })}
                 </View>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4 px-4">
-                  <View className="flex-row gap-2.5 pr-8">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.episodesScroll} contentContainerStyle={styles.episodesScrollContent}>
                     {sortedEpisodes.map((ep: any) => {
                       const epNum = getEpNumStr(ep);
                       const isActive = String(epNum) === String(episode);
@@ -298,34 +294,32 @@ export default function WatchScreen() {
                         <Pressable 
                           key={epNum}
                           onPress={() => handleEpisodeChange(String(epNum))}
-                          className={`h-[48px] min-w-[64px] px-4 rounded-[14px] flex-row items-center justify-center border transition-all ${
-                            isActive 
-                              ? 'bg-white border-white' 
-                              : 'bg-[#1f1c29] border-transparent active:bg-white/10'
-                          }`}
+                          style={({pressed}) => [
+                            styles.scrollEpisodeItem,
+                            isActive ? styles.episodeItemActive : styles.episodeItemInactive,
+                            pressed && !isActive && styles.episodeItemPressed
+                          ]}
                         >
-                          <Text className={`font-bold text-[15px] ${isActive ? 'text-black' : 'text-[#8e8e93]'}`}>
+                          <Text style={[styles.scrollEpisodeText, isActive ? styles.episodeTextActive : styles.episodeTextInactive]}>
                             {epNum}
                           </Text>
                         </Pressable>
                       );
                     })}
-                  </View>
                 </ScrollView>
               )}
             </View>
 
             {/* Recommendations */}
             {recommendations && recommendations.length > 0 && (
-              <View className="mb-6">
-                <Text className="text-white font-bold text-base tracking-tight mb-3">Rekomendasi</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4 px-4">
-                  <View className="flex-row gap-3 pr-8">
+              <View style={styles.recommendationsSection}>
+                <Text style={styles.recommendationsTitle}>Rekomendasi</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recommendationsScroll} contentContainerStyle={styles.recommendationsScrollContent}>
                     {recommendations.slice(0, 10).map((rec: any, i: number) => {
                       const recId = String(rec.id || rec.anilistId);
                       if (!recId) return null;
                       return (
-                        <View key={i} className="w-[120px]">
+                        <View key={i} style={styles.recommendationItem}>
                           <AnimeCard 
                             id={recId} 
                             title={rec.title?.english || rec.title?.romaji || rec.title || ''} 
@@ -335,24 +329,23 @@ export default function WatchScreen() {
                         </View>
                       );
                     })}
-                  </View>
                 </ScrollView>
               </View>
             )}
             
           </>
         ) : (
-          <View className="px-5 pt-6">
-            <Skeleton w="80%" h={28} r={8} style={{ marginBottom: 12 }} />
-            <Skeleton w="50%" h={16} r={6} style={{ marginBottom: 24 }} />
-            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 32 }}>
+          <View style={styles.skeletonContainer}>
+            <Skeleton w="80%" h={28} r={8} style={styles.skeletonTitle} />
+            <Skeleton w="50%" h={16} r={6} style={styles.skeletonSubtitle} />
+            <View style={styles.skeletonActions}>
               <Skeleton w={50} h={50} r={25} />
               <Skeleton w={50} h={50} r={25} />
               <Skeleton w={50} h={50} r={25} />
               <Skeleton w={50} h={50} r={25} />
             </View>
-            <Skeleton w={120} h={20} r={8} style={{ marginBottom: 16 }} />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <Skeleton w={120} h={20} r={8} style={styles.skeletonSectionTitle} />
+            <View style={styles.skeletonGrid}>
                {Array.from({ length: 10 }).map((_, i) => (
                  <Skeleton key={i} w={70} h={40} r={12} />
                ))}
@@ -373,3 +366,346 @@ export default function WatchScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#13111a',
+  },
+  videoContainer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: 'black',
+    position: 'relative',
+    justifyContent: 'center',
+    marginTop: 48, // Equivalent to mt-12. Adjust if iOS safe area needs different handling.
+  },
+  backButtonWrapper: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 50,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'black',
+  },
+  loadingText: {
+    color: '#8e8e93',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 12,
+  },
+  seekOverlay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 40,
+  },
+  seekArea: {
+    width: '30%',
+    height: '60%',
+    marginTop: '10%',
+  },
+  unavailableContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1c1c1e',
+  },
+  unavailableText: {
+    color: '#8e8e93',
+    fontWeight: '500',
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  titleSection: {
+    marginBottom: 8,
+  },
+  titleText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  episodeText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  actionBarWrapper: {
+    marginBottom: 24,
+    marginHorizontal: -16,
+  },
+  actionBarContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  avatarPressable: {
+    marginRight: 4,
+  },
+  pressedState: {
+    transform: [{ scale: 0.95 }],
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  actionButtonWhite: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 9999,
+    backgroundColor: 'white',
+  },
+  actionButtonWhitePressed: {
+    backgroundColor: '#e5e5ea',
+  },
+  actionButtonWhiteText: {
+    color: 'black',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  viewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 9999,
+  },
+  viewBadgeText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  actionButtonDark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 9999,
+  },
+  actionButtonDarkPressed: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  actionButtonDarkText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  iconOnlyButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentsPreviewSection: {
+    marginBottom: 24,
+  },
+  commentsBox: {
+    backgroundColor: '#1f1c29',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  commentsBoxPressed: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  commentsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  commentsTitle: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  commentsInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userAvatarContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2a2536',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  userAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  userAvatarText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 10,
+  },
+  commentsPlaceholderText: {
+    color: '#e5e5ea',
+    fontSize: 12,
+    flex: 1,
+  },
+  episodesSection: {
+    marginBottom: 24,
+  },
+  episodesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  episodesTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: -0.5,
+  },
+  episodesToggleButton: {
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  episodesToggleButtonPressed: {
+    backgroundColor: 'rgba(10, 132, 255, 0.2)',
+  },
+  episodesToggleText: {
+    color: '#0A84FF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  allEpisodesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  allEpisodeItem: {
+    width: '18%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  episodesScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  episodesScrollContent: {
+    paddingRight: 32,
+    gap: 10,
+  },
+  scrollEpisodeItem: {
+    height: 48,
+    minWidth: 64,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  episodeItemActive: {
+    backgroundColor: 'white',
+    borderColor: 'white',
+  },
+  episodeItemInactive: {
+    backgroundColor: '#1f1c29',
+    borderColor: 'transparent',
+  },
+  episodeItemPressed: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  episodeItemText: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  scrollEpisodeText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  episodeTextActive: {
+    color: 'black',
+  },
+  episodeTextInactive: {
+    color: '#8e8e93',
+  },
+  recommendationsSection: {
+    marginBottom: 24,
+  },
+  recommendationsTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+    letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+  recommendationsScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  recommendationsScrollContent: {
+    paddingRight: 32,
+    gap: 12,
+  },
+  recommendationItem: {
+    width: 120,
+  },
+  skeletonContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  skeletonTitle: {
+    marginBottom: 12,
+  },
+  skeletonSubtitle: {
+    marginBottom: 24,
+  },
+  skeletonActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 32,
+  },
+  skeletonSectionTitle: {
+    marginBottom: 16,
+  },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+});

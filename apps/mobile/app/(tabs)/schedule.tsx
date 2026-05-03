@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import useSWR from "swr";
@@ -39,21 +39,21 @@ export default function ScheduleScreen() {
   const currentItems = schedData[activeDay] || [];
 
   return (
-    <View className="flex-1 bg-[#0a0812]">
+    <View style={styles.container}>
       {/* Header Fixed */}
-      <View className="pt-16 pb-4 bg-[#0a0812] px-6">
-        <Text className="text-[28px] font-black text-white tracking-tight mb-1">
+      <View style={styles.header}>
+        <Text style={styles.titleText}>
           Jadwal Rilis
         </Text>
-        <Text className="text-[#8e8e93] text-sm font-medium mb-6">
+        <Text style={styles.subtitleText}>
           Cek jadwal tayang episode terbaru minggu ini.
         </Text>
 
         {/* Segmented Control / Day Picker */}
-        <View className="bg-[#1f1c29] p-1 rounded-full border border-white/5 flex-row">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 2 }}>
+        <View style={styles.pickerContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerScrollContent}>
             {days.length === 0 && isLoading ? (
-              <ActivityIndicator size="small" color="#8e8e93" className="my-2 mx-auto" />
+              <ActivityIndicator size="small" color="#8e8e93" style={styles.pickerLoader} />
             ) : (
               days.map((day) => {
                 const isActive = activeDay === day;
@@ -61,14 +61,17 @@ export default function ScheduleScreen() {
                   <Pressable
                     key={day}
                     onPress={() => setActiveDay(day)}
-                    className={`px-5 py-2 rounded-full transition-colors ${
-                      isActive ? "bg-white" : "bg-transparent active:bg-white/10"
-                    }`}
+                    style={({pressed}) => [
+                      styles.dayButton,
+                      isActive ? styles.dayButtonActive : styles.dayButtonInactive,
+                      pressed && !isActive && styles.dayButtonPressed
+                    ]}
                   >
                     <Text
-                      className={`text-sm font-bold ${
-                        isActive ? "text-black" : "text-[#8e8e93]"
-                      }`}
+                      style={[
+                        styles.dayButtonText,
+                        isActive ? styles.dayButtonTextActive : styles.dayButtonTextInactive
+                      ]}
                     >
                       {day}
                     </Text>
@@ -82,15 +85,15 @@ export default function ScheduleScreen() {
 
       {/* List Jadwal */}
       <ScrollView 
-        className="flex-1 px-6" 
-        contentContainerStyle={{ paddingBottom: 120, paddingTop: 10 }}
+        style={styles.listContainer}
+        contentContainerStyle={styles.listContent}
       >
         {isLoading && days.length === 0 ? (
           <View>
              {Array.from({ length: 6 }).map((_, i) => (
-                <View key={i} className="flex-row items-center bg-[#1f1c29] p-3 rounded-2xl border border-white/5 mb-3">
+                <View key={i} style={styles.skeletonRow}>
                    <Skeleton w={70} h={70} r={12} />
-                   <View className="flex-1 ml-4 justify-center">
+                   <View style={styles.skeletonContent}>
                      <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
                      <Skeleton w="50%" h={12} r={4} />
                    </View>
@@ -98,8 +101,8 @@ export default function ScheduleScreen() {
              ))}
           </View>
         ) : currentItems.length === 0 ? (
-          <View className="py-20 items-center justify-center">
-            <Text className="text-[#8e8e93] text-base font-medium">Tidak ada rilis pada hari ini.</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Tidak ada rilis pada hari ini.</Text>
           </View>
         ) : (
           currentItems.map((item: any, idx: number) => {
@@ -107,46 +110,46 @@ export default function ScheduleScreen() {
             if (!id) return null;
             return (
               <Link href={`/anime/${id}`} key={`${id}-${idx}`} asChild>
-                <Pressable className="flex-row items-center gap-4 py-4 border-b border-white/5 active:opacity-50">
-                  <View className="w-16 h-16 rounded-[14px] overflow-hidden bg-[#1f1c29] border border-white/10">
+                <Pressable style={({pressed}) => [styles.itemRow, pressed && styles.itemRowPressed]}>
+                  <View style={styles.itemImageContainer}>
                     <Image 
                       source={{ uri: item.img || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg" }}
-                      style={{ width: '100%', height: '100%' }}
+                      style={StyleSheet.absoluteFillObject}
                       contentFit="cover"
                       transition={200}
                     />
-                    <View className="absolute inset-0 bg-black/20 items-center justify-center">
-                      <Play color="white" fill="white" size={20} className="opacity-80" />
+                    <View style={styles.itemImageOverlay}>
+                      <Play color="white" fill="white" size={20} style={styles.playIcon} />
                     </View>
                   </View>
                   
-                  <View className="flex-1 pr-2">
-                    <Text className="text-base font-bold text-[#f2f2f7] leading-tight mb-1.5" numberOfLines={1}>
+                  <View style={styles.itemDetails}>
+                    <Text style={styles.itemTitle} numberOfLines={1}>
                       {item.title}
                     </Text>
-                    <View className="flex-row items-center gap-2 flex-wrap">
+                    <View style={styles.itemStats}>
                       {item.airingTime && (
-                        <View className="flex-row items-center gap-2">
-                          <View className="bg-[#32D74B]/10 px-1.5 py-0.5 rounded">
-                            <Text className="text-[#32D74B] text-xs font-bold">{item.airingTime}</Text>
+                        <View style={styles.statGroup}>
+                          <View style={styles.airingTimeBadge}>
+                            <Text style={styles.airingTimeText}>{item.airingTime}</Text>
                           </View>
-                          <Text className="text-[#48484a] text-[10px]">●</Text>
+                          <Text style={styles.dotSeparator}>●</Text>
                         </View>
                       )}
-                      <Text className="text-[#8e8e93] text-xs font-medium">Ep. {item.latestEpisode || '?'}</Text>
+                      <Text style={styles.epText}>Ep. {item.latestEpisode || '?'}</Text>
                       {item.score ? (
-                        <View className="flex-row items-center gap-1">
-                          <Text className="text-[#48484a] text-[10px]">●</Text>
-                          <View className="flex-row items-center gap-1">
+                        <View style={styles.statGroup}>
+                          <Text style={[styles.dotSeparator, {marginLeft: 4}]}>●</Text>
+                          <View style={[styles.statGroup, {gap: 4, marginLeft: 4}]}>
                             <Star color="#FFD60A" fill="#FFD60A" size={10} />
-                            <Text className="text-[#FFD60A] text-xs font-bold">{(item.score / 10).toFixed(1)}</Text>
+                            <Text style={styles.scoreText}>{(item.score / 10).toFixed(1)}</Text>
                           </View>
                         </View>
                       ) : null}
                     </View>
                   </View>
 
-                  <View className="w-8 h-8 rounded-full bg-white/5 items-center justify-center">
+                  <View style={styles.chevronContainer}>
                     <ChevronRight color="rgba(255,255,255,0.4)" size={16} />
                   </View>
                 </Pressable>
@@ -158,3 +161,185 @@ export default function ScheduleScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0812',
+  },
+  header: {
+    paddingTop: 64,
+    paddingBottom: 16,
+    backgroundColor: '#0a0812',
+    paddingHorizontal: 24,
+  },
+  titleText: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: 'white',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  subtitleText: {
+    color: '#8e8e93',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 24,
+  },
+  pickerContainer: {
+    backgroundColor: '#1f1c29',
+    padding: 4,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    flexDirection: 'row',
+  },
+  pickerScrollContent: {
+    paddingHorizontal: 8,
+  },
+  pickerLoader: {
+    marginVertical: 8,
+    marginHorizontal: 'auto',
+  },
+  dayButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 9999,
+  },
+  dayButtonActive: {
+    backgroundColor: 'white',
+  },
+  dayButtonInactive: {
+    backgroundColor: 'transparent',
+  },
+  dayButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  dayButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  dayButtonTextActive: {
+    color: 'black',
+  },
+  dayButtonTextInactive: {
+    color: '#8e8e93',
+  },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  listContent: {
+    paddingBottom: 120,
+    paddingTop: 10,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f1c29',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 12,
+  },
+  skeletonContent: {
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    paddingVertical: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: '#8e8e93',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  itemRowPressed: {
+    opacity: 0.5,
+  },
+  itemImageContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#1f1c29',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  itemImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIcon: {
+    opacity: 0.8,
+  },
+  itemDetails: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f2f2f7',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  itemStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  statGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  airingTimeBadge: {
+    backgroundColor: 'rgba(50, 215, 75, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  airingTimeText: {
+    color: '#32D74B',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  dotSeparator: {
+    color: '#48484a',
+    fontSize: 10,
+  },
+  epText: {
+    color: '#8e8e93',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  scoreText: {
+    color: '#FFD60A',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  chevronContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

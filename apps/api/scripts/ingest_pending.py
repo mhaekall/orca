@@ -143,9 +143,9 @@ async def ingest_pending(
                     logger.info(f"Ingest Result {anilist_id} Ep {episode_num}: {success}")
 
                     if success and idx < len(rows) - 1:
-                        # Wait 3 minutes between successful ingestions to avoid rate limits
-                        logger.info("Waiting 3 minutes before next episode to avoid rate limits...")
-                        await asyncio.sleep(180)
+                        # Wait 1 minute between successful ingestions to avoid rate limits
+                        logger.info("Waiting 1 minute before next episode to avoid rate limits...")
+                        await asyncio.sleep(60)
                 else:
                     logger.error(
                         f"Could not resolve valid direct URL for retry {anilist_id} Ep {episode_num}"

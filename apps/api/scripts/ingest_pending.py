@@ -11,9 +11,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from services.ingestion.main import IngestionEngine
+
 from db.connection import database
 from services.cache import upstash_del, upstash_get, upstash_set
-from services.ingestion.main import IngestionEngine
 from services.stream_cache import stream_cache
 
 logging.basicConfig(level=logging.INFO)
@@ -142,9 +143,9 @@ async def ingest_pending(
                     logger.info(f"Ingest Result {anilist_id} Ep {episode_num}: {success}")
 
                     if success and idx < len(rows) - 1:
-                        # Wait 5 minutes between successful ingestions to avoid rate limits
-                        logger.info("Waiting 5 minutes before next episode to avoid rate limits...")
-                        await asyncio.sleep(300)
+                        # Wait 3 minutes between successful ingestions to avoid rate limits
+                        logger.info("Waiting 3 minutes before next episode to avoid rate limits...")
+                        await asyncio.sleep(180)
                 else:
                     logger.error(
                         f"Could not resolve valid direct URL for retry {anilist_id} Ep {episode_num}"

@@ -53,5 +53,5 @@ jobs:
             python apps/api/scripts/ingest_pending.py --anilist_id "${{ github.event.inputs.anilist_id }}" --ep_num "${{ github.event.inputs.ep_num }}"
           else
             echo "Running default bulk ingestion"
-            python apps/api/scripts/ingest_pending.py --limit 50
+            python apps/api/scripts/ingest_pending.py --limit 100
           fi

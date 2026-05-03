@@ -142,8 +142,8 @@ async def ingest_pending(
                     )
                     logger.info(f"Ingest Result {anilist_id} Ep {episode_num}: {success}")
 
-                    if success and idx < len(rows) - 1:
-                        # Wait 1 minute between successful ingestions to avoid rate limits
+                    if idx < len(rows) - 1:
+                        # Selalu tunggu 1 menit antar episode, baik sukses maupun gagal, agar tidak spam/ban.
                         logger.info("Waiting 1 minute before next episode to avoid rate limits...")
                         await asyncio.sleep(60)
                 else:

@@ -37,6 +37,10 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="explore" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications" options={{ headerShown: false }} />
+              <Stack.Screen name="anime/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="watch/[id]/[episode]" options={{ headerShown: false }} />
             </Stack>
           </AuthProvider>
         </SWRProvider>

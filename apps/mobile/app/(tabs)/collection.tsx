@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, ActivityIndicator, Pressable, Dimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, Dimensions, StyleSheet } from "react-native";
 import { Bookmark, RefreshCcw } from "lucide-react-native";
 import useSWR from "swr";
 import { useAuth } from "../../lib/auth";
@@ -40,11 +40,11 @@ export default function CollectionScreen() {
 
   if (authLoading) {
     return (
-      <View className="flex-1 bg-[#13111a]">
-        <View className="pt-16 pb-4 bg-[#13111a] border-b border-white/5 z-10 px-6">
+      <View style={styles.container}>
+        <View style={styles.headerFixed}>
           <Skeleton w={140} h={32} r={8} />
         </View>
-        <View className="flex-1 px-6 pt-5" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        <View style={styles.gridContainer}>
           {Array.from({ length: 9 }).map((_, i) => (
             <View key={i} style={{ width: itemWidth, marginBottom: 16 }}>
                <Skeleton w="100%" h={itemWidth * 1.5} r={16} style={{ marginBottom: 8 }} />
@@ -58,16 +58,16 @@ export default function CollectionScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#0a0812]">
+    <View style={styles.container}>
       {/* Header Fixed */}
-      <View className="pt-16 pb-4 bg-[#0a0812] z-10 px-6">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-[28px] font-black text-white tracking-tight mb-1">
+      <View style={styles.headerFixed}>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>
             Koleksi
           </Text>
           {sortedItems.length > 0 && (
-            <View className="bg-white/10 px-3 py-1 rounded-full">
-              <Text className="text-xs font-bold text-white/80">{sortedItems.length} Judul</Text>
+            <View style={styles.badgeCount}>
+              <Text style={styles.badgeText}>{sortedItems.length} Judul</Text>
             </View>
           )}
         </View>
@@ -75,27 +75,27 @@ export default function CollectionScreen() {
 
       {/* Main Content */}
       <ScrollView 
-        className="flex-1 px-6" 
-        contentContainerStyle={{ paddingBottom: 120, paddingTop: 20 }}
+        style={styles.scrollContent} 
+        contentContainerStyle={styles.scrollContainer}
       >
         {!user ? (
-          <View className="py-20 items-center justify-center">
-            <View className="w-20 h-20 bg-[#1f1c29] rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-xl">
+          <View style={styles.emptyState}>
+            <View style={styles.iconCircle}>
               <Bookmark size={40} color="rgba(255,255,255,0.2)" />
             </View>
-            <Text className="text-white font-bold text-xl mb-2">Silakan Login</Text>
-            <Text className="text-[#8e8e93] text-sm text-center mb-8 max-w-[250px]">
+            <Text style={styles.emptyTitle}>Silakan Login</Text>
+            <Text style={styles.emptyDesc}>
               Simpan anime yang ingin Anda tonton untuk diakses di perangkat mana pun.
             </Text>
             <Pressable 
               onPress={signInWithGoogle}
-              className="bg-white px-6 py-3 rounded-full active:opacity-80"
+              style={styles.loginButton}
             >
-              <Text className="text-black font-bold text-base">Login dengan Google</Text>
+              <Text style={styles.loginText}>Login dengan Google</Text>
             </Pressable>
           </View>
         ) : collectionLoading ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <View style={styles.gridList}>
             {Array.from({ length: 9 }).map((_, i) => (
               <View key={i} style={{ width: itemWidth, marginBottom: 16 }}>
                  <Skeleton w="100%" h={itemWidth * 1.5} r={16} style={{ marginBottom: 8 }} />
@@ -105,25 +105,25 @@ export default function CollectionScreen() {
             ))}
           </View>
         ) : error ? (
-           <View className="py-20 items-center justify-center">
-            <Text className="text-[#FF453A] text-sm mb-4 font-medium">Gagal memuat koleksi</Text>
-            <Pressable onPress={() => mutate()} className="flex-row items-center gap-2 bg-white/10 px-4 py-2 rounded-full active:opacity-80">
+           <View style={styles.emptyState}>
+            <Text style={styles.errorText}>Gagal memuat koleksi</Text>
+            <Pressable onPress={() => mutate()} style={styles.retryButton}>
               <RefreshCcw size={14} color="white" />
-              <Text className="text-white font-bold text-sm">Coba Lagi</Text>
+              <Text style={styles.retryText}>Coba Lagi</Text>
             </Pressable>
           </View>
         ) : sortedItems.length === 0 ? (
-          <View className="py-20 items-center justify-center">
-            <View className="w-20 h-20 bg-[#1f1c29] rounded-full flex items-center justify-center mb-6 border border-white/5 shadow-xl">
+          <View style={styles.emptyState}>
+            <View style={styles.iconCircle}>
               <Bookmark size={40} color="rgba(255,255,255,0.2)" />
             </View>
-            <Text className="text-white font-bold text-xl mb-2">Belum ada koleksi</Text>
-            <Text className="text-[#8e8e93] text-sm text-center max-w-[200px]">
+            <Text style={styles.emptyTitle}>Belum ada koleksi</Text>
+            <Text style={styles.emptyDesc}>
               Simpan anime yang ingin Anda tonton di sini.
             </Text>
           </View>
         ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <View style={styles.gridList}>
             {sortedItems.map((item) => (
               <View key={item.id} style={{ width: itemWidth }}>
                 <AnimeCard
@@ -142,3 +142,126 @@ export default function CollectionScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0812'
+  },
+  headerFixed: {
+    paddingTop: 64,
+    paddingBottom: 16,
+    backgroundColor: '#0a0812',
+    zIndex: 10,
+    paddingHorizontal: 24
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: 'white',
+    letterSpacing: -0.5,
+    marginBottom: 4
+  },
+  badgeCount: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 9999
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)'
+  },
+  gridContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12
+  },
+  scrollContent: {
+    flex: 1,
+    paddingHorizontal: 24
+  },
+  scrollContainer: {
+    paddingBottom: 120,
+    paddingTop: 20
+  },
+  emptyState: {
+    paddingVertical: 80,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#1f1c29',
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10
+  },
+  emptyTitle: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 20,
+    marginBottom: 8
+  },
+  emptyDesc: {
+    color: '#8e8e93',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 32,
+    maxWidth: 250
+  },
+  loginButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 9999
+  },
+  loginText: {
+    color: 'black',
+    fontWeight: 'bold',
+    fontSize: 16
+  },
+  errorText: {
+    color: '#FF453A',
+    fontSize: 14,
+    marginBottom: 16,
+    fontWeight: '500'
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 9999
+  },
+  retryText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14
+  },
+  gridList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12
+  }
+});

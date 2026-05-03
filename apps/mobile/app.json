@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Orca",
-    "slug": "orca-mobile",
+    "slug": "orca",
     "scheme": "orca",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,7 +33,26 @@
       "expo-web-browser",
       "expo-secure-store",
       "expo-router",
-      "expo-video"
-    ]
+      "expo-video",
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "jsEngine": "jsc"
+          },
+          "ios": {
+            "jsEngine": "jsc"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1aade253-1517-4cfa-ab26-6781fc66cbb0"
+      }
+    },
+    "owner": "mhaekal"
   }
 }

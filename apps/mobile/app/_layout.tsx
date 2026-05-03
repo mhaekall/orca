@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import { AuthProvider } from "../lib/auth";
+import { SWRProvider } from "../lib/swr-provider";
 import { StatusBar } from "expo-status-bar";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { View, StyleSheet } from "react-native";
@@ -26,17 +27,19 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={customTheme}>
       <View style={styles.rootView}>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              contentStyle: styles.stackContent,
-              animation: "default", // Mengembalikan animasi ke bawaan (default Android/iOS)
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
-        </AuthProvider>
+        <SWRProvider>
+          <AuthProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                contentStyle: styles.stackContent,
+                animation: "default", // Mengembalikan animasi ke bawaan (default Android/iOS)
+              }}
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </AuthProvider>
+        </SWRProvider>
       </View>
     </ThemeProvider>
   );

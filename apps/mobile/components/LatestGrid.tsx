@@ -18,9 +18,11 @@ export function LatestGrid({ title, items, badge }: Props) {
 
   return (
     <View className="mb-8 w-full">
-      <View className="flex-row items-center justify-between mb-4 px-4">
-        <Text className="text-xl font-black text-white tracking-tight">{title}</Text>
-      </View>
+      {title ? (
+        <View className="flex-row items-center justify-between mb-4 px-4">
+          <Text className="text-xl font-black text-white tracking-tight">{title}</Text>
+        </View>
+      ) : null}
 
       <View className="flex-row flex-wrap px-2">
         {visibleItems.map((a, i) => {

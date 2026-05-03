@@ -4,6 +4,9 @@ import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { Play, Check, Star, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { mutate } from 'swr';
+
+const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 
 interface Props {
   id: string;
@@ -54,9 +57,17 @@ function AnimeCardInner({
   const imageSrc = variant === 'horizontal' ? banner || img : img;
   const currentBadge = badge || (isNew ? 'NEW' : null);
 
+  // Aggressive Prefetching: Ambil data detail anime saat card disentuh
+  const handlePrefetch = () => {
+    const url = `${API_URL}/api/v2/anime/${id}`;
+    // Memanggil mutate tanpa data kedua memicu fetch ulang di background dan
+    // menyimpannya di cache SWR secara otomatis
+    mutate(url);
+  };
+
   return (
     <Link href={href} asChild>
-      <Pressable className={`flex flex-col w-full mb-4`}>
+      <Pressable onPressIn={handlePrefetch} className={`flex flex-col w-full mb-4`}>
         <View className={`w-full ${aspectClass} rounded-2xl relative overflow-hidden mb-2 bg-[#1f1c29] border border-white/5`}>
           <Image
             source={{ uri: imageSrc || 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg' }}
@@ -104,10 +115,25 @@ function AnimeCardInner({
           </View>
 
           <View className="absolute bottom-2 left-2 right-2 z-20 flex-row items-center justify-between">
-            <Text className="text-white/80 text-[10px] font-medium">{epId ? 'Tonton' : 'Detail'}</Text>
-            <View className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-              <Play size={12} color="white" fill="white" className="ml-0.5" />
+            <View className="flex-row items-center gap-2">
+              {score ? (
+                <View className="flex-row items-center gap-0.5 bg-black/40 px-1.5 py-0.5 rounded">
+                  <Star size={9} color="#FFD60A" fill="#FFD60A" />
+                  <Text className="text-[9px] font-bold text-[#FFD60A]">{(score / 10).toFixed(1)}</Text>
+                </View>
+              ) : null}
+              {views != null && views > 0 ? (
+                <View className="flex-row items-center gap-0.5 bg-black/40 px-1.5 py-0.5 rounded">
+                  <Eye size={9} color="rgba(255,255,255,0.8)" />
+                  <Text className="text-[9px] font-bold text-white/80">{formatViews(views)}</Text>
+                </View>
+              ) : null}
             </View>
+            {isCompleted && (
+              <View className="w-5 h-5 rounded-full bg-[#30D158]/20 flex items-center justify-center">
+                <Check size={10} color="#30D158" />
+              </View>
+            )}
           </View>
 
           {progressPercent > 0 && (
@@ -120,29 +146,6 @@ function AnimeCardInner({
         <Text className="text-[#f2f2f7] font-semibold text-[13px] leading-tight px-0.5" numberOfLines={2}>
           {title}
         </Text>
-
-        <View className="flex-row items-center gap-2 mt-1 px-0.5">
-          {score ? (
-            <View className="flex-row items-center gap-0.5">
-              <Star size={10} color="#FFD60A" fill="#FFD60A" />
-              <Text className="text-[10px] font-bold text-[#FFD60A]">{(score / 10).toFixed(1)}</Text>
-            </View>
-          ) : null}
-          
-          {views != null && views > 0 ? (
-            <View className="flex-row items-center gap-0.5">
-              <Eye size={10} color="#8e8e93" />
-              <Text className="text-[10px] font-bold text-[#8e8e93]">{formatViews(views)}</Text>
-            </View>
-          ) : null}
-
-          {isCompleted && (
-            <View className="flex-row items-center gap-0.5">
-              <Check size={10} color="#30D158" />
-              <Text className="text-[10px] font-bold text-[#30D158]">Selesai</Text>
-            </View>
-          )}
-        </View>
       </Pressable>
     </Link>
   );

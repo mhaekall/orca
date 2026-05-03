@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import useSWR from 'swr';
@@ -8,7 +8,10 @@ import { Image } from 'expo-image';
 import { useAuth } from '../../../lib/auth';
 import { AnimeCard } from '../../../components/AnimeCard';
 import { CommentSection } from '../../../components/CommentSection';
+import { Skeleton } from '../../../components/Skeleton';
+import { Dimensions } from 'react-native';
 
+const { width: W } = Dimensions.get('window');
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -39,6 +42,28 @@ export default function WatchScreen() {
   const player = useVideoPlayer(videoUrl || null, player => {
     player.play();
   });
+
+  const lastTapLeft = useRef(0);
+  const handleDoubleTapLeft = () => {
+    const now = Date.now();
+    if (now - lastTapLeft.current < 300) {
+      if (player) player.seekBy(-10);
+      lastTapLeft.current = 0;
+    } else {
+      lastTapLeft.current = now;
+    }
+  };
+
+  const lastTapRight = useRef(0);
+  const handleDoubleTapRight = () => {
+    const now = Date.now();
+    if (now - lastTapRight.current < 300) {
+      if (player) player.seekBy(10);
+      lastTapRight.current = 0;
+    } else {
+      lastTapRight.current = now;
+    }
+  };
 
   useEffect(() => {
     if (player && videoUrl) {
@@ -71,8 +96,13 @@ export default function WatchScreen() {
     }
   };
 
-  const sortedEpisodes = [...episodes].sort((a, b) => a.number - b.number);
-  const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title || "Anime";
+  const getEpNumStr = (ep: any) => String(ep.episodeNumber ?? ep.number ?? (ep.url ? ep.url.split("episode=").pop() : "?"));
+  const sortedEpisodes = [...episodes].sort((a, b) => {
+    const numA = parseInt(getEpNumStr(a)) || 0;
+    const numB = parseInt(getEpNumStr(b)) || 0;
+    return numA - numB;
+  });
+  const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
   const poster = anime?.poster || anime?.img || anime?.coverImage;
 
   return (
@@ -96,14 +126,27 @@ export default function WatchScreen() {
             <Text className="text-[#8e8e93] text-sm font-medium mt-3">Mencari sumber video...</Text>
           </View>
         ) : videoUrl ? (
-          <VideoView 
-            style={StyleSheet.absoluteFill} 
-            player={player} 
-            allowsFullscreen 
-            allowsPictureInPicture
-            showsTimecodes
-            contentFit="contain"
-          />
+          <>
+            <VideoView 
+              style={StyleSheet.absoluteFill} 
+              player={player} 
+              allowsFullscreen 
+              allowsPictureInPicture
+              showsTimecodes
+              contentFit="contain"
+            />
+            {/* Double Tap Seek Overlays */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none" className="flex-row justify-between z-40">
+              <Pressable 
+                onPress={handleDoubleTapLeft}
+                className="w-[30%] h-[60%] mt-[10%]" 
+              />
+              <Pressable 
+                onPress={handleDoubleTapRight}
+                className="w-[30%] h-[60%] mt-[10%]" 
+              />
+            </View>
+          </>
         ) : (
           <View className="flex-1 items-center justify-center bg-[#1c1c1e]">
             <Text className="text-[#8e8e93] font-medium">Video belum tersedia untuk episode ini.</Text>
@@ -145,7 +188,7 @@ export default function WatchScreen() {
                 <View className="flex-row items-center gap-1.5 px-4 py-2 bg-white/10 rounded-full">
                   <Eye color="#e5e5ea" size={16} />
                   <Text className="text-white font-bold text-sm">
-                    {realViews > 1000 ? (realViews/1000).toFixed(1) + 'K' : realViews}
+                    {realViews >= 1000000 ? (realViews/1000000).toFixed(1) + 'M' : realViews >= 1000 ? (realViews/1000).toFixed(1) + 'K' : realViews}
                   </Text>
                 </View>
 
@@ -226,11 +269,12 @@ export default function WatchScreen() {
               {showAllEpisodes ? (
                 <View className="flex-row flex-wrap gap-2">
                   {sortedEpisodes.map((ep: any) => {
-                    const isActive = String(ep.number) === String(episode);
+                    const epNum = getEpNumStr(ep);
+                    const isActive = String(epNum) === String(episode);
                     return (
                       <Pressable 
-                        key={ep.number}
-                        onPress={() => handleEpisodeChange(String(ep.number))}
+                        key={epNum}
+                        onPress={() => handleEpisodeChange(String(epNum))}
                         className={`w-[18%] aspect-square rounded-[10px] items-center justify-center border ${
                           isActive 
                             ? 'bg-white border-white' 
@@ -238,7 +282,7 @@ export default function WatchScreen() {
                         }`}
                       >
                         <Text className={`font-bold text-[14px] ${isActive ? 'text-black' : 'text-[#8e8e93]'}`}>
-                          {ep.number}
+                          {epNum}
                         </Text>
                       </Pressable>
                     );
@@ -248,11 +292,12 @@ export default function WatchScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4 px-4">
                   <View className="flex-row gap-2.5 pr-8">
                     {sortedEpisodes.map((ep: any) => {
-                      const isActive = String(ep.number) === String(episode);
+                      const epNum = getEpNumStr(ep);
+                      const isActive = String(epNum) === String(episode);
                       return (
                         <Pressable 
-                          key={ep.number}
-                          onPress={() => handleEpisodeChange(String(ep.number))}
+                          key={epNum}
+                          onPress={() => handleEpisodeChange(String(epNum))}
                           className={`h-[48px] min-w-[64px] px-4 rounded-[14px] flex-row items-center justify-center border transition-all ${
                             isActive 
                               ? 'bg-white border-white' 
@@ -260,7 +305,7 @@ export default function WatchScreen() {
                           }`}
                         >
                           <Text className={`font-bold text-[15px] ${isActive ? 'text-black' : 'text-[#8e8e93]'}`}>
-                            {ep.number}
+                            {epNum}
                           </Text>
                         </Pressable>
                       );
@@ -297,7 +342,22 @@ export default function WatchScreen() {
             
           </>
         ) : (
-          <ActivityIndicator size="small" color="#0A84FF" className="mt-8" />
+          <View className="px-5 pt-6">
+            <Skeleton w="80%" h={28} r={8} style={{ marginBottom: 12 }} />
+            <Skeleton w="50%" h={16} r={6} style={{ marginBottom: 24 }} />
+            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 32 }}>
+              <Skeleton w={50} h={50} r={25} />
+              <Skeleton w={50} h={50} r={25} />
+              <Skeleton w={50} h={50} r={25} />
+              <Skeleton w={50} h={50} r={25} />
+            </View>
+            <Skeleton w={120} h={20} r={8} style={{ marginBottom: 16 }} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+               {Array.from({ length: 10 }).map((_, i) => (
+                 <Skeleton key={i} w={70} h={40} r={12} />
+               ))}
+            </View>
+          </View>
         )}
       </ScrollView>
       

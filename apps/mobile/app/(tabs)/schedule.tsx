@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Link } from "expo-router";
 import useSWR from "swr";
 import { Play, Star, ChevronRight } from "lucide-react-native";
+import { Skeleton } from "../../components/Skeleton";
 
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -38,9 +39,9 @@ export default function ScheduleScreen() {
   const currentItems = schedData[activeDay] || [];
 
   return (
-    <View className="flex-1 bg-[#13111a]">
+    <View className="flex-1 bg-[#0a0812]">
       {/* Header Fixed */}
-      <View className="pt-16 pb-4 bg-[#13111a] border-b border-white/5 z-10 px-6">
+      <View className="pt-16 pb-4 bg-[#0a0812] px-6">
         <Text className="text-[28px] font-black text-white tracking-tight mb-1">
           Jadwal Rilis
         </Text>
@@ -85,9 +86,16 @@ export default function ScheduleScreen() {
         contentContainerStyle={{ paddingBottom: 120, paddingTop: 10 }}
       >
         {isLoading && days.length === 0 ? (
-          <View className="py-20 items-center justify-center">
-            <ActivityIndicator size="large" color="#0A84FF" />
-            <Text className="text-[#8e8e93] text-sm mt-4 font-medium">Memuat jadwal...</Text>
+          <View>
+             {Array.from({ length: 6 }).map((_, i) => (
+                <View key={i} className="flex-row items-center bg-[#1f1c29] p-3 rounded-2xl border border-white/5 mb-3">
+                   <Skeleton w={70} h={70} r={12} />
+                   <View className="flex-1 ml-4 justify-center">
+                     <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
+                     <Skeleton w="50%" h={12} r={4} />
+                   </View>
+                </View>
+             ))}
           </View>
         ) : currentItems.length === 0 ? (
           <View className="py-20 items-center justify-center">

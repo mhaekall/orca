@@ -16,7 +16,7 @@ import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star } from "lucide-react-native";
 import { LatestGrid } from "../../components/LatestGrid";
 
@@ -33,9 +33,48 @@ const FONT_MEDIUM = "500";
 const FONT_SEMIBOLD = "600";
 const FONT_BOLD = "700";
 
+function formatViews(v: number): string {
+  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
+  return v.toString();
+}
+
+const prefetchAnime = (id: string) => {
+  mutate(`${API}/api/v2/anime/${id}`);
+};
+
 // ── Skeleton ─────────────────────────────────────────────────────────────────
 function Skel({ w, h, r = 12 }: { w: number; h: number; r?: number }) {
-  return <View style={{ width: w, height: h, borderRadius: r, backgroundColor: "rgba(255,255,255,0.06)" }} />;
+  const pulseAnim = React.useRef(new Animated.Value(0.4)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.8,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.4,
+          duration: 800,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View 
+      style={{ 
+        width: w, 
+        height: h, 
+        borderRadius: r, 
+        backgroundColor: "rgba(255,255,255,0.1)",
+        opacity: pulseAnim 
+      }} 
+    />
+  );
 }
 
 function LoadingState() {
@@ -75,7 +114,7 @@ function HeroCard({ item }: { item: any }) {
   
   return (
     <Link href={`/watch/${id}/${ep}` as any} asChild>
-      <Pressable style={s.hero}>
+      <Pressable style={s.hero} onPressIn={() => prefetchAnime(id)}>
         <Image 
           source={{ uri: img }} 
           style={StyleSheet.absoluteFillObject} 
@@ -89,10 +128,30 @@ function HeroCard({ item }: { item: any }) {
         />
         
         <View style={s.heroBottom}>
-          <View style={s.heroBadge}>
-            <View style={s.liveDot} />
-            <Text style={s.heroBadgeText}>EP {ep}</Text>
+          {/* Premium Abstract Calligraphy Badge (Edge & Larger) */}
+          <View style={{ alignSelf: 'flex-start', marginBottom: 12, marginLeft: -20, position: 'relative' }}>
+            {/* Background shape (smaller and separated from text) */}
+            <View style={{
+              position: 'absolute',
+              top: 16, bottom: 4, left: 0, right: 20, // Mengecilkan bg dari atas dan kanan (seperti sapuan highlighter)
+              backgroundColor: '#FF2D55', 
+              transform: [{ rotate: '-3deg' }, { skewX: '-12deg' }],
+              borderTopRightRadius: 4, borderBottomRightRadius: 16,
+              shadowColor: '#FF2D55', shadowOpacity: 0.8, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+            }} />
+            
+            {/* Text on top */}
+            <Text style={{
+              color: '#fff', fontSize: 24, 
+              paddingHorizontal: 22, paddingVertical: 8,
+              fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
+              fontWeight: 'bold', fontStyle: 'italic',
+              textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
+            }}>
+              Tayang Terbaru
+            </Text>
           </View>
+
           <Text style={s.heroTitle} numberOfLines={2}>{title}</Text>
           
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: -4 }}>
@@ -100,7 +159,7 @@ function HeroCard({ item }: { item: any }) {
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Eye size={12} color="rgba(255,255,255,0.7)" />
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
-                  {views > 1000 ? (views/1000).toFixed(1) + 'K' : views}
+                  {formatViews(views)}
                 </Text>
               </View>
             )}
@@ -112,6 +171,11 @@ function HeroCard({ item }: { item: any }) {
                 </Text>
               </View>
             ) : null}
+            <View style={{ backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+              <Text style={{ color: "#fff", fontSize: 10, fontWeight: FONT_BOLD }}>
+                EPS {ep}
+              </Text>
+            </View>
           </View>
 
           <View style={s.heroPlayBtn}>
@@ -123,83 +187,195 @@ function HeroCard({ item }: { item: any }) {
   );
 }
 
-// ── Spotlight: 1 big + 2 stacked ─────────────────────────────────────────────
+// ── Spotlight: 1 big + 2 stacked (Scrollable chunks) ────────────────────────
 function SpotlightRow({ items }: { items: any[] }) {
-  if (items.length < 3) return null;
+  if (items.length === 0) return null;
+  
+  const listData = [];
+  if (items.length > 0) {
+    listData.push({ type: 'big', item: items[0], rank: 1 });
+  }
+  for (let i = 1; i < items.length; i += 2) {
+    if (items[i]) {
+      listData.push({
+        type: 'stacked',
+        items: items.slice(i, i + 2),
+        startRank: i + 1,
+      });
+    }
+  }
+
+  const BIG_W = W * 0.55;
+  const SMALL_W = W * 0.35;
+
   return (
-    <View style={{ flexDirection: "row", gap: 10, height: 230, paddingHorizontal: 16 }}>
-      <View style={{ flex: 1.5 }}>
-        {[items[0]].map((item, i) => {
+    <FlatList
+      data={listData}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      decelerationRate="fast"
+      contentContainerStyle={{ paddingLeft: 16, paddingRight: 6 }}
+      keyExtractor={(_, i) => String(i)}
+      renderItem={({ item: chunk }) => {
+        if (chunk.type === 'big') {
+          const item = chunk.item;
           const id = String(item.anilistId || item.id);
           const img = item.img || item.coverImage?.extraLarge;
           const title = item.title?.english || item.title?.romaji || item.title || "";
+          const score = item.score || item.averageScore;
+          const views = item.views || 0;
           return (
-            <Link key={id} href={`/anime/${id}` as any} asChild>
-              <Pressable style={s.spotBig}>
-                <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
-                <LinearGradient colors={["transparent", "rgba(10,8,18,0.95)"]} style={StyleSheet.absoluteFillObject} />
-                <View style={s.spotBigBadge}><Text style={s.spotBigBadgeText}>#1 TRENDING</Text></View>
-                <Text style={s.spotBigTitle} numberOfLines={2}>{title}</Text>
-              </Pressable>
-            </Link>
+            <View style={{ width: BIG_W, height: 230, marginRight: 10 }}>
+              <Link key={id} href={`/anime/${id}` as any} asChild>
+                <Pressable style={s.spotBig} onPressIn={() => prefetchAnime(id)}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.95)"]} style={StyleSheet.absoluteFillObject} />
+                  <View style={s.spotBigBadge}><Text style={s.spotBigBadgeText}>#{chunk.rank} TRENDING</Text></View>
+                  <Text style={s.spotBigTitle} numberOfLines={2}>{title}</Text>
+                  
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    {score ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                        <Text style={{ color: "#FFD60A", fontSize: 11, fontWeight: FONT_BOLD }}>
+                          {(score / 10).toFixed(1)}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {views > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <Eye size={11} color="rgba(255,255,255,0.6)" />
+                        <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                          {formatViews(views)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              </Link>
+            </View>
           );
-        })}
-      </View>
-      <View style={{ flex: 1, flexDirection: "column", gap: 10 }}>
-        {items.slice(1, 3).map((item, i) => {
-          const id = String(item.anilistId || item.id);
-          const img = item.img || item.coverImage?.extraLarge;
-          const title = item.title?.english || item.title?.romaji || item.title || "";
+        }
+
+        if (chunk.type === 'stacked') {
           return (
-            <Link key={id} href={`/anime/${id}` as any} asChild>
-              <Pressable style={s.spotSmall}>
-                <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
-                <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject} />
-                <View style={s.spotSmallBadge}><Text style={s.spotSmallBadgeText}>#{i + 2}</Text></View>
-                <Text style={s.spotSmallTitle} numberOfLines={2}>{title}</Text>
-              </Pressable>
-            </Link>
+            <View style={{ width: SMALL_W, height: 230, marginRight: 10, flexDirection: "column", gap: 10 }}>
+              {chunk.items.map((item, i) => {
+                const id = String(item.anilistId || item.id);
+                const img = item.img || item.coverImage?.extraLarge;
+                const title = item.title?.english || item.title?.romaji || item.title || "";
+                const score = item.score || item.averageScore;
+                const views = item.views || 0;
+                return (
+                  <Link key={id} href={`/anime/${id}` as any} asChild>
+                    <Pressable style={s.spotSmall} onPressIn={() => prefetchAnime(id)}>
+                      <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                      <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject} />
+                      <View style={s.spotSmallBadge}><Text style={s.spotSmallBadgeText}>#{chunk.startRank + i}</Text></View>
+                      <Text style={s.spotSmallTitle} numberOfLines={2}>{title}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        {score ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                            <Star size={9} color="#FFD60A" fill="#FFD60A" />
+                            <Text style={{ color: "#FFD60A", fontSize: 9, fontWeight: FONT_BOLD }}>
+                              {(score / 10).toFixed(1)}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {views > 0 && (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                            <Eye size={9} color="rgba(255,255,255,0.6)" />
+                            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 9, fontWeight: FONT_MEDIUM }}>
+                              {formatViews(views)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+                  </Link>
+                );
+              })}
+            </View>
           );
-        })}
-      </View>
-    </View>
+        }
+        
+        return null;
+      }}
+    />
   );
 }
 
-// ── Wide Row (landscape 16:9) ─────────────────────────────────────────────────
+// ── Wide Row (List View) ──────────────────────────────────────────────────────
 function WideRow({ items }: { items: any[] }) {
-  const CW = W * 0.72;
   return (
-    <FlatList
-      data={items.slice(0, 10)} horizontal showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingLeft: 16, paddingRight: 8 }}
-      keyExtractor={(item, i) => String(item.anilistId || item.id || i)}
-      renderItem={({ item }) => {
+    <View style={{ paddingHorizontal: 16, gap: 16 }}>
+      {items.slice(0, 5).map((item, i) => {
         const id = String(item.anilistId || item.id);
-        const ep = item.latestEpisode ? String(item.latestEpisode) : "1";
-        const img = item.banner || item.bannerImage || item.img || item.coverImage?.extraLarge;
+        const img = item.poster || item.img || item.coverImage?.extraLarge || item.banner;
         const title = item.title?.english || item.title?.romaji || item.title || "";
         const score = item.score || item.averageScore;
+        const views = item.views || 0;
+        const genres = item.genres || [];
+        const firstGenre = genres.length > 0 ? genres[0] : "";
+
         return (
-          <Link href={`/watch/${id}/${ep}` as any} asChild>
-            <Pressable style={[s.wideCard, { width: CW }]}>
-              <Image source={{ uri: img }} style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]} contentFit="cover" transition={300} />
-              <LinearGradient colors={["transparent", "rgba(10,8,18,0.95)"]} locations={[0.35, 1]} style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]} />
-              <View style={s.wideContent}>
-                <Text style={s.wideTitle} numberOfLines={1}>{title}</Text>
-                <View style={s.wideMeta}>
-                  {score ? <Text style={s.wideScore}>★ {(score / 10).toFixed(1)}</Text> : null}
-                  <View style={s.widePlayBtn}>
-                    <Play size={11} color="#000" fill="#000" />
-                    <Text style={s.widePlayText}>EP {ep}</Text>
+          <View key={String(id || i)} style={{ width: "100%", height: 130 }}>
+            <Link href={`/anime/${id}` as any} asChild>
+              <Pressable style={{ flex: 1, flexDirection: "row", backgroundColor: SURFACE2, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" }} onPressIn={() => prefetchAnime(id)}>
+                <View style={{ width: 100, height: "100%", backgroundColor: BG }}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={StyleSheet.absoluteFillObject} />
+                  {/* Smooth horizontal transition blending into SURFACE2 */}
+                  <LinearGradient start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} colors={["transparent", "transparent", SURFACE2]} locations={[0, 0.6, 1]} style={StyleSheet.absoluteFillObject} />
+                </View>
+                
+                <View style={{ flex: 1, padding: 14, justifyContent: "center", paddingLeft: 4 }}>
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: FONT_SEMIBOLD, marginBottom: 6, lineHeight: 20 }} numberOfLines={2}>
+                    {title}
+                  </Text>
+                  
+                  <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                     {score ? (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                          <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                          <Text style={{ color: "#FFD60A", fontSize: 11, fontWeight: FONT_BOLD }}>
+                            {(score / 10).toFixed(1)}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {views > 0 && (
+                        <>
+                          <Text style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>•</Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                            <Eye size={11} color="rgba(255,255,255,0.6)" />
+                            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                              {formatViews(views)}
+                            </Text>
+                          </View>
+                        </>
+                      )}
+
+                      {firstGenre ? (
+                        <>
+                          <Text style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>•</Text>
+                          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                            {firstGenre}
+                          </Text>
+                        </>
+                      ) : null}
+                  </View>
+
+                  <View style={{ alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: FONT_BOLD, letterSpacing: 0.5 }}>LIHAT DETAIL</Text>
                   </View>
                 </View>
-              </View>
-            </Pressable>
-          </Link>
+              </Pressable>
+            </Link>
+          </View>
         );
-      }}
-    />
+      })}
+    </View>
   );
 }
 
@@ -215,9 +391,11 @@ function VertRow({ items, showRank, cw = 110, ch = 158 }: { items: any[]; showRa
         const ep = item.latestEpisode ? String(item.latestEpisode) : "1";
         const img = item.img || item.coverImage?.extraLarge;
         const title = item.title?.english || item.title?.romaji || item.title || "";
+        const score = item.score || item.averageScore;
+        const views = item.views || 0;
         return (
           <Link href={`/anime/${id}` as any} asChild>
-            <Pressable style={{ width: cw, marginRight: 10 }}>
+            <Pressable style={{ width: cw, marginRight: 10 }} onPressIn={() => prefetchAnime(id)}>
               <View style={{ height: ch, borderRadius: 12, overflow: "hidden", backgroundColor: SURFACE, marginBottom: 8 }}>
                 <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
                 <LinearGradient colors={["transparent", "rgba(10,8,18,0.85)"]} style={StyleSheet.absoluteFillObject} />
@@ -225,6 +403,25 @@ function VertRow({ items, showRank, cw = 110, ch = 158 }: { items: any[]; showRa
                 <View style={s.epBadge}><Text style={s.epBadgeText}>EP {ep}</Text></View>
               </View>
               <Text style={s.cardTitle} numberOfLines={2}>{title}</Text>
+              
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                 {score ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <Star size={10} color="#FFD60A" fill="#FFD60A" />
+                      <Text style={{ color: "#FFD60A", fontSize: 10, fontWeight: FONT_BOLD }}>
+                        {(score / 10).toFixed(1)}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {views > 0 && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <Eye size={10} color="rgba(255,255,255,0.6)" />
+                      <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: FONT_MEDIUM }}>
+                        {formatViews(views)}
+                      </Text>
+                    </View>
+                  )}
+              </View>
             </Pressable>
           </Link>
         );
@@ -246,7 +443,7 @@ function SecHeader({ label }: { label: string }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
-  const { data, isLoading, isValidating, mutate } = useSWR(`${API}/api/v2/home?v=3`, fetcher, {
+  const { data, isLoading, isValidating, error, mutate } = useSWR(`${API}/api/v2/home?v=3`, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   });
@@ -254,7 +451,7 @@ export default function HomeScreen() {
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const headerBg = scrollY.interpolate({
     inputRange: [0, 150],
-    outputRange: ["rgba(19, 17, 26, 0)", "rgba(19, 17, 26, 0.95)"], // from transparent to #13111a
+    outputRange: ["rgba(10, 8, 18, 0)", "rgba(10, 8, 18, 1)"], // from transparent to solid #0a0812
     extrapolate: "clamp",
   });
 
@@ -275,6 +472,8 @@ export default function HomeScreen() {
   const ongoingMap = new Map();
   [...latest, ...airing].forEach((i) => { const k = String(i.anilistId || i.id); if (!ongoingMap.has(k)) ongoingMap.set(k, i); });
   const ongoing = Array.from(ongoingMap.values());
+
+  const isError = error || (!isLoading && !d.latest && !d.airing && !d.popular);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -297,6 +496,21 @@ export default function HomeScreen() {
 
       {isLoading ? (
         <LoadingState />
+      ) : isError ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 }}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(255,59,48,0.1)", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+            <Tv size={28} color="#FF3B30" />
+          </View>
+          <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 8, textAlign: "center" }}>Gagal Memuat Beranda</Text>
+          <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 24 }}>Terjadi kesalahan saat mengambil data dari server. Silakan coba lagi.</Text>
+          <Pressable 
+            onPress={() => mutate()} 
+            style={{ backgroundColor: "#0A84FF", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 8 }}
+          >
+            <RefreshControl refreshing={isValidating} tintColor="transparent" style={{ display: 'none' }} />
+            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "700" }}>Coba Lagi</Text>
+          </Pressable>
+        </View>
       ) : (
         <Animated.ScrollView
           showsVerticalScrollIndicator={false}
@@ -315,29 +529,21 @@ export default function HomeScreen() {
         >
           {/* Hero (Full Width, fills top edge) */}
           {hero && (
-            <View style={{ marginBottom: 32 }}>
+            <View style={{ marginBottom: 16 }}>
               <HeroCard item={hero} />
             </View>
           )}
 
           {/* Sedang Tayang — Grid 3x3 */}
           {ongoing.length > 0 && (
-            <LatestGrid title="Sedang Tayang" items={ongoing} badge="NEW" />
+            <LatestGrid title="" items={ongoing} badge="NEW" />
           )}
 
-          {/* Trending — Spotlight */}
+          {/* Trending & Populer — Spotlight */}
           {trending.length >= 3 && (
             <View style={{ marginBottom: 32 }}>
-              <SecHeader label="Trending" />
+              <SecHeader label="Trending & Populer" />
               <SpotlightRow items={trending} />
-            </View>
-          )}
-
-          {/* Populer — Vertical with rank */}
-          {popular.length > 0 && (
-            <View style={{ marginBottom: 32 }}>
-              <SecHeader label="Terpopuler" />
-              <VertRow items={popular} showRank />
             </View>
           )}
 

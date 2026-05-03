@@ -30,7 +30,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#13111a]">
+    <View className="flex-1 bg-[#0a0812]">
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100, paddingTop: 60, paddingHorizontal: 16 }}>
         
         {/* Header Profile Section */}

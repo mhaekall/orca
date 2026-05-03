@@ -52,7 +52,8 @@ class TelegramUploader:
         if self.client is None:
             limits = httpx.Limits(max_keepalive_connections=50, max_connections=100)
             timeout = httpx.Timeout(240.0, connect=60.0, pool=60.0)
-            self.client = httpx.AsyncClient(limits=limits, timeout=timeout)
+            transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0", limits=limits, retries=3)
+            self.client = httpx.AsyncClient(transport=transport, timeout=timeout)
         return self.client
 
     async def close(self):

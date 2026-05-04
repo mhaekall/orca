@@ -46,9 +46,7 @@ export default function WatchScreen() {
     // the CF Worker proxy ALWAYS generates an #EXTM3U playlist on the fly from Telegram sliced chunks.
     sourceType = 'hls';
     
-    // Bypass Cloudflare Edge Cache for the master playlist
-    const separator = videoUrl.includes('?') ? '&' : '?';
-    videoUrl += `${separator}cb=${Date.now()}`;
+    // Proxy handles Range caching correctly, no need for cache buster hack here.
   }
 
   // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready

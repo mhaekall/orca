@@ -53,13 +53,20 @@ export default function WatchScreen() {
   );
 
   // 5. Final video URL
-  const videoUrl = directSource?.url || resolvedData?.videoUrl || null;
+  let videoUrl = directSource?.url || resolvedData?.videoUrl || null;
   
   let sourceType = directSource?.type || 'hls';
   // Override type for telegram proxies (they return direct MP4 files, not M3U8 playlists).
   // Passing type: 'hls' to ExoPlayer for an MP4 causes silent failure and 0 duration.
   if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
     sourceType = 'mp4';
+    // Bypass Cloudflare Edge Cache: Web browsers requesting the same URL without Range headers
+    // will cause Cloudflare to cache a 200 OK response. If ExoPlayer later requests the same URL
+    // with a Range header, CF Edge returns the cached 200 OK instead of a 206 Partial Content,
+    // causing ExoPlayer to fail with 0 duration. Appending a unique mobile-only query parameter 
+    // ensures ExoPlayer gets its own cache key.
+    const separator = videoUrl.includes('?') ? '&' : '?';
+    videoUrl += `${separator}player=rn`;
   }
 
   // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready

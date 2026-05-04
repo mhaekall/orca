@@ -33,11 +33,28 @@ export default function WatchScreen() {
   const recommendations = anime?.recommendations || [];
   const realViews = anime?.views || 0;
   
-  // Filter only direct streams (mp4 or m3u8) because expo-video cannot play iframes
-  const directSources = sources.filter((s: any) => s.type !== "iframe" && !s.url.includes("embed"));
-  const bestSource = directSources.find((s: any) => s.quality === "1080p" || s.quality === "720p" || s.quality === "auto" || s.quality === "default") || directSources[0];
-  
-  let videoUrl = bestSource?.url;
+  // 1. Ambil semua sources termasuk iframe
+  const allSources = streamData?.sources || [];
+
+  // 2. Cek dulu ada direct source tidak
+  const directSource = allSources.find((s: any) => 
+    s.type !== "iframe" && !s.url?.includes("embed")
+  );
+
+  // 3. Kalau tidak ada direct, ambil iframe source dan resolve via CF Worker
+  const iframeSource = !directSource ? allSources[0] : null;
+  const embedUrl = iframeSource?.url || null;
+
+  // 4. Resolve iframe via Cloudflare Worker (sama persis dengan web)
+  const CF_WORKER = "https://video-proxy.moehamadhkl.workers.dev";
+  const { data: resolvedData } = useSWR(
+    embedUrl ? `${CF_WORKER}/proxy?url=${encodeURIComponent(embedUrl)}&extract=mp4` : null,
+    fetcher
+  );
+
+  // 5. Final video URL
+  let videoUrl = directSource?.url || resolvedData?.videoUrl || null;
+
   // Ensure the URL ends with a media extension so ExoPlayer knows it's a video stream
   if (videoUrl && !videoUrl.match(/\.(mp4|m3u8|ts)$/i)) {
     videoUrl += ".mp4";

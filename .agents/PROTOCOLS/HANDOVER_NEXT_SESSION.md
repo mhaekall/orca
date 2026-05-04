@@ -1,33 +1,26 @@
-# 🎯 Handover: Expo Mobile Native Architecture & Performance (Termux Environment)
+# 🎯 Handover: Expo Mobile Native Architecture & Big Tech Standards (Termux Environment)
 
 ## 1. Context Summary
-- **Current State:** The project operates as a fully Native React Native application (`apps/mobile`) utilizing Expo, completely detaching from the web wrapper approach. We have successfully completed the core UI implementation and initial performance tuning phases.
-- **Development Environment Constraints (Termux/Android):**
-  - **Hermes Enabled:** The app uses `jsEngine: "hermes"` and `newArchEnabled: false`.
-  - **Reanimated & Tailwind Disabled:** We use pure React Native `StyleSheet` for styling (no NativeWind/Tailwind). All complex animations rely purely on the native React Native `Animated` API with `useNativeDriver: true`.
-  - **ENOSPC Watcher Limit:** Extreme caution is required with Metro bundler background processes. Dependencies must be installed via `npm install --legacy-peer-deps` within the isolated `apps/mobile` directory to prevent symlink watcher crashes.
-  - **Flexbox Limits:** Dynamic flex bounds can sometimes collapse. We enforce explicit dimensioning (e.g., `width: W * 0.55`) for complex nested lists to ensure stability.
+- **Strategic Pivot:** The project has definitively pivoted to be **exclusively an APK (Mobile) streaming platform**. All optimizations for Web streaming are deprecated. Our sole focus is making the Expo React Native app (`apps/mobile`) achieve Big Tech production standards (Netflix/Crunchyroll level).
+- **Current State:** We have successfully resolved the critical ExoPlayer playback failures (00:00 duration and Extractor Errors). The app now successfully forces `contentType: 'hls'` for Telegram streams. 
+- **Environment:** Termux/Android. Hermes JS Engine enabled. Pure React Native `StyleSheet` (no NativeWind). Native `Animated` API used for animations.
 
-## 2. Completed Milestones (UI Polish & 0ms Latency Tuning)
-- **Unified Flat Architecture:** Eliminated spatial elevation layers. The entire app (Bottom Nav, Root Layout, Backgrounds) utilizes a unified deep dark aesthetic (`#0a0812` and `#13111a`), with dynamic absolute positioning used for striking UI accents (e.g., the highlighter-stroke "Tayang Terbaru" badge).
-- **Navigation Transition Hardening:** Resolved React Navigation white flashes by wrapping the Root Layout in a `@react-navigation/native` `ThemeProvider` with a dark schema, and configuring `app.json` Android backgrounds to dark mode.
-- **0ms Navigation Latency:** Implemented Aggressive Prefetching. Background fetching (`mutate` via SWR) triggers immediately on `onPressIn` across all Anime cards, ensuring payload hydration finishes before navigation animations conclude.
-- **Native Skeleton Hydration:** Deprecated blocking `ActivityIndicator` spinners. Implemented a globally reusable, hardware-accelerated `Animated.loop` pulsing skeleton component that mirrors final layout geometries across Home, Detail, Schedule, and Collection screens.
-- **Robust Error Boundaries:** Replaced crash-prone null states with graceful degradation UI (Empty States and Network Error screens with integrated "Retry" logic).
+## 2. Completed Milestones
+- **ExoPlayer HLS Playback Fixed:** Forced `contentType: 'hls'` and injected `User-Agent` headers for `tele-proxy` / `tg-proxy` URLs, fixing silent crashes and 400/404 errors.
+- **Thin Client Architecture (Task A Done):** Moved iframe resolution logic entirely to the FastAPI backend (`apps/api/services/stream_cache.py`). The mobile app now directly consumes a clean MP4/HLS URL without needing to guess or resolve embeds on the client side.
+- **Smart Edge Caching (Task B Done):** Modified the `tele-proxy` Cloudflare Worker to implement Intelligent Cache Keying. The worker now separates cache storage based on the `Range` HTTP header, preventing 200 OK vs 206 Partial Content collisions while protecting the Telegram API from rate limits.
+- **UI Polish:** Converted full-screen modals to half-screen bottom sheets (for comments), added auto-rotation to landscape for fullscreen video, and fixed episode navigation screen glitches by using `router.setParams`.
 
-## 3. Next Session Priority (Offline-First, CI/CD, & Telemetry)
-The next phase moves into Production-Readiness, treating the codebase with strict Big Tech engineering discipline.
+## 3. Next Session Execution Directives (Big Tech Standards)
+The mobile app is robust but still relies heavily on network availability for every screen load. The next agent must execute the final architectural upgrade:
 
-### Engineering Directives:
-1. **Offline-First Architecture & Caching Strategy:**
-   - Implement persistent global storage (`@react-native-async-storage/async-storage`) to aggressively cache SWR payloads (especially the User Collection and Home Layout).
-   - Ensure the app renders cached views immediately on Cold Start (Offline Mode) while silently revalidating data in the background upon connection recovery.
-2. **CI/CD Pipeline Automation (EAS Build):**
-   - Finalize `eas.json` configuration for remote build orchestration. To ensure stable compilation without overloading the local Termux environment, we must transition to Expo Application Services (EAS) to compile the Android `.apk` and iOS `.ipa` in the cloud seamlessly.
-3. **Production Telemetry & Bundle Optimization:**
-   - Establish logging protocols (e.g., Sentry or minimal custom crash reporting) that respect our environment limits.
-   - Audit the `assets/` directory and unused packages to minimize the final APK bundle size.
+### Task C: Zero-Loading Screen (Offline-First SWR)
+**Goal:** Achieve 0ms cold starts where the app instantly loads cached catalogs and user data even without internet, updating silently in the background.
+**Action:**
+1. Install `@react-native-async-storage/async-storage` (using `npm install --legacy-peer-deps` inside `apps/mobile` to avoid Termux symlink issues).
+2. Build a Custom Cache Provider for SWR in `apps/mobile/lib/swr-provider.tsx` that persists all SWR payloads to AsyncStorage.
+3. Ensure the app gracefully handles `503 Service Unavailable` errors (e.g., when Hugging Face Spaces are sleeping) by relying on the persistent cache.
 
 ## 4. How to Give Context for the Next Session
 When starting a new session with an AI Agent, simply copy and paste this exact prompt:
-> "Read `.agents/PROTOCOLS/HANDOVER_NEXT_SESSION.md`. We have completed the UI and 0ms SWR Prefetching phases using Hermes and pure StyleSheet. Today's directive focuses on Big Tech production standards: Offline-First AsyncStorage caching, EAS Build CI/CD automation, and Bundle Optimization."
+> "Read `.agents/PROTOCOLS/HANDOVER_NEXT_SESSION.md`. We have successfully stabilized ExoPlayer HLS playback for the APK and implemented a Thin Client architecture with Smart Edge Caching. Our project is now strictly focused on Mobile (ignoring Web). Your directive today is to execute Task C (Zero-Loading Screen SWR) using AsyncStorage to elevate the app to Big Tech standards."

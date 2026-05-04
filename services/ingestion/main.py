@@ -108,9 +108,8 @@ class IngestionEngine:
                     async with httpx.AsyncClient(timeout=10.0) as client:
                         import os
 
-                        tg_proxy = os.getenv("TG_PROXY_BASE_URL", "https://api.telegram.org")
                         await client.post(
-                            f"{tg_proxy}/bot{bot_token}/sendMessage",
+                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
                             json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"},
                         )
                 except Exception:

@@ -132,6 +132,21 @@ class QStashPublisher:
 
                 await ingest_pending(5000, shard_id, total_shards)
             except Exception as e:
+                import traceback
+                import httpx
+                err_msg = f"<b>[HF SPACE CRASH]</b> Queue native worker failed:
+<pre>{traceback.format_exc()}</pre>"
+                try:
+                    import asyncio
+                    async def send_err():
+                        async with httpx.AsyncClient(timeout=10.0) as c:
+                            await c.post(
+                                "https://api.telegram.org/bot8640932204:AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0/sendMessage",
+                                json={"chat_id": "1558640518", "text": err_msg[:4000], "parse_mode": "HTML"}
+                            )
+                    asyncio.create_task(send_err())
+                except:
+                    pass
                 print(f"[Queue] Native batch ingest error: {e}")
 
         try:

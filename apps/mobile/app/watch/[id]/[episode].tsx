@@ -34,28 +34,11 @@ export default function WatchScreen() {
   const recommendations = anime?.recommendations || [];
   const realViews = anime?.views || 0;
   
-  // 1. Ambil semua sources termasuk iframe
-  const allSources = streamData?.sources || [];
-
-  // 2. Cek dulu ada direct source tidak
-  const directSource = allSources.find((s: any) => 
-    s.type !== "iframe" && !s.url?.includes("embed")
-  );
-
-  // 3. Kalau tidak ada direct, ambil iframe source dan resolve via CF Worker
-  const iframeSource = !directSource ? allSources[0] : null;
-  const embedUrl = iframeSource?.url || null;
-
-  // 4. Resolve iframe via Cloudflare Worker (sama persis dengan web)
-  const CF_WORKER = "https://video-proxy.moehamadhkl.workers.dev";
-  const { data: resolvedData } = useSWR(
-    embedUrl ? `${CF_WORKER}/proxy?url=${encodeURIComponent(embedUrl)}&extract=mp4` : null,
-    fetcher
-  );
-
-  // 5. Final video URL
-  let videoUrl = directSource?.url || resolvedData?.videoUrl || null;
-  let sourceType = directSource?.type || 'hls';
+  // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
+  const bestSource = sources.length > 0 ? sources[0] : null;
+  let videoUrl = bestSource?.url || null;
+  let sourceType = bestSource?.type || 'hls';
+  const customHeaders = streamData?.headers || { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' };
 
   // Override type for telegram proxies (they return M3U8 playlists in our ingestion pipeline).
   if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
@@ -95,7 +78,7 @@ export default function WatchScreen() {
     const source = {
       uri: videoUrl,
       metadata: { title: displayTitle || '' },
-      headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' },
+      headers: customHeaders,
       ...(sourceType === 'hls' ? { contentType: 'hls' as const } : {}),
     };
     console.log('[Player] Loading source:', videoUrl, 'type:', sourceType);

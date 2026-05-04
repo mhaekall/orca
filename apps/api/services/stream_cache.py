@@ -1019,6 +1019,33 @@ async def get_cached_stream(
                 if raw_url and "workers.dev" not in raw_url and "tg-proxy" not in raw_url:
                     # Ingestion is now handled manually or by cron, avoiding background stampedes
                     pass
+            else:
+                # TASK A: Thin Client Architecture - Resolve iframe on the backend
+                if result.get("sources"):
+                    iframe_source = result["sources"][0]
+                    embed_url = iframe_source.get("url")
+                    if embed_url:
+                        try:
+                            import httpx
+                            import urllib.parse
+                            cf_worker = "https://video-proxy.moehamadhkl.workers.dev"
+                            encoded_url = urllib.parse.quote_plus(embed_url)
+                            proxy_req_url = f"{cf_worker}/proxy?url={encoded_url}&extract=mp4"
+                            async with httpx.AsyncClient(timeout=8.0) as client:
+                                resp = await client.get(proxy_req_url)
+                                if resp.status_code == 200:
+                                    resolved_data = resp.json()
+                                    if resolved_data and resolved_data.get("videoUrl"):
+                                        result["sources"].insert(0, {
+                                            "url": resolved_data["videoUrl"],
+                                            "type": "hls", # Native ExoPlayer will parse this
+                                            "quality": "1080p",
+                                            "source": "video-proxy-resolved"
+                                        })
+                                        result["headers"] = {"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"}
+                        except Exception as e:
+                            import logging
+                            logging.warning(f"[Thin Client] Failed to resolve iframe {embed_url}: {e}")
 
             # Kick off prefetch untuk episode berikutnya (semua episodes list)
             asyncio.create_task(

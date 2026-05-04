@@ -66,7 +66,7 @@ export default function WatchScreen() {
     // causing ExoPlayer to fail with 0 duration. Appending a unique mobile-only query parameter 
     // ensures ExoPlayer gets its own cache key.
     const separator = videoUrl.includes('?') ? '&' : '?';
-    videoUrl += `${separator}player=rn`;
+    videoUrl += `${separator}cb=${Date.now()}`;
   }
 
   // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready

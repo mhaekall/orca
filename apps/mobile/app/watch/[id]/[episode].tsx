@@ -52,17 +52,20 @@ export default function WatchScreen() {
     fetcher
   );
 
-  // 5. Final video URL
-  let videoUrl = directSource?.url || resolvedData?.videoUrl || null;
+  // 5. Final video URL — jangan modifikasi URL, TG proxy tidak butuh ekstensi
+  const videoUrl = directSource?.url || resolvedData?.videoUrl || null;
 
-  // Ensure the URL ends with a media extension so ExoPlayer knows it's a video stream
-  if (videoUrl && !videoUrl.match(/\.(mp4|m3u8|ts)$/i)) {
-    videoUrl += ".mp4";
-  }
-
-  const player = useVideoPlayer(videoUrl || null, player => {
+  const player = useVideoPlayer(videoUrl ? { uri: videoUrl } : null, player => {
     player.play();
   });
+
+  // useVideoPlayer tidak reaktif — update source saat videoUrl resolve dari null
+  useEffect(() => {
+    if (player && videoUrl) {
+      player.replace({ uri: videoUrl });
+      player.play();
+    }
+  }, [videoUrl]);
 
   const lastTapLeft = useRef(0);
   const handleDoubleTapLeft = () => {

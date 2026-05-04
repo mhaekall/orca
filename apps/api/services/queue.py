@@ -6,6 +6,8 @@ import httpx
 from services.config import QSTASH_TOKEN
 
 
+_batch_workers = set()
+
 class QStashPublisher:
     """Lightweight QStash REST publisher."""
 
@@ -134,24 +136,36 @@ class QStashPublisher:
             except Exception as e:
                 import traceback
                 import httpx
-                err_msg = f"<b>[HF SPACE CRASH]</b> Queue native worker failed:
-<pre>{traceback.format_exc()}</pre>"
+                import os
+                err_msg = f"<b>[HF SPACE CRASH]</b> Queue native worker failed:\n<pre>{traceback.format_exc()}</pre>"
                 try:
                     import asyncio
                     async def send_err():
+                        bot_token = os.getenv("TELEGRAM_BOT_TOKEN_5", "8563966917:AAFnsLNlrOjC8lU9O7fVT5VeAcuiSFbyQXY")
+
+                        try:
+                            from services.cache import upstash_set
+                            import time
+                            await upstash_set(f"hf_crash_log_{int(time.time())}", {"error": err_msg}, ex=86400)
+                        except:
+                            pass
+
                         async with httpx.AsyncClient(timeout=10.0) as c:
                             await c.post(
-                                "https://api.telegram.org/bot8640932204:AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0/sendMessage",
+                                f"https://api.telegram.org/bot{bot_token}/sendMessage",
                                 json={"chat_id": "1558640518", "text": err_msg[:4000], "parse_mode": "HTML"}
                             )
                     asyncio.create_task(send_err())
                 except:
                     pass
+                    pass
                 print(f"[Queue] Native batch ingest error: {e}")
 
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(_run())
+            task = loop.create_task(_run())
+            _batch_workers.add(task)
+            task.add_done_callback(_batch_workers.discard)
         except RuntimeError:
             asyncio.run(_run())
 

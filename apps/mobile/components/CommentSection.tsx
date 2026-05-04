@@ -27,10 +27,12 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
   const comments = Array.isArray(allComments) ? allComments.filter((c: any) => !c.parent_id) : [];
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={styles.container}>
+          <SafeAreaView style={styles.safeArea}>
+            {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <Text style={styles.headerTitle}>Komentar</Text>
@@ -110,9 +112,20 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
 }
 
 const styles = StyleSheet.create({
-  container: {
+  modalOverlay: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  container: {
+    height: '65%',
     backgroundColor: '#0a0c10',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
   },
   safeArea: {
     flex: 1,

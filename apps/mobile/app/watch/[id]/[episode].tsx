@@ -54,17 +54,21 @@ export default function WatchScreen() {
 
   // 5. Final video URL
   let videoUrl = directSource?.url || resolvedData?.videoUrl || null;
-  
   let sourceType = directSource?.type || 'hls';
+
   // Override type for telegram proxies (they return direct MP4 files, not M3U8 playlists).
-  // Passing type: 'hls' to ExoPlayer for an MP4 causes silent failure and 0 duration.
   if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
     sourceType = 'mp4';
-    // Bypass Cloudflare Edge Cache: Web browsers requesting the same URL without Range headers
-    // will cause Cloudflare to cache a 200 OK response. If ExoPlayer later requests the same URL
-    // with a Range header, CF Edge returns the cached 200 OK instead of a 206 Partial Content,
-    // causing ExoPlayer to fail with 0 duration. Appending a unique mobile-only query parameter 
-    // ensures ExoPlayer gets its own cache key.
+
+    // Rewrite old tg-proxy to our newly deployed tele-proxy which has better Range support
+    videoUrl = videoUrl.replace(/https:\/\/(tg-proxy(-\d+)?)\.moehamadhkl\.workers\.dev/g, 'https://tele-proxy.moehamadhkl.workers.dev');
+
+    // Append .mp4 extension for ExoPlayer if it's missing (tele-proxy will automatically strip it before hitting TG API)
+    if (!videoUrl.match(/\.(mp4|m3u8|ts)(\?.*)?$/i)) {
+      videoUrl += '.mp4';
+    }
+
+    // Bypass Cloudflare Edge Cache
     const separator = videoUrl.includes('?') ? '&' : '?';
     videoUrl += `${separator}cb=${Date.now()}`;
   }
@@ -83,7 +87,7 @@ export default function WatchScreen() {
       uri: videoUrl,
       metadata: { title: displayTitle || '' },
       headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' },
-      ...(sourceType === 'hls' ? { type: 'hls' as const } : {}),
+      type: sourceType === 'hls' ? 'hls' as const : 'progressive' as const,
     };
     console.log('[Player] Loading source:', videoUrl, 'type:', sourceType);
     player.replaceAsync(source)

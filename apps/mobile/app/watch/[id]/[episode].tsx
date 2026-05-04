@@ -61,14 +61,6 @@ export default function WatchScreen() {
   if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
     sourceType = 'mp4';
 
-    // Rewrite old tg-proxy to our newly deployed tele-proxy which has better Range support
-    videoUrl = videoUrl.replace(/https:\/\/(tg-proxy(-\d+)?)\.moehamadhkl\.workers\.dev/g, 'https://tele-proxy.moehamadhkl.workers.dev');
-
-    // Append .mp4 extension for ExoPlayer if it's missing (tele-proxy will automatically strip it before hitting TG API)
-    if (!videoUrl.match(/\.(mp4|m3u8|ts)(\?.*)?$/i)) {
-      videoUrl += '.mp4';
-    }
-
     // Bypass Cloudflare Edge Cache
     const separator = videoUrl.includes('?') ? '&' : '?';
     videoUrl += `${separator}cb=${Date.now()}`;

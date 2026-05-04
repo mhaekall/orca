@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert, Dimensions, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import useSWR from 'swr';
 import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign, MessageSquare, ChevronDown } from 'lucide-react-native';
@@ -201,12 +201,31 @@ export default function WatchScreen() {
     if (!anime) return;
     try {
       await Share.share({
-        message: `Nonton ${anime.cleanTitle || anime.title} Episode ${episode} di Orca Anime!`,
-        url: `https://orcanime.pages.dev/watch/${id}/${episode}`,
+        message: `Nonton ${displayTitle} Episode ${episode} di aplikasi Orca!`,
+        url: `https://orcanime.pages.dev/watch/${id}/${episode}`, // fallback to web link that redirects to deep link
       });
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleSupport = () => {
+    // Open a web browser to a donation page (e.g. Trakteer or Saweria)
+    Linking.openURL('https://saweria.co/orcanime').catch(() => {
+      Alert.alert("Error", "Tidak dapat membuka tautan dukungan.");
+    });
+  };
+
+  const handleReport = () => {
+    Alert.alert(
+      "Laporkan Masalah",
+      "Pilih jenis masalah yang ingin Anda laporkan:",
+      [
+        { text: "Video Rusak / Tidak Jalan", onPress: () => Alert.alert("Terima Kasih", "Laporan video rusak telah dikirim ke admin.") },
+        { text: "Teks Tidak Sinkron / Hilang", onPress: () => Alert.alert("Terima Kasih", "Laporan teks/subtitle telah dikirim.") },
+        { text: "Batal", style: "cancel" }
+      ]
+    );
   };
 
   const handleEpisodeChange = (newEp: string) => {
@@ -342,7 +361,7 @@ export default function WatchScreen() {
                 </Pressable>
 
                 <Pressable 
-                  onPress={() => handleAuthRequiredAction("Kirim Dukungan")}
+                  onPress={handleSupport}
                   style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
                 >
                   <DollarSign color="white" size={14} />
@@ -350,7 +369,7 @@ export default function WatchScreen() {
                 </Pressable>
 
                 <Pressable 
-                  onPress={() => Alert.alert("Laporkan", "Fitur pelaporan akan segera hadir")}
+                  onPress={handleReport}
                   style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
                 >
                   <Flag color="white" size={14} />

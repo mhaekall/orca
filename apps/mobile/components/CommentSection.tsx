@@ -19,6 +19,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
   const [sortBy, setSortBy] = useState<"top" | "newest">("top");
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: number, username: string } | null>(null);
 
   const { data: allComments = [], isLoading, mutate } = useSWR(
     visible ? `${API_URL}/api/v2/comments?anilistId=${anilistId}&episodeNumber=${episode}&sort_by=${sortBy}${user ? `&user_id=${user.id}` : ''}` : null,
@@ -40,10 +41,12 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
           episodeNumber: parseFloat(episode),
           text: text.trim(),
           timestamp_sec: 0, // Option to pass player time here later
+          parent_id: replyingTo ? replyingTo.id : null
         }),
       });
       if (res.ok) {
         setText("");
+        setReplyingTo(null);
         mutate();
       }
     } catch (e) {
@@ -88,6 +91,43 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
     }
   };
 
+  const renderComment = (c: any, isReply = false) => (
+    <View key={c.id} style={[styles.commentRow, isReply && styles.replyRow]}>
+      <View style={[styles.avatarContainer, isReply && styles.avatarContainerSmall]}>
+        {c.avatar ? (
+          <Image source={{ uri: c.avatar }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+        ) : (
+          <Text style={[styles.avatarFallback, isReply && styles.avatarFallbackSmall]}>{c.username?.charAt(0).toUpperCase()}</Text>
+        )}
+      </View>
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <Text style={styles.commentUsername}>@{c.username.toLowerCase()}</Text>
+          <Text style={styles.commentDate}>{new Date(c.created_at).toLocaleDateString()}</Text>
+        </View>
+        <Text style={styles.commentText}>{c.text}</Text>
+        <View style={styles.commentActions}>
+          <Pressable style={styles.actionButton} onPress={() => handleLikeComment(c.id, c.user_liked)}>
+            <Heart color={c.user_liked ? "#ff2d55" : "#8e8e93"} size={14} fill={c.user_liked ? "#ff2d55" : "none"} />
+            <Text style={styles.actionText}>{c.likes_count || ''}</Text>
+          </Pressable>
+          <Pressable style={styles.actionButton} onPress={() => setReplyingTo({ id: c.id, username: c.username })}>
+            <Text style={styles.replyText}>
+              Balas
+            </Text>
+          </Pressable>
+        </View>
+        
+        {/* Render Replies */}
+        {!isReply && c.replies && c.replies.length > 0 && (
+          <View style={styles.repliesContainer}>
+             {c.replies.map((reply: any) => renderComment(reply, true))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -117,61 +157,43 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
             {isLoading ? (
               <ActivityIndicator size="small" color="#0A84FF" style={styles.loader} />
             ) : comments.length > 0 ? (
-              comments.map((c: any) => (
-                <View key={c.id} style={styles.commentRow}>
-                  <View style={styles.avatarContainer}>
-                    {c.avatar ? (
-                      <Image source={{ uri: c.avatar }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
-                    ) : (
-                      <Text style={styles.avatarFallback}>{c.username?.charAt(0).toUpperCase()}</Text>
-                    )}
-                  </View>
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentUsername}>@{c.username.toLowerCase()}</Text>
-                      <Text style={styles.commentDate}>{new Date(c.created_at).toLocaleDateString()}</Text>
-                    </View>
-                    <Text style={styles.commentText}>{c.text}</Text>
-                    <View style={styles.commentActions}>
-                      <Pressable style={styles.actionButton} onPress={() => handleLikeComment(c.id, c.user_liked)}>
-                        <Heart color={c.user_liked ? "#ff2d55" : "#8e8e93"} size={14} fill={c.user_liked ? "#ff2d55" : "none"} />
-                        <Text style={styles.actionText}>{c.likes_count || ''}</Text>
-                      </Pressable>
-                      <Pressable style={styles.actionButton}>
-                        <Text style={styles.replyText}>
-                          {c.replies?.length > 0 ? `${c.replies.length} Balasan` : 'Balas'}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              ))
+              comments.map((c: any) => renderComment(c))
             ) : (
               <Text style={styles.emptyText}>Jadilah yang pertama berkomentar!</Text>
             )}
           </ScrollView>
 
           {/* Composer */}
-          <View style={styles.composerContainer}>
-            <TextInput 
-              value={text}
-              onChangeText={setText}
-              placeholder={user ? "Tambahkan komentar..." : "Login untuk komentar..."}
-              placeholderTextColor="#8e8e93"
-              editable={!!user}
-              style={styles.textInput}
-            />
-            <Pressable 
-              onPress={handlePostComment}
-              disabled={isSubmitting || !text.trim()}
-              style={[styles.sendButton, text.trim() ? styles.sendButtonActive : styles.sendButtonInactive]}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <MessageSquare color={text.trim() ? "white" : "rgba(255,255,255,0.4)"} size={16} />
-              )}
-            </Pressable>
+          <View style={styles.composerWrapper}>
+            {replyingTo && (
+               <View style={styles.replyIndicator}>
+                 <Text style={styles.replyIndicatorText}>Membalas @{replyingTo.username.toLowerCase()}</Text>
+                 <Pressable onPress={() => setReplyingTo(null)}>
+                   <X color="#8e8e93" size={14} />
+                 </Pressable>
+               </View>
+            )}
+            <View style={styles.composerContainer}>
+              <TextInput 
+                value={text}
+                onChangeText={setText}
+                placeholder={user ? "Tambahkan komentar..." : "Login untuk komentar..."}
+                placeholderTextColor="#8e8e93"
+                editable={!!user}
+                style={styles.textInput}
+              />
+              <Pressable 
+                onPress={handlePostComment}
+                disabled={isSubmitting || !text.trim()}
+                style={[styles.sendButton, text.trim() ? styles.sendButtonActive : styles.sendButtonInactive]}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <MessageSquare color={text.trim() ? "white" : "rgba(255,255,255,0.4)"} size={16} />
+                )}
+              </Pressable>
+            </View>
           </View>
         </SafeAreaView>
         </View>
@@ -361,5 +383,43 @@ const styles = StyleSheet.create({
   },
   sendButtonInactive: {
     backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  replyRow: {
+    marginTop: 16,
+    marginBottom: 0,
+    gap: 8,
+  },
+  avatarContainerSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  avatarFallbackSmall: {
+    fontSize: 10,
+  },
+  repliesContainer: {
+    marginTop: 8,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255,255,255,0.1)',
+    paddingLeft: 12,
+    marginLeft: -16,
+  },
+  composerWrapper: {
+    backgroundColor: '#13111a',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  replyIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+  },
+  replyIndicatorText: {
+    color: '#0a84ff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

@@ -32,3 +32,10 @@ class WatchSessionUpdate(BaseModel):
     total_duration_sec: int
     quality_watched: str = "Auto"
     provider_used: str | None = None
+
+
+class ReportCreate(BaseModel):
+    user_id: str
+    anilist_id: int
+    episode_number: float
+    issue_type: str

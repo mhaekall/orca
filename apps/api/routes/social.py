@@ -9,6 +9,7 @@ from schemas.social import (
     WatchEventCreate,
     WatchProgressUpdate,
     WatchSessionUpdate,
+    ReportCreate,
 )
 
 router = APIRouter()
@@ -315,3 +316,33 @@ async def get_global_notifications():
         )
 
     return {"success": True, "data": notifications}
+
+
+import os
+import httpx
+
+
+@router.post("/report")
+async def submit_report(report: ReportCreate):
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        return {"success": False, "message": "Telegram not configured"}
+
+    message = f"🚨 <b>USER REPORT</b> 🚨\n\n"
+    message += f"<b>User:</b> {report.user_id}\n"
+    message += f"<b>Anime ID:</b> {report.anilist_id}\n"
+    message += f"<b>Episode:</b> {report.episode_number}\n"
+    message += f"<b>Issue:</b> {report.issue_type}\n"
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        print(f"Error sending report to telegram: {e}")
+
+    return {"success": True}

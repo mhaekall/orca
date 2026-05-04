@@ -217,12 +217,35 @@ export default function WatchScreen() {
   };
 
   const handleReport = () => {
+    if (!user) {
+      Alert.alert("Login Dibutuhkan", "Silakan login untuk mengirimkan laporan.");
+      return;
+    }
+
+    const sendReport = async (issue: string) => {
+      try {
+        await fetch(`${API_URL}/api/v2/social/report`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: user.id,
+            anilist_id: parseInt(id as string),
+            episode_number: parseFloat(episode as string),
+            issue_type: issue
+          }),
+        });
+        Alert.alert("Terima Kasih", `Laporan '${issue}' telah dikirim ke tim kami.`);
+      } catch (e) {
+        Alert.alert("Error", "Gagal mengirim laporan.");
+      }
+    };
+
     Alert.alert(
       "Laporkan Masalah",
       "Pilih jenis masalah yang ingin Anda laporkan:",
       [
-        { text: "Video Rusak / Tidak Jalan", onPress: () => Alert.alert("Terima Kasih", "Laporan video rusak telah dikirim ke admin.") },
-        { text: "Teks Tidak Sinkron / Hilang", onPress: () => Alert.alert("Terima Kasih", "Laporan teks/subtitle telah dikirim.") },
+        { text: "Video Rusak / Tidak Jalan", onPress: () => sendReport("Video Rusak") },
+        { text: "Teks Tidak Sinkron / Hilang", onPress: () => sendReport("Subtitle Error") },
         { text: "Batal", style: "cancel" }
       ]
     );

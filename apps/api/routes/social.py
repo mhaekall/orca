@@ -356,7 +356,7 @@ async def submit_report(report: ReportCreate):
             if res.status_code != 200:
                 return {
                     "success": False,
-                    "message": f"Telegram Error {res.status_code}: {res.text}",
+                    "message": f"Telegram Error {res.status_code}: {res.text} (URL: {url}, Payload: {payload})",
                 }
     except Exception as e:
         print(f"Error sending report to telegram: {repr(e)}")

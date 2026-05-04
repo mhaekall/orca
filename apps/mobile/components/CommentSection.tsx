@@ -18,13 +18,75 @@ interface CommentProps {
 export function CommentSection({ anilistId, episode, user, onClose, visible }: CommentProps) {
   const [sortBy, setSortBy] = useState<"top" | "newest">("top");
   const [text, setText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: allComments = [], isLoading } = useSWR(
-    visible ? `${API_URL}/api/v2/comments?anilistId=${anilistId}&episodeNumber=${episode}&sort_by=${sortBy}` : null,
+  const { data: allComments = [], isLoading, mutate } = useSWR(
+    visible ? `${API_URL}/api/v2/comments?anilistId=${anilistId}&episodeNumber=${episode}&sort_by=${sortBy}${user ? `&user_id=${user.id}` : ''}` : null,
     fetcher
   );
 
   const comments = Array.isArray(allComments) ? allComments.filter((c: any) => !c.parent_id) : [];
+
+  const handlePostComment = async () => {
+    if (!user || !text.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/v2/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          anilistId: parseInt(anilistId),
+          episodeNumber: parseFloat(episode),
+          text: text.trim(),
+          timestamp_sec: 0, // Option to pass player time here later
+        }),
+      });
+      if (res.ok) {
+        setText("");
+        mutate();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLikeComment = async (commentId: number, currentlyLiked: boolean) => {
+    if (!user) return;
+    
+    // Optimistic UI update
+    mutate(
+      allComments.map((c: any) => {
+        if (c.id === commentId) {
+          return {
+            ...c,
+            user_liked: !currentlyLiked,
+            likes_count: currentlyLiked ? c.likes_count - 1 : c.likes_count + 1
+          };
+        }
+        return c;
+      }),
+      false
+    );
+
+    try {
+      await fetch(`${API_URL}/api/v2/comments/reaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment_id: commentId,
+          user_id: user.id,
+          emoji: 'like'
+        }),
+      });
+      mutate();
+    } catch (e) {
+      console.error(e);
+      mutate();
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -71,13 +133,13 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
                     </View>
                     <Text style={styles.commentText}>{c.text}</Text>
                     <View style={styles.commentActions}>
-                      <Pressable style={styles.actionButton}>
-                        <Heart color={c.reactions > 0 ? "#ff2d55" : "#8e8e93"} size={14} fill={c.reactions > 0 ? "#ff2d55" : "none"} />
-                        <Text style={styles.actionText}>{c.reactions || ''}</Text>
+                      <Pressable style={styles.actionButton} onPress={() => handleLikeComment(c.id, c.user_liked)}>
+                        <Heart color={c.user_liked ? "#ff2d55" : "#8e8e93"} size={14} fill={c.user_liked ? "#ff2d55" : "none"} />
+                        <Text style={styles.actionText}>{c.likes_count || ''}</Text>
                       </Pressable>
                       <Pressable style={styles.actionButton}>
                         <Text style={styles.replyText}>
-                          {c.reply_count > 0 ? `${c.reply_count} Balasan` : 'Balas'}
+                          {c.replies?.length > 0 ? `${c.replies.length} Balasan` : 'Balas'}
                         </Text>
                       </Pressable>
                     </View>
@@ -100,9 +162,15 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
               style={styles.textInput}
             />
             <Pressable 
+              onPress={handlePostComment}
+              disabled={isSubmitting || !text.trim()}
               style={[styles.sendButton, text.trim() ? styles.sendButtonActive : styles.sendButtonInactive]}
             >
-              <MessageSquare color={text.trim() ? "white" : "rgba(255,255,255,0.4)"} size={16} />
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <MessageSquare color={text.trim() ? "white" : "rgba(255,255,255,0.4)"} size={16} />
+              )}
             </Pressable>
           </View>
         </SafeAreaView>

@@ -28,11 +28,79 @@ export default function WatchScreen() {
     fetcher
   );
 
+  // Social Stats (Likes for episode)
+  const { data: statsData, mutate: mutateStats } = useSWR(
+    user ? `${API_URL}/api/v2/social/episode/${id}/${episode}/stats?user_id=${user.id}` : `${API_URL}/api/v2/social/episode/${id}/${episode}/stats`,
+    fetcher
+  );
+
+  // Social Stats (Anime-level, for views)
+  const { data: animeStatsData } = useSWR(`${API_URL}/api/v2/social/anime/${id}/stats`, fetcher);
+  
+  const likesCount = statsData?.likes || 0;
+  const isLiked = statsData?.user_liked || false;
+  const realViews = animeStatsData?.total_episode_views || animeData?.data?.views || animeData?.data?.popularity || 0;
+
+  const handleToggleLike = async () => {
+    if (!user) {
+      Alert.alert("Login Dibutuhkan", "Silakan login untuk menyukai episode ini.");
+      return;
+    }
+    
+    // Optimistic UI update
+    mutateStats(
+      { likes: isLiked ? likesCount - 1 : likesCount + 1, user_liked: !isLiked },
+      false
+    );
+
+    try {
+      await fetch(`${API_URL}/api/v2/social/episode/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          anilistId: parseInt(id as string),
+          episodeNumber: parseFloat(episode as string),
+        }),
+      });
+      // Revalidate after success
+      mutateStats();
+    } catch (e) {
+      console.error(e);
+      // Revert optimistic update on failure
+      mutateStats();
+    }
+  };
+
+  const handleSaveCollection = async () => {
+    if (!user) {
+      Alert.alert("Login Dibutuhkan", "Silakan login untuk menyimpan koleksi.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/v2/collection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          anilistId: String(id),
+          status: "Watching",
+          progress: parseFloat(episode as string)
+        }),
+      });
+      if (res.ok) {
+        Alert.alert("Berhasil", "Anime ditambahkan ke koleksi!");
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Gagal menyimpan koleksi.");
+    }
+  };
+
   const anime = animeData?.data;
   const sources = streamData?.sources || [];
   const episodes = anime?.episodes || [];
   const recommendations = anime?.recommendations || [];
-  const realViews = anime?.views || 0;
   
   // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
   const bestSource = sources.length > 0 ? sources[0] : null;
@@ -67,6 +135,28 @@ export default function WatchScreen() {
     });
     return () => sub.remove();
   }, [player]);
+
+  useEffect(() => {
+    if (!player || !user) return;
+    const interval = setInterval(() => {
+      if (player.playing) {
+        fetch(`${API_URL}/api/v2/social/watch-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: user.id,
+            anilist_id: parseInt(id as string),
+            episode_number: parseFloat(episode as string),
+            watch_duration_sec: Math.floor(player.currentTime || 0),
+            total_duration_sec: Math.floor(player.duration || 0),
+            quality_watched: "Auto",
+            provider_used: "Cloudflare"
+          }),
+        }).catch(console.error);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [player, user, id, episode]);
 
   const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
 
@@ -223,7 +313,7 @@ export default function WatchScreen() {
                 </Link>
 
                 <Pressable 
-                  onPress={() => handleAuthRequiredAction("Simpan Koleksi")}
+                  onPress={handleSaveCollection}
                   style={({pressed}) => [styles.actionButtonWhite, pressed && styles.actionButtonWhitePressed]}
                 >
                   <Text style={styles.actionButtonWhiteText}>Simpan</Text>
@@ -237,11 +327,11 @@ export default function WatchScreen() {
                 </View>
 
                 <Pressable 
-                  onPress={() => handleAuthRequiredAction("Suka")}
+                  onPress={handleToggleLike}
                   style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
                 >
-                  <Heart color="white" size={16} />
-                  <Text style={styles.actionButtonDarkText}>0</Text>
+                  <Heart color={isLiked ? "#ff2d55" : "white"} fill={isLiked ? "#ff2d55" : "transparent"} size={16} />
+                  <Text style={[styles.actionButtonDarkText, isLiked && { color: "#ff2d55" }]}>{likesCount > 0 ? likesCount : 'Suka'}</Text>
                 </Pressable>
 
                 <Pressable 

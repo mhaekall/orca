@@ -52,39 +52,26 @@ export default function WatchScreen() {
     fetcher
   );
 
-  // 5. Final video URL — jangan modifikasi URL, TG proxy tidak butuh ekstensi
+  // 5. Final video URL
   const videoUrl = directSource?.url || resolvedData?.videoUrl || null;
+  const sourceType = directSource?.type || 'hls';
 
-  console.log('=== SOURCES ===', JSON.stringify(allSources));
-  console.log('=== directSource ===', JSON.stringify(directSource));
-  console.log('=== videoUrl ===', videoUrl);
+  // Build source object — ExoPlayer butuh metadata untuk HLS tanpa ekstensi .m3u8
+  const buildSource = (url: string) => ({
+    uri: url,
+    metadata: { title: displayTitle || '' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' },
+    ...(sourceType === 'hls' ? { type: 'hls' as const } : {}),
+  });
 
-  const videoSource = videoUrl ? {
-    uri: videoUrl,
-    // Kalau type hls, ExoPlayer perlu tahu
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-    },
-  } : null;
-
-  const player = useVideoPlayer(videoSource, player => {
+  const player = useVideoPlayer(videoUrl ? buildSource(videoUrl) : null, player => {
     player.play();
   });
 
   // useVideoPlayer tidak reaktif — update source saat videoUrl resolve dari null
   useEffect(() => {
     if (player && videoUrl) {
-      const newSource = {
-        uri: videoUrl,
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      };
-      
-      if (typeof player.replaceAsync === 'function') {
-        player.replaceAsync(newSource).then(() => player.play());
-      } else {
-        player.replace(newSource);
-        player.play();
-      }
+      player.replaceAsync(buildSource(videoUrl)).then(() => player.play());
     }
   }, [videoUrl]);
 

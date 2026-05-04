@@ -106,6 +106,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible }: C
             </Pressable>
           </View>
         </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );

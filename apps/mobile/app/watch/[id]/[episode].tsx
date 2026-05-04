@@ -117,10 +117,17 @@ export default function WatchScreen() {
     // Proxy handles Range caching correctly, no need for cache buster hack here.
   }
 
+  const { data: watchSessionData } = useSWR(
+    user ? `${API_URL}/api/v2/social/watch-session/${id}/${episode}?user_id=${user.id}` : null,
+    fetcher
+  );
+
   // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready
   const player = useVideoPlayer(null, player => {
     player.loop = false;
   });
+
+  const [hasRestoredTime, setHasRestoredTime] = useState(false);
 
   useEffect(() => {
     if (!player) return;
@@ -132,9 +139,19 @@ export default function WatchScreen() {
       } else {
         setPlayerError(null);
       }
+
+      // Resume from last watched time if ready to play
+      if (status.status === 'readyToPlay' && !hasRestoredTime && watchSessionData?.data?.watch_duration_sec > 0) {
+         // Don't resume if they finished it (completion_rate > 0.9)
+         if (watchSessionData.data.completion_rate < 0.9) {
+            console.log(`[Player] Resuming from ${watchSessionData.data.watch_duration_sec}s`);
+            player.currentTime = watchSessionData.data.watch_duration_sec;
+         }
+         setHasRestoredTime(true);
+      }
     });
     return () => sub.remove();
-  }, [player]);
+  }, [player, hasRestoredTime, watchSessionData]);
 
   useEffect(() => {
     if (!player || !user) return;

@@ -62,6 +62,16 @@ async def update_watch_session(item: WatchSessionUpdate):
     return {"success": True}
 
 
+@router.get("/watch-session/{anilist_id}/{episode_number}")
+async def get_watch_session(anilist_id: int, episode_number: float, user_id: str):
+    session_id = f"{user_id}_{anilist_id}_{episode_number}"
+    query = select(watch_sessions).where(watch_sessions.c.session_id == session_id)
+    row = await database.fetch_one(query)
+    if row:
+        return {"success": True, "data": dict(row)}
+    return {"success": True, "data": None}
+
+
 @router.get("/progress")
 async def get_watch_history(user_id: str):
     # Join with anime_metadata to get titles and images

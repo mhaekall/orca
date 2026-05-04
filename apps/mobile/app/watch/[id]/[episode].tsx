@@ -54,7 +54,13 @@ export default function WatchScreen() {
 
   // 5. Final video URL
   const videoUrl = directSource?.url || resolvedData?.videoUrl || null;
-  const sourceType = directSource?.type || 'hls';
+  
+  let sourceType = directSource?.type || 'hls';
+  // Override type for telegram proxies (they return direct MP4 files, not M3U8 playlists).
+  // Passing type: 'hls' to ExoPlayer for an MP4 causes silent failure and 0 duration.
+  if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
+    sourceType = 'mp4';
+  }
 
   // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready
   const player = useVideoPlayer(null, player => {

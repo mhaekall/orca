@@ -57,11 +57,10 @@ export default function WatchScreen() {
   let videoUrl = directSource?.url || resolvedData?.videoUrl || null;
   let sourceType = directSource?.type || 'hls';
 
-  // Override type for telegram proxies (they return direct MP4 files, not M3U8 playlists).
+  // Override type for telegram proxies (they return M3U8 playlists in our ingestion pipeline).
   if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
-    sourceType = 'mp4';
-
-    // Bypass Cloudflare Edge Cache
+    // Keep sourceType as 'hls' because the proxy returns an #EXTM3U playlist.
+    // Bypass Cloudflare Edge Cache for the master playlist
     const separator = videoUrl.includes('?') ? '&' : '?';
     videoUrl += `${separator}cb=${Date.now()}`;
   }

@@ -166,6 +166,10 @@ export default function WatchScreen() {
               style={StyleSheet.absoluteFill} 
               player={player} 
               allowsFullscreen 
+              fullscreenOptions={{
+                enable: true,
+                orientation: 'landscape'
+              }}
               allowsPictureInPicture
               showsTimecodes
               contentFit="contain"

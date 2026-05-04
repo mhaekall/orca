@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.animescraperpro.app",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#13111a"

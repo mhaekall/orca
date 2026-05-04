@@ -20,6 +20,7 @@ export default function WatchScreen() {
   const { user } = useAuth();
   const [showAllEpisodes, setShowAllEpisodes] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [playerError, setPlayerError] = useState<string | null>(null);
   
   const { data: animeData } = useSWR(`${API_URL}/api/v2/anime/${id}`, fetcher);
   const { data: streamData, isLoading: streamLoading } = useSWR(
@@ -77,6 +78,20 @@ export default function WatchScreen() {
   const player = useVideoPlayer(null, player => {
     player.loop = false;
   });
+
+  useEffect(() => {
+    if (!player) return;
+    const sub = player.addListener('statusChange', (status: any) => {
+      console.log('[Player Status]', JSON.stringify(status));
+      if (status.error) {
+        setPlayerError(status.error.message);
+        console.error('[Player Error]', status.error.message);
+      } else {
+        setPlayerError(null);
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
 
   const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
 
@@ -179,6 +194,11 @@ export default function WatchScreen() {
               showsTimecodes
               contentFit="contain"
             />
+            {playerError && (
+              <View style={{ position: 'absolute', top: 60, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 8, zIndex: 100 }}>
+                <Text style={{color:'red', fontWeight: 'bold'}}>Player Error: {playerError}</Text>
+              </View>
+            )}
             {/* Double Tap Seek Overlays */}
             <View style={[StyleSheet.absoluteFill, styles.seekOverlay]} pointerEvents="box-none">
               <Pressable 

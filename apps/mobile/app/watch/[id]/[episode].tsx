@@ -56,23 +56,26 @@ export default function WatchScreen() {
   const videoUrl = directSource?.url || resolvedData?.videoUrl || null;
   const sourceType = directSource?.type || 'hls';
 
-  // Build source object — ExoPlayer butuh metadata untuk HLS tanpa ekstensi .m3u8
-  const buildSource = (url: string) => ({
-    uri: url,
-    metadata: { title: displayTitle || '' },
-    headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' },
-    ...(sourceType === 'hls' ? { type: 'hls' as const } : {}),
+  // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready
+  const player = useVideoPlayer(null, player => {
+    player.loop = false;
   });
 
-  const player = useVideoPlayer(videoUrl ? buildSource(videoUrl) : null, player => {
-    player.play();
-  });
+  const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
 
-  // useVideoPlayer tidak reaktif — update source saat videoUrl resolve dari null
+  // Update player saat videoUrl tersedia — termasuk hint HLS untuk ExoPlayer
   useEffect(() => {
-    if (player && videoUrl) {
-      player.replaceAsync(buildSource(videoUrl)).then(() => player.play());
-    }
+    if (!player || !videoUrl) return;
+    const source = {
+      uri: videoUrl,
+      metadata: { title: displayTitle || '' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' },
+      ...(sourceType === 'hls' ? { type: 'hls' as const } : {}),
+    };
+    console.log('[Player] Loading source:', videoUrl, 'type:', sourceType);
+    player.replaceAsync(source)
+      .then(() => { player.play(); console.log('[Player] Playing'); })
+      .catch((e: any) => console.error('[Player] Error:', e?.message));
   }, [videoUrl]);
 
   const lastTapLeft = useRef(0);
@@ -127,7 +130,6 @@ export default function WatchScreen() {
     const numB = parseInt(getEpNumStr(b)) || 0;
     return numA - numB;
   });
-  const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
   const poster = anime?.poster || anime?.img || anime?.coverImage;
 
   return (

@@ -346,13 +346,20 @@ async def submit_report(report: ReportCreate):
     message += f"<b>Episode:</b> {report.episode_number}\n"
     message += f"<b>Issue:</b> {report.issue_type}\n"
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    tg_proxy = os.getenv("TG_PROXY_BASE_URL", "https://tele-proxy.moehamadhkl.workers.dev")
+    url = f"{tg_proxy}/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
 
     try:
-        async with httpx.AsyncClient() as client:
-            await client.post(url, json=payload)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(url, json=payload)
+            if res.status_code != 200:
+                return {
+                    "success": False,
+                    "message": f"Telegram Error {res.status_code}: {res.text}",
+                }
     except Exception as e:
-        print(f"Error sending report to telegram: {e}")
+        print(f"Error sending report to telegram: {repr(e)}")
+        return {"success": False, "message": repr(e)}
 
     return {"success": True}

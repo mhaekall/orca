@@ -120,7 +120,8 @@ export default function WatchScreen() {
   };
 
   const handleEpisodeChange = (newEp: string) => {
-    router.replace(`/watch/${id}/${newEp}`);
+    // Gunakan setParams agar halaman tidak full re-render/glitch saat pindah episode
+    router.setParams({ episode: newEp });
   };
 
   const handleAuthRequiredAction = (action: string) => {

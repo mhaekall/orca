@@ -155,7 +155,7 @@ class QStashPublisher:
                                 f"https://api.telegram.org/bot{bot_token}/sendMessage",
                                 json={"chat_id": "1558640518", "text": err_msg[:4000], "parse_mode": "HTML"}
                             )
-                    asyncio.create_task(send_err())
+                    await send_err()
                 except:
                     pass
                     pass

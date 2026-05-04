@@ -10,9 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from services.ingestion.main import IngestionEngine
+
 from db.connection import database
 from services.cache import upstash_del, upstash_get, upstash_keys
-from services.ingestion.main import IngestionEngine
 from services.stream_cache import get_cached_stream
 
 logging.basicConfig(level=logging.INFO)

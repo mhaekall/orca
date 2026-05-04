@@ -263,6 +263,25 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/admin/trigger-10h-sync")
+async def admin_trigger_10h_sync(request: Request, background_tasks: BackgroundTasks):
+    """Trigger the 10-hour sync job natively in the background."""
+    admin_key = request.headers.get("x-admin-key") or request.query_params.get("key")
+    if admin_key != os.environ.get("ADMIN_API_KEY"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    try:
+        from scripts.sync_10_hours_bg import run_10_hours_sync
+
+        background_tasks.add_task(run_10_hours_sync)
+        return Response(
+            status_code=200,
+            content="10-hour sync background task started successfully",
+        )
+    except Exception as e:
+        print(f"[Admin] Error triggering 10h sync: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/webhook/triage")
 async def triage_webhook(request: Request):
     await _verify_qstash(request)

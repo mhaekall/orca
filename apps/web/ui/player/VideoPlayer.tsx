@@ -10,7 +10,6 @@ import { useSettings } from "@/core/stores/app-store";
 import { useWatchHistory } from "@/core/hooks/use-watch-history";
 import { useVideoGestures } from "@/core/hooks/use-video-gestures";
 import type { VideoSource } from "@/core/types/anime";
-import { lockLandscape, unlockOrientation } from "@/core/hooks/use-screen-orientation";
 
 const QUALITY_ORDER = ["1080p", "720p", "480p", "360p", "Auto"];
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -273,10 +272,10 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
     try {
       if (!document.fullscreenElement) {
         await container.requestFullscreen().catch(() => {});
-        await lockLandscape();
+        // await lockLandscape();
       } else {
         await document.exitFullscreen().catch(() => {});
-        await unlockOrientation();
+        // await // unlockOrientation();
       }
     } catch (e) {}
   }, []);
@@ -284,7 +283,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
   useEffect(() => {
     const handleFSChange = () => {
       if (!document.fullscreenElement) {
-        unlockOrientation();
+        // unlockOrientation();
       }
     };
     document.addEventListener("fullscreenchange", handleFSChange);

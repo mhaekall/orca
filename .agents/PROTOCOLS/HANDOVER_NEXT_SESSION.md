@@ -1,31 +1,33 @@
-# 🎯 Handover: Expo Mobile Native Migration (Termux Environment)
+# 🎯 Handover: Expo Mobile Native Architecture & Performance (Termux Environment)
 
 ## 1. Context Summary
-- **Current State:** The project has officially migrated its frontend focus from the Next.js/Capacitor web wrapper (`apps/web`) to a fully Native React Native application using Expo (`apps/mobile`).
+- **Current State:** The project operates as a fully Native React Native application (`apps/mobile`) utilizing Expo, completely detaching from the web wrapper approach. We have successfully completed the core UI implementation and initial performance tuning phases.
 - **Development Environment Constraints (Termux/Android):**
-  - **Hermes Compiler Disabled:** Termux ARM64 cannot compile Hermes. The app strictly uses `jsEngine: "jsc"` and `newArchEnabled: false` in `app.json`.
-  - **NativeWind v2:** Because NativeWind v4 strictly requires Reanimated (which requires Hermes), the mobile app is downgraded to NativeWind v2 + Tailwind 3.3.2.
-  - **ENOSPC Watcher Crash:** Running multiple Metro background servers in Termux exhausts the Android file watcher limit (`ENOSPC`), causing `npx expo start` to crash. **Solution:** Use static exports (`npx expo export -p android`) to verify compilation and UI layouts without relying on Metro file watchers, or explicitly kill Termux (swipe up) to free up memory before restarting the server.
-  - **Pnpm Symlink Explosion:** `apps/mobile` is deliberately excluded from `pnpm-workspace.yaml`. It must use `npm install --legacy-peer-deps` to avoid file watcher crashes.
-- **Recent Mobile Milestones:**
-  - **Video Player:** Integrated `expo-video`. Replaced `player.replace()` with `player.replaceAsync()` to prevent UI freezes on iOS. Added a strict filter to discard `iframe` sources, as `expo-video` only supports direct `.mp4` and `.m3u8` streams. Bound a `useEffect` hook to aggressively replace the source as soon as the async SWR data resolves.
-  - **Comments UI:** Built a native React Native `Modal` combined with `KeyboardAvoidingView` and `SafeAreaView` in `apps/mobile/components/CommentSection.tsx` to handle nested comments seamlessly (replicating the web experience).
-  - **Custom Home UI (Apple HIG Focus):** Abandoned uniform NativeWind grids for the Home Screen (`apps/mobile/app/(tabs)/index.tsx`). Implemented a highly engaging, asymmetrical layout using pure React Native `StyleSheet`. The layout features:
-    - A massive full-screen poster Hero (`aspectRatio: 3/4`, extending behind a transparent Animated Header).
-    - An asymmetrical `SpotlightRow` (`flex: 1.5` / `flex: 1`) for Trending.
-    - An integrated Search Bar nestled directly between the Logo and Notification Bell in the header.
-    - Subtle `rgba(255,255,255,0.05)` borders mimicking premium glassmorphism.
-    - Note: The Hero Carousel experiment was reverted due to performance and clipping issues; the Hero is currently a static, single poster with a round Play icon at the bottom right.
-  - **Auth Session Validation Bypass:** Local Google OAuth testing in Expo Go blocks redirect URIs. We implemented a mocked session fallback. In `app.json` (and `auth.tsx`), the `iosClientId` is deliberately mirrored to `androidClientId` and `webClientId` to bypass strict validation in the `expo-auth-session` library while developing in Termux.
+  - **Hermes Enabled:** The app uses `jsEngine: "hermes"` and `newArchEnabled: false`.
+  - **Reanimated & Tailwind Disabled:** We use pure React Native `StyleSheet` for styling (no NativeWind/Tailwind). All complex animations rely purely on the native React Native `Animated` API with `useNativeDriver: true`.
+  - **ENOSPC Watcher Limit:** Extreme caution is required with Metro bundler background processes. Dependencies must be installed via `npm install --legacy-peer-deps` within the isolated `apps/mobile` directory to prevent symlink watcher crashes.
+  - **Flexbox Limits:** Dynamic flex bounds can sometimes collapse. We enforce explicit dimensioning (e.g., `width: W * 0.55`) for complex nested lists to ensure stability.
 
-## 2. Next Session Priority
-Focus on extending the Mobile UI into the remaining tabs and refining the player layout.
+## 2. Completed Milestones (UI Polish & 0ms Latency Tuning)
+- **Unified Flat Architecture:** Eliminated spatial elevation layers. The entire app (Bottom Nav, Root Layout, Backgrounds) utilizes a unified deep dark aesthetic (`#0a0812` and `#13111a`), with dynamic absolute positioning used for striking UI accents (e.g., the highlighter-stroke "Tayang Terbaru" badge).
+- **Navigation Transition Hardening:** Resolved React Navigation white flashes by wrapping the Root Layout in a `@react-navigation/native` `ThemeProvider` with a dark schema, and configuring `app.json` Android backgrounds to dark mode.
+- **0ms Navigation Latency:** Implemented Aggressive Prefetching. Background fetching (`mutate` via SWR) triggers immediately on `onPressIn` across all Anime cards, ensuring payload hydration finishes before navigation animations conclude.
+- **Native Skeleton Hydration:** Deprecated blocking `ActivityIndicator` spinners. Implemented a globally reusable, hardware-accelerated `Animated.loop` pulsing skeleton component that mirrors final layout geometries across Home, Detail, Schedule, and Collection screens.
+- **Robust Error Boundaries:** Replaced crash-prone null states with graceful degradation UI (Empty States and Network Error screens with integrated "Retry" logic).
 
-### Step-by-Step Task:
-1. **Complete Mobile Tabs:** Migrate the Web `ScheduleView` logic into `apps/mobile/app/(tabs)/schedule.tsx` and the `CollectionView` into `apps/mobile/app/(tabs)/collection.tsx`.
-2. **Video Player Refinements:** Consider adding double-tap to seek (forward/backward) overlays using React Native gesture handlers over the `VideoView` component.
-3. **P2P/Bandwidth Saving (Stretch Goal):** Investigate if a lightweight native WebRTC library or a caching proxy proxy pattern can be integrated into the mobile app to save bandwidth, similar to `p2p-media-loader` on the web.
+## 3. Next Session Priority (Offline-First, CI/CD, & Telemetry)
+The next phase moves into Production-Readiness, treating the codebase with strict Big Tech engineering discipline.
 
-## 3. How to Give Context for the Next Session
+### Engineering Directives:
+1. **Offline-First Architecture & Caching Strategy:**
+   - Implement persistent global storage (`@react-native-async-storage/async-storage`) to aggressively cache SWR payloads (especially the User Collection and Home Layout).
+   - Ensure the app renders cached views immediately on Cold Start (Offline Mode) while silently revalidating data in the background upon connection recovery.
+2. **CI/CD Pipeline Automation (EAS Build):**
+   - Finalize `eas.json` configuration for remote build orchestration. To ensure stable compilation without overloading the local Termux environment, we must transition to Expo Application Services (EAS) to compile the Android `.apk` and iOS `.ipa` in the cloud seamlessly.
+3. **Production Telemetry & Bundle Optimization:**
+   - Establish logging protocols (e.g., Sentry or minimal custom crash reporting) that respect our environment limits.
+   - Audit the `assets/` directory and unused packages to minimize the final APK bundle size.
+
+## 4. How to Give Context for the Next Session
 When starting a new session with an AI Agent, simply copy and paste this exact prompt:
-> "Read `.agents/PROTOCOLS/HANDOVER_NEXT_SESSION.md` to understand the complex Termux limitations (ENOSPC, JSC Engine) and the current state of our Expo Native Mobile Migration. We are focusing on finishing the Mobile UI."
+> "Read `.agents/PROTOCOLS/HANDOVER_NEXT_SESSION.md`. We have completed the UI and 0ms SWR Prefetching phases using Hermes and pure StyleSheet. Today's directive focuses on Big Tech production standards: Offline-First AsyncStorage caching, EAS Build CI/CD automation, and Bundle Optimization."

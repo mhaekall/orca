@@ -34,7 +34,13 @@
       "expo-secure-store",
       "expo-router",
       "expo-asset",
-      "expo-video"
+      "expo-video",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.475749423464-e2dq5kmtgdehbbb369f0nvr86f73gpl0"
+        }
+      ]
     ],
     "extra": {
       "router": {},

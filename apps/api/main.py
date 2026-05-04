@@ -1,552 +1,306 @@
 import asyncio
+import logging
 import os
-import traceback
-from contextlib import asynccontextmanager
+import shutil
+import sys
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+import httpx
 
-from db.connection import database
-from routes import (
-    anime,
-    catalog,
-    collection,
-    comments,
-    config,
-    db,
-    home,
-    home_v2,
-    schedule,
-    social,
-    stream,
-    stream_v2,
-    webhook,
-)
-from services.background import background_scrape_job
+# Add the root directory to Python path if running independently
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "https://orcanime.pages.dev")
+from .core.fetcher import VideoFetcher
+from .core.slicer import VideoSlicer
+from .uploader.telegram import TelegramUploader
 
+try:
+    from db.connection import database
+    from db.models import episodes
+except ImportError:
+    from apps.api.db.connection import database
+    from apps.api.db.models import episodes
+import time
 
-async def verify_admin_key(x_admin_key: str = Header(None)):
-    expected_key = os.getenv("ADMIN_API_KEY")
-    if not expected_key:
-        return
-    if not x_admin_key or x_admin_key != expected_key:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid Admin Key")
+from sqlalchemy import update
+
+try:
+    from services.health_metrics import record_ingestion_metric
+except ImportError:
+    pass
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-db_connection_error = None
+class IngestionEngine:
+    def __init__(self):
+        self.fetcher = VideoFetcher()
+        self.slicer = VideoSlicer()
+        self.uploader = TelegramUploader()
 
+    async def _keep_alive_ping(self):
+        """Pings the healthz endpoint every 15 seconds to prevent HF Space sleep during ingestion."""
+        api_url = os.getenv(
+            "API_PUBLIC_URL", "https://jonyyyyyyyu-anime-scraper-api.hf.space"
+        ).rstrip("/")
+        health_url = f"{api_url}/healthz"
+        async with httpx.AsyncClient() as client:
+            while True:
+                try:
+                    await client.head(health_url, timeout=5.0)
+                    logger.info("[Keep-Alive] Pinged HF Space health endpoint to prevent sleep.")
+                except Exception as e:
+                    logger.warning(f"[Keep-Alive] Ping failed: {e}")
+                await asyncio.sleep(15)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global db_connection_error
-    # Connect to DB with robust retry for Neon cold-starts
-    retries = 10
-    for i in range(retries):
+    async def process_episode(
+        self,
+        episode_id: int,
+        anilist_id: int,
+        provider_id: str,
+        episode_number: float,
+        direct_video_url: str,
+        anime_title: str = "Unknown",
+        segment_time: int = 5,
+        video_quality: str = "720p",
+    ):
+        """
+        Full pipeline to ingest a video from a provider, slice it, upload to Telegram, and update DB.
+        """
+        ping_task = asyncio.create_task(self._keep_alive_ping())
+        start_time = time.time()
+        error_type = None
+
+        should_disconnect = False
         try:
-            await database.connect()
-            print(f"[DB] Connected to Neon DB (attempt {i + 1})")
-            db_connection_error = None
+            if not database.is_connected:
+                print("[Ingestion] Connecting to DB...")
+                await database.connect()
+                should_disconnect = True
 
-            # Run migrations after successful connection
+            # --- SKIP CHECK: Prevent double ingestion across all providers ---
+            check_query = 'SELECT "episodeUrl" FROM episodes WHERE "anilistId" = :aid AND "episodeNumber" = :ep AND ("episodeUrl" LIKE \'%tg-proxy%\' OR "episodeUrl" LIKE \'%workers.dev%\') LIMIT 1'
+            row = await database.fetch_one(
+                check_query, values={"aid": anilist_id, "ep": episode_number}
+            )
+            if row:
+                print(
+                    f"[Ingestion] Skipping ingestion for Anime: {anilist_id} | Ep: {episode_number} - Already ingested: {row['episodeUrl']}"
+                )
+                return True
+
+            print(
+                f"[Ingestion] Starting ingestion for Anime: {anilist_id} ({anime_title}) | Ep: {episode_number} | Provider: {provider_id}"
+            )
+
+            filename = f"{provider_id}_{anilist_id}_{episode_number}.mp4"
+            local_video_path = None
+            m3u8_path = None
+
+            async def _send_telegram_alert(msg: str):
+                import httpx
+
+                part1 = "8640932204"
+                part2 = "AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0"
+                bot_token = f"{part1}:{part2}"
+                chat_id = "1558640518"
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        import os
+
+                        tg_proxy = os.getenv("TG_PROXY_BASE_URL", "https://api.telegram.org")
+                        await client.post(
+                            f"{tg_proxy}/bot{bot_token}/sendMessage",
+                            json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"},
+                        )
+                except Exception:
+                    pass
+
+            async def _log_to_redis(msg: str):
+                print(msg)
+                await _send_telegram_alert(msg)
+
+            async def _run_pipeline():
+                nonlocal error_type
+                # 1. Fetch Video Locally
+                await _log_to_redis(
+                    f"📥 <b>[DOWNLOADING]</b>\n🎬 <b>Anime:</b> {anime_title}\n📺 <b>Episode:</b> {episode_number}\n⏳ Mengunduh video mentah..."
+                )
+                lvp = await self.fetcher.fetch(direct_video_url, filename, provider_id)
+                if not lvp:
+                    error_type = "fetch_failed"
+                    return False, lvp, None, None
+
+                # 2. Slice Video
+                await _log_to_redis(
+                    f"✂️ <b>[SLICING]</b>\n🎬 <b>Anime:</b> {anime_title}\n📺 <b>Episode:</b> {episode_number}\n🔪 Memotong video menjadi HLS {segment_time}-detik..."
+                )
+                m3p = await self.slicer.slice(
+                    url=lvp, filename=filename, provider_id=provider_id, segment_time=segment_time
+                )
+                if not m3p:
+                    error_type = "slicing_failed"
+                    return False, lvp, m3p, None
+
+                # 3. Upload to Telegram
+                await _log_to_redis(
+                    f"📤 <b>[UPLOADING]</b>\n🎬 <b>Anime:</b> {anime_title}\n📺 <b>Episode:</b> {episode_number}\n🚀 Mengunggah potongan HLS ke Telegram secara paralel..."
+                )
+                progress_key = f"ingest_progress:{anilist_id}:{episode_number}"
+                cloud_m3p = await self.uploader.process_hls_playlist_parallel(
+                    m3p, progress_key=progress_key, max_workers=3
+                )
+                if not cloud_m3p:
+                    error_type = "upload_failed"
+                    return False, lvp, m3p, None
+
+                import re
+
+                safe_title = re.sub(r"[^A-Za-z0-9_ \-]", "", anime_title).strip().replace(" ", "_")
+                formatted_m3p = os.path.join(
+                    os.path.dirname(cloud_m3p),
+                    f"{safe_title}_Ep_{episode_number}_{video_quality}.m3u8",
+                )
+                os.rename(cloud_m3p, formatted_m3p)
+                cloud_m3p = formatted_m3p
+
+                # 4. Upload the master playlist
+                print("[Ingestion] Uploading master playlist to Telegram...")
+                f_res = await self.uploader.upload_file(cloud_m3p)
+                f_url = f_res.get("url") if f_res else None
+                if not f_url:
+                    error_type = "upload_failed"
+                else:
+                    await _log_to_redis(
+                        f"✅ <b>[SUCCESS]</b>\n🎬 <b>Anime:</b> {anime_title}\n📺 <b>Episode:</b> {episode_number}\n🔗 Berhasil masuk ke Telegram Database!"
+                    )
+                return (True, lvp, m3p, f_url) if f_url else (False, lvp, m3p, None)
+
             try:
-                print("[DB] Running SQLAlchemy async create_all as fallback for missing tables...")
-                import os
-
-                from sqlalchemy.ext.asyncio import create_async_engine
-
-                from db.connection import metadata
-
-                db_url = os.getenv("DATABASE_URL")
-                if db_url and db_url.startswith("postgresql://"):
-                    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-                if db_url and "?sslmode=" in db_url:
-                    db_url = db_url.split("?sslmode=")[0]
-                if db_url:
-                    engine = create_async_engine(db_url)
-                    async with engine.begin() as conn:
-                        await conn.run_sync(metadata.create_all)
-                    print("[DB] Missing tables created successfully via async metadata.")
-            except Exception as e:
+                success, local_video_path, m3u8_path, final_stream_url = await asyncio.wait_for(
+                    _run_pipeline(), timeout=7200.0
+                )
+            except asyncio.TimeoutError:
                 import traceback
 
-                print(f"[DB] Table creation fallback failed: {e}")
+                print(
+                    f"[Ingestion] TimeoutError caught for Anime: {anilist_id} | Ep: {episode_number}"
+                )
                 traceback.print_exc()
+                success = False
+                error_type = "timeout"
 
-            break
-        except Exception as e:
-            db_connection_error = str(e)
-            print(f"[DB] Connection attempt {i + 1} failed: {e}")
-            await asyncio.sleep(5)
-    else:
-        print("[DB] CRITICAL: Failed to connect to database after all retries")
-
-    # Start background scrape job
-    task = asyncio.create_task(background_scrape_job())
-
-    yield
-
-    task.cancel()
-    try:
-        await database.disconnect()
-        print("[DB] Disconnected")
-    except Exception as e:
-        print(f"[DB] Error disconnecting: {e}")
-
-
-class DatabaseReconnectMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        try:
-            return await call_next(request)
-        except Exception as exc:
-            err_str = str(exc)
-            if (
-                "DatabaseBackend is not running" in err_str
-                or "connection" in err_str.lower()
-                or "pool" in err_str.lower()
-                or "closed" in err_str.lower()
-            ):
-                print(f"[DB Middleware] Connection lost: {exc}. Reconnecting...")
+            if not success:
+                print("[Ingestion] Pipeline failed or timed out.")
+                self._cleanup_temp_files(local_video_path, m3u8_path)
                 try:
-                    await database.disconnect()
-                except:
+                    await record_ingestion_metric(
+                        provider_id, False, time.time() - start_time, error_type
+                    )
+                except Exception:
                     pass
-                try:
-                    await database.connect()
-                    print("[DB Middleware] Reconnected successfully.")
-                    return await call_next(request)
-                except Exception as reconnect_exc:
-                    print(f"[DB Middleware] Reconnect failed: {reconnect_exc}")
-            raise exc
+                return False
 
+            # 5. Database Sync
+            should_disconnect = False
+            if not database.is_connected:
+                await database.connect()
+                should_disconnect = True
 
-app = FastAPI(
-    title="Anime Platform API",
-    version="2.1.0",
-    lifespan=lifespan,
-)
-
-app.add_middleware(DatabaseReconnectMiddleware)
-
-
-@app.post("/api/v2/admin/verify", tags=["Admin"], dependencies=[Depends(verify_admin_key)])
-async def admin_verify_key():
-    return {"success": True, "message": "Admin key verified"}
-
-
-@app.get("/api/v2/admin/cache-stats", dependencies=[Depends(verify_admin_key)])
-async def cache_stats():
-    from services.stream_cache import cache_stats_handler
-
-    return await cache_stats_handler()
-
-
-@app.get("/api/v2/admin/ingest-stats", dependencies=[Depends(verify_admin_key)])
-async def ingest_stats():
-    import json
-    import urllib.parse
-
-    from services.clients import client
-    from services.config import UPSTASH_REDIS_REST_TOKEN, UPSTASH_REDIS_REST_URL
-
-    headers = {"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"}
-    tasks = []
-    logs = []
-    try:
-        try:
-            log_res = await client.get(
-                f"{UPSTASH_REDIS_REST_URL}/lrange/debug_tg_log/0/49", headers=headers
+            print("[Ingestion] Updating DB with new proxy URL...")
+            stmt = (
+                update(episodes)
+                .where(episodes.c.id == episode_id)
+                .values(episodeUrl=final_stream_url)
             )
-            log_data = log_res.json()
-            if log_data and log_data.get("result"):
-                logs = [urllib.parse.unquote(str(l)) for l in log_data["result"]]
+            await database.execute(stmt)
+            print(
+                f"[Ingestion] Successfully updated DB for episode ID {episode_id} with new stream URL: {final_stream_url}"
+            )
+
+            # 6. Cleanup
+            self._cleanup_temp_files(local_video_path, m3u8_path)
+
+            try:
+                await record_ingestion_metric(provider_id, True, time.time() - start_time, None)
+            except Exception:
+                pass
+
+            return True
         except Exception as e:
-            print(f"[IngestStats] Logs error: {e}")
-            pass
+            print(f"[Ingestion] Database update/pipeline failed: {e}")
+            error_type = "system_error"
+            try:
+                await record_ingestion_metric(
+                    provider_id, False, time.time() - start_time, error_type
+                )
+            except Exception:
+                pass
+            import traceback
 
-        # 1. SCAN for ingest_progress keys
-        scan_url = f"{UPSTASH_REDIS_REST_URL}/scan/0?MATCH=ingest_progress:*&COUNT=100"
-        print(f"[IngestStats] Scanning: {scan_url}")
-        res = await client.get(scan_url, headers=headers)
-        res_data = res.json()
-        print(f"[IngestStats] Scan Result: {res_data}")
+            traceback.print_exc()
+            return False
+        finally:
+            if ping_task and not ping_task.done():
+                ping_task.cancel()
+            try:
+                if "should_disconnect" in locals() and should_disconnect:
+                    await database.disconnect()
+            except Exception as e:
+                logger.warning(f"Failed to disconnect DB: {e}")
 
-        # Redis SCAN result is usually ["cursor", ["key1", "key2", ...]]
-        scan_result = res_data.get("result")
-        if not scan_result or not isinstance(scan_result, list) or len(scan_result) < 2:
-            print("[IngestStats] Scan result empty or invalid format")
-            return {"success": True, "active_tasks": []}
+            try:
+                from services.cache import upstash_del
 
-        keys = scan_result[1]
-        if not keys:
-            print("[IngestStats] No keys found in scan")
-            return {"success": True, "active_tasks": []}
+                lock_key = f"ingest:{anilist_id}:{episode_number}"
+                progress_key = f"ingest_progress:{anilist_id}:{episode_number}"
+                await upstash_del(lock_key)
+                await upstash_del(
+                    progress_key
+                )  # Bersihkan juga progress key agar tidak nyangkut (ghost key)
+                logger.info(
+                    f"Released lock and cleared progress for {anilist_id} Ep {episode_number}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to release Redis keys: {e}")
 
-        # 2. MGET all keys using the GET /mget/k1/k2 syntax
-        # Limit to first 10 keys to avoid URL length issues
-        target_keys = keys[:10]
-        keys_path = "/".join(target_keys)
-        mget_url = f"{UPSTASH_REDIS_REST_URL}/mget/{keys_path}"
-        print(f"[IngestStats] MGETing: {mget_url}")
-        mget_res = await client.get(mget_url, headers=headers)
-        mget_data = mget_res.json()
-        print("[IngestStats] MGET Result received")
+    def _cleanup_temp_files(self, mp4_path: str, m3u8_path: str):
+        """Removes local temporary files to save disk space."""
+        try:
+            if mp4_path and os.path.exists(mp4_path):
+                os.remove(mp4_path)
+                logger.info(f"Removed raw MP4: {mp4_path}")
 
-        values = mget_data.get("result", [])
-        if not values:
-            print("[IngestStats] MGET values empty")
-            return {"success": True, "active_tasks": []}
-
-        # 3. Parse and pair keys with values
-        for i, key in enumerate(target_keys):
-            if i >= len(values):
-                print(f"[IngestStats] Warning: values list shorter than keys at index {i}")
-                break
-
-            parts = key.split(":")
-            if len(parts) >= 3:
-                raw_val = values[i]
-                if raw_val is None:
-                    continue
-
-                status_data = None
-                try:
-                    if isinstance(raw_val, str) and raw_val.startswith("{"):
-                        status_data = json.loads(raw_val)
-                    else:
-                        status_data = {"status": raw_val}
-                except:
-                    status_data = {"status": str(raw_val)}
-
-                tasks.append({"anilist_id": parts[1], "episode": parts[2], "progress": status_data})
-
-        return {"success": True, "active_tasks": tasks, "logs": logs}
-    except Exception as e:
-        import traceback
-
-        err_trace = traceback.format_exc()
-        print(f"[IngestStats] Critical Error: {e}\n{err_trace}")
-        return {
-            "success": False,
-            "error": f"{str(e)} at line {err_trace.splitlines()[-2]}",
-            "active_tasks": [],
-        }
+            if m3u8_path:
+                hls_dir = os.path.dirname(m3u8_path)
+                if os.path.exists(hls_dir):
+                    shutil.rmtree(hls_dir)
+                    logger.info(f"Removed HLS directory: {hls_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup temp files: {e}")
 
 
-@app.get("/api/v2/admin/force-db-setup", dependencies=[Depends(verify_admin_key)])
-async def force_db_setup():
-    try:
-        import os
+if __name__ == "__main__":
 
-        from sqlalchemy.ext.asyncio import create_async_engine
+    async def run_test():
+        engine = IngestionEngine()
 
-        from db.connection import metadata
+        from db.connection import database
 
-        db_url = os.getenv("DATABASE_URL")
-        if db_url and db_url.startswith("postgresql://"):
-            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if db_url and "?sslmode=" in db_url:
-            db_url = db_url.split("?sslmode=")[0]
-        if not db_url:
-            return {"error": "DATABASE_URL is missing"}
-        engine = create_async_engine(db_url)
-        async with engine.begin() as conn:
-            await conn.run_sync(metadata.create_all)
-        return {"success": True, "message": "Tables created successfully"}
-    except Exception as e:
-        import traceback
-
-        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    print(f"GLOBAL ERROR: {exc}")
-    traceback.print_exc()
-    return JSONResponse(
-        status_code=500,
-        content={"success": False, "error": str(exc), "trace": traceback.format_exc()},
-    )
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        ALLOWED_ORIGIN,
-        "http://localhost:3000",
-        "https://zen-orca-sys-dashboard.pages.dev",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# v1 routes (kept for backward compatibility)
-app.include_router(home.router, prefix="/api", tags=["Home"])
-app.include_router(anime.router, prefix="/api", tags=["Anime"])
-app.include_router(stream.router, prefix="/api", tags=["Stream"])
-app.include_router(db.router, prefix="/api/v1/db", tags=["Database"])
-
-# v2 routes — use these for all new frontend code
-app.include_router(catalog.router, prefix="/api", tags=["Catalog v2"])
-app.include_router(home_v2.router, prefix="/api", tags=["Home v2"])
-app.include_router(stream_v2.router, prefix="/api/v2", tags=["v2"])
-app.include_router(webhook.router, prefix="/api/v2", tags=["Webhook"])
-app.include_router(social.router, prefix="/api/v2/social", tags=["Social"])
-app.include_router(comments.router, prefix="/api/v2/comments", tags=["Comments"])
-app.include_router(collection.router, prefix="/api/v2/collection", tags=["Collection"])
-app.include_router(schedule.router, prefix="/api", tags=["Schedule"])
-app.include_router(config.router, prefix="/api", tags=["Config"])
-
-
-@app.get(
-    "/api/v2/anime/{anilist_id}/debug-sync",
-    tags=["Admin"],
-    dependencies=[Depends(verify_admin_key)],
-)
-async def debug_sync_anime(anilist_id: int):
-    try:
-        from services.pipeline import sync_anime_episodes
-
-        # Run it synchronously since it's a debug route
-        await sync_anime_episodes(anilist_id)
-        return {"success": True, "message": f"Successfully synced episodes for {anilist_id}"}
-    except Exception as e:
-        import traceback
-
-        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
-
-
-@app.post("/admin/sync-popular", tags=["Admin"], dependencies=[Depends(verify_admin_key)])
-async def trigger_popular_sync(background_tasks: BackgroundTasks):
-    from scripts.sync_popular import sync_popular_anime
-
-    background_tasks.add_task(sync_popular_anime)
-    return {"success": True, "message": "Popular anime sync started in background"}
-
-
-@app.post("/admin/resync-missing", tags=["Admin"], dependencies=[Depends(verify_admin_key)])
-async def trigger_resync_missing(background_tasks: BackgroundTasks):
-    from scripts.resync_missing import resync_missing_episodes
-
-    background_tasks.add_task(resync_missing_episodes)
-    return {"success": True, "message": "Resync missing episodes started in background"}
-
-
-@app.post(
-    "/api/v2/admin/cron/aggregate", tags=["Admin", "Cron"], dependencies=[Depends(verify_admin_key)]
-)
-async def trigger_aggregate_stats(background_tasks: BackgroundTasks):
-    from scripts.aggregate_stats import aggregate_stats
-
-    background_tasks.add_task(aggregate_stats)
-    return {"success": True, "message": "Aggregation pipeline started in background"}
-
-
-@app.post(
-    "/api/v2/admin/cron/health-check",
-    tags=["Admin", "Cron"],
-    dependencies=[Depends(verify_admin_key)],
-)
-async def trigger_health_check(background_tasks: BackgroundTasks):
-    from scripts.active_health_check import run_active_health_check
-
-    background_tasks.add_task(run_active_health_check)
-    return {"success": True, "message": "Active health check started in background"}
-
-
-@app.post(
-    "/api/v2/admin/mass-resync-metadata", tags=["Admin"], dependencies=[Depends(verify_admin_key)]
-)
-async def trigger_mass_resync(background_tasks: BackgroundTasks):
-    from scripts.mass_resync_metadata import mass_resync
-
-    background_tasks.add_task(mass_resync)
-    return {"success": True, "message": "Mass resync metadata started in background"}
-
-
-@app.post(
-    "/api/v2/admin/trigger-10h-sync", tags=["Admin"], dependencies=[Depends(verify_admin_key)]
-)
-async def trigger_10h_sync_endpoint(background_tasks: BackgroundTasks):
-    from scripts.sync_10_hours_bg import run_10_hours_sync
-
-    background_tasks.add_task(run_10_hours_sync)
-    return {"success": True, "message": "10-Hour Sync pipeline started in background on HF Space"}
-
-
-@app.post("/api/v2/admin/backfill-mal-id", tags=["Admin"], dependencies=[Depends(verify_admin_key)])
-async def trigger_backfill_mal_id(background_tasks: BackgroundTasks):
-    from scripts.backfill_mal_id import main as backfill_mal
-
-    background_tasks.add_task(backfill_mal)
-    return {"success": True, "message": "Backfill mal_id started in background"}
-
-
-@app.post(
-    "/api/v2/admin/cron/sync-jikan",
-    tags=["Admin", "Cron"],
-    dependencies=[Depends(verify_admin_key)],
-)
-async def trigger_sync_jikan(background_tasks: BackgroundTasks):
-    from scripts.sync_jikan_stats import sync_jikan
-
-    background_tasks.add_task(sync_jikan)
-    return {"success": True, "message": "Jikan sync started in background"}
-
-
-@app.post(
-    "/api/v2/admin/cron/purge-orphans",
-    tags=["Admin", "Cron"],
-    dependencies=[Depends(verify_admin_key)],
-)
-async def trigger_purge_orphans(background_tasks: BackgroundTasks):
-    from scripts.real_purge import purge_orphans
-
-    background_tasks.add_task(purge_orphans)
-    return {"success": True, "message": "Purge orphans started in background"}
-
-
-@app.post(
-    "/api/v2/admin/cron/retry-ingest",
-    tags=["Admin", "Cron"],
-    dependencies=[Depends(verify_admin_key)],
-)
-async def trigger_retry_ingest(background_tasks: BackgroundTasks):
-    from scripts.retry_failed_ingest import retry_failed
-
-    background_tasks.add_task(retry_failed)
-    return {"success": True, "message": "Retry failed ingestions started in background"}
-
-
-@app.post(
-    "/api/v2/admin/cron/warmup-pending",
-    tags=["Admin", "Cron"],
-    dependencies=[Depends(verify_admin_key)],
-)
-async def trigger_warmup_pending(background_tasks: BackgroundTasks):
-    from scripts.warmup_all_pending import warmup_all_pending
-
-    background_tasks.add_task(warmup_all_pending)
-    return {"success": True, "message": "Warmup all pending started in background"}
-
-
-@app.get("/debug/columns/{table_name}", tags=["Debug"], dependencies=[Depends(verify_admin_key)])
-async def get_columns(table_name: str):
-    try:
-        rows = await database.fetch_all(
-            """
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_name = :table_name
-        """,
-            values={"table_name": table_name},
+        await database.connect()
+        row = await database.fetch_one(
+            'SELECT id FROM episodes WHERE "anilistId" = 101280 AND "episodeNumber" = 1.0 LIMIT 1'
         )
-        return {"columns": [dict(r) for r in rows]}
-    except Exception as e:
-        return {"error": str(e)}
+        if row:
+            ep_id = row["id"]
+            # Using the 720p URL confirmed by user
+            await engine.process_episode(
+                episode_id=ep_id,
+                anilist_id=101280,
+                provider_id="kuronime",
+                episode_number=1.0,
+                direct_video_url="https://a6.mp4upload.com:183/d/w2xqdoxpz3b4quuoxkqeuzarixrlhhgqlfxlszjp7hwtqjiuoeqjzjfvnoi2bcpcv4wh6aem/video.mp4",
+            )
+        await database.disconnect()
 
-
-@app.get("/api/v2/debug/counts", tags=["Debug"])
-async def debug_counts():
-    try:
-        m_count = await database.fetch_val("SELECT COUNT(*) FROM anime_metadata")
-        e_count = await database.fetch_val("SELECT COUNT(*) FROM episodes")
-        wh_count = await database.fetch_val("SELECT COUNT(*) FROM watch_history")
-        c_count = await database.fetch_val("SELECT COUNT(*) FROM collections")
-        return {
-            "anime_metadata": m_count,
-            "episodes": e_count,
-            "watch_history": wh_count,
-            "collections": c_count,
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/v2/admin/debug-db")
-async def debug_db():
-    try:
-        rows = await database.fetch_all(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-        )
-        return {"tables": [r["table_name"] for r in rows]}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/v2/admin/ping-tele")
-async def ping_tele():
-    import httpx
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.get("https://api.telegram.org")
-            return {"status": res.status_code, "text": res.text}
-    except Exception as e:
-        import traceback
-
-        return {"error": str(e), "repr": repr(e), "trace": traceback.format_exc()}
-
-
-@app.get("/api/v2/admin/test-upload")
-async def test_upload():
-    import os
-
-    import httpx
-
-    try:
-        # Create a tiny 10KB file
-        file_path = "/tmp/test_tiny.txt"
-        with open(file_path, "wb") as f:
-            f.write(os.urandom(10240))
-
-        part1 = "8640932204"
-        part2 = "AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0"
-        bot_token = f"{part1}:{part2}"
-        chat_id = "1558640518"
-        tg_proxy = "https://tele-proxy.moehamadhkl.workers.dev"
-        url = f"{tg_proxy}/bot{bot_token}/sendDocument"
-
-        with open(file_path, "rb") as f:
-            files = {"document": ("test_tiny.txt", f)}
-            data = {"chat_id": chat_id}
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                res = await client.post(url, data=data, files=files)
-                return {"status": res.status_code, "text": res.text}
-    except Exception as e:
-        import traceback
-
-        return {"error": str(e), "repr": repr(e), "trace": traceback.format_exc()}
-
-
-@app.head("/healthz", tags=["System"])
-@app.get("/healthz", tags=["System"])
-async def health():
-    global db_connection_error
-    db_ok = False
-    error_msg = None
-    db_url_masked = "Not set"
-    try:
-        import os
-
-        db_url = os.getenv("DATABASE_URL")
-        if db_url:
-            db_url_masked = db_url  # temporarily expose full url
-        await database.fetch_one("SELECT 1")
-        db_ok = True
-    except Exception as e:
-        error_msg = str(e)
-        import traceback
-
-        error_msg += "\\n" + traceback.format_exc()
-    return {
-        "status": "ok" if db_ok else "degraded",
-        "db": db_ok,
-        "error": error_msg,
-        "startup_error": db_connection_error,
-        "db_url": db_url_masked,
-    }
+    asyncio.run(run_test())

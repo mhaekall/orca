@@ -52,12 +52,17 @@ export default function ProfileScreen() {
 
           {user ? (
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>
-                {user.name || "Orca User"}
+            <Text style={styles.userName}>
+              {user.name || "Orca User"}
+            </Text>
+            <Text style={styles.userHandle}>@{user.email?.split('@')[0]}</Text>
+            {user.id && (
+              <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 2, fontFamily: 'monospace' }}>
+                ID: {user.id}
               </Text>
-              <Text style={styles.userHandle}>@{user.email?.split('@')[0]}</Text>
-              
-              <View style={styles.userStats}>
+            )}
+
+            <View style={styles.userStats}>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>0</Text>
                   <Text style={styles.statLabel}>Pengikut</Text>

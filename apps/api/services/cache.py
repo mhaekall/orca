@@ -9,7 +9,25 @@ _local_cache = {}
 
 
 async def upstash_get(key: str):
-    return None
+    try:
+        url = f"{UPSTASH_REDIS_REST_URL}/get/{key}"
+        res = await client.get(url, headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
+        data = res.json()
+
+        if "error" in data:
+            return _local_cache.get(key)
+
+        result = data.get("result")
+        if result is not None:
+            try:
+                return json.loads(result)
+            except Exception:
+                return result
+
+        return _local_cache.get(key)
+    except Exception as e:
+        print(f"[Upstash] Get exception for {key}: {e}")
+        return _local_cache.get(key)
 
 
 async def upstash_keys(pattern: str):

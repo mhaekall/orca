@@ -119,24 +119,6 @@ class IngestionEngine:
             async def _log_to_redis(msg: str):
                 print(msg)
                 await _send_telegram_alert(msg)
-                try:
-                    from services.cache import client as redis_client
-                    from services.config import UPSTASH_REDIS_REST_TOKEN, UPSTASH_REDIS_REST_URL
-
-                    headers = {
-                        "Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}",
-                        "Content-Type": "application/json",
-                    }
-                    await redis_client.post(
-                        f"{UPSTASH_REDIS_REST_URL}/lpush/hf_ingest_logs",
-                        headers=headers,
-                        json=[msg],
-                    )
-                    await redis_client.get(
-                        f"{UPSTASH_REDIS_REST_URL}/ltrim/hf_ingest_logs/0/49", headers=headers
-                    )
-                except Exception:
-                    pass
 
             async def _run_pipeline():
                 nonlocal error_type

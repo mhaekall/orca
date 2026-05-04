@@ -8,11 +8,12 @@ from pathlib import Path
 import patoolib
 
 sys.path.append(".")
+from services.ingestion.uploader.telegram import TelegramUploader
+
 from db.connection import database
 from scripts.gdrive_downloader import download_gdrive
 from scripts.resolve_desustream import resolve_desustream
 from services.cache import upstash_set
-from services.ingestion.uploader.telegram import TelegramUploader
 
 
 async def log_status(anilist_id, message):
@@ -111,8 +112,9 @@ async def _process_batch_impl(anilist_id: int, url: str):
         return
 
     # 4. Cari file .mp4 dan Upload ke Telegram
-    from services.cache import upstash_del
     from services.ingestion.core.slicer import VideoSlicer
+
+    from services.cache import upstash_del
 
     uploader = TelegramUploader()
     slicer = VideoSlicer()

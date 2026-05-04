@@ -1,9 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from "expo-secure-store";
-
-WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextType {
   user: any | null;
@@ -20,13 +17,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: "475749423464-2sf8p2d27p2604mfb0eojc3e36btgpcr.apps.googleusercontent.com",
-    androidClientId: "475749423464-2sf8p2d27p2604mfb0eojc3e36btgpcr.apps.googleusercontent.com",
-    webClientId: "475749423464-2sf8p2d27p2604mfb0eojc3e36btgpcr.apps.googleusercontent.com",
-  });
-
   useEffect(() => {
+    // Configure Google Sign-In with your Web Client ID for the backend
+    GoogleSignin.configure({
+      webClientId: "475749423464-4eqtfgbmjfvj7jsi999vcap2mcug5lip.apps.googleusercontent.com",
+      offlineAccess: true,
+      forceCodeForRefreshToken: true,
+    });
+
     checkSession();
   }, []);
 
@@ -36,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sessionStr) {
         const sessionData = JSON.parse(sessionStr);
         if (sessionData?.user) {
+           console.log("Logged in User ID from local storage:", sessionData.user.id || sessionData.user._id || "No ID found");
            setUser(sessionData.user);
         }
       }
@@ -46,32 +45,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { authentication } = response;
-      if (authentication?.idToken) {
-        verifyWithBackend(authentication.idToken);
-      }
-    }
-  }, [response]);
-
-  const verifyWithBackend = async (idToken: string) => {
+  const verifyWithBackend = async (idToken: string, accessToken?: string) => {
     setIsLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/auth/sign-in/social`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Origin": API_URL,
         },
         body: JSON.stringify({
           provider: "google",
-          idToken: idToken,
+          idToken: {
+            token: idToken,
+            accessToken: accessToken || ""
+          }
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        // Save session locally
         await SecureStore.setItemAsync("auth_session", JSON.stringify(data));
         if (data.user) {
            setUser(data.user);
@@ -89,29 +82,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      const result = await promptAsync();
+      setIsLoading(true);
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const tokens = await GoogleSignin.getTokens();
       
-      // Jika error terjadi di browser (seperti error 400 dari Google), 
-      // user akan menutup browser dan result.type menjadi 'cancel' atau 'dismiss'.
-      // Untuk kebutuhan testing UI di Expo Go, kita tembakkan Mock Session!
-      if (result?.type !== 'success') {
-         console.log("Auth cancelled or blocked by Google in Expo Go. Injecting Mock Session for UI testing.");
-         const mockUser = {
-           name: "Developer (Expo Go)",
-           email: "dev@orcanime.test",
-           picture: "https://api.dicebear.com/7.x/notionists/svg?seed=OrcaDev"
-         };
-         setUser(mockUser);
-         await SecureStore.setItemAsync("auth_session", JSON.stringify({ user: mockUser }));
+      // userInfo.data.idToken contains the ID token required by the backend
+      if (userInfo?.data?.idToken) {
+        await verifyWithBackend(userInfo.data.idToken, tokens.accessToken);
+      } else {
+        console.error("No ID Token received from Google Sign-In");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google Sign-In Error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
-    setUser(null);
-    await SecureStore.deleteItemAsync("auth_session");
+    try {
+      setUser(null);
+      await SecureStore.deleteItemAsync("auth_session");
+      await GoogleSignin.signOut();
+    } catch (error) {
+      console.error("Google Sign-Out Error:", error);
+    }
   };
 
   return (

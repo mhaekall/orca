@@ -36,7 +36,12 @@ export default function WatchScreen() {
   // Filter only direct streams (mp4 or m3u8) because expo-video cannot play iframes
   const directSources = sources.filter((s: any) => s.type !== "iframe" && !s.url.includes("embed"));
   const bestSource = directSources.find((s: any) => s.quality === "1080p" || s.quality === "720p" || s.quality === "auto" || s.quality === "default") || directSources[0];
-  const videoUrl = bestSource?.url;
+  
+  let videoUrl = bestSource?.url;
+  // Ensure the URL ends with a media extension so ExoPlayer knows it's a video stream
+  if (videoUrl && !videoUrl.match(/\.(mp4|m3u8|ts)$/i)) {
+    videoUrl += ".mp4";
+  }
 
   const player = useVideoPlayer(videoUrl || null, player => {
     player.play();
@@ -63,13 +68,6 @@ export default function WatchScreen() {
       lastTapRight.current = now;
     }
   };
-
-  useEffect(() => {
-    if (player && videoUrl) {
-      player.replaceAsync(videoUrl);
-      player.play();
-    }
-  }, [videoUrl]);
 
   const handleShare = async () => {
     if (!anime) return;

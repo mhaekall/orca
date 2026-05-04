@@ -301,3 +301,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
 });
+
+export const AnimeCard = memo(AnimeCardInner);
+

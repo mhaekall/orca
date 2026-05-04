@@ -7,8 +7,9 @@ from dotenv import load_dotenv
 
 load_dotenv(".env")
 
-from db.connection import database
 from services.ingestion.main import IngestionEngine
+
+from db.connection import database
 from services.pipeline import resolve_episode_sources
 
 

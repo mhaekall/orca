@@ -31,7 +31,10 @@ export default {
       const streamMatch = url.pathname.match(/^\/stream\/bot([^\/]+)\/(.+)$/);
       if (streamMatch) {
         const token = streamMatch[1];
-        const fileId = streamMatch[2];
+        let fileId = streamMatch[2];
+        
+        // Strip extension if present so Telegram API doesn't fail
+        fileId = fileId.replace(/\.(mp4|m3u8|ts)$/, "");
         
         // Resolve file_path
         const getFileUrl = `https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`;
@@ -71,16 +74,19 @@ export default {
       newHeaders.set("Access-Control-Allow-Origin", "*");
       newHeaders.set("Access-Control-Allow-Headers", "Range, Content-Type");
       newHeaders.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+      newHeaders.set("Accept-Ranges", "bytes");
       
       // Force cache for 30 days since file_id data is immutable
       newHeaders.set("Cache-Control", "public, max-age=2592000, s-maxage=2592000, immutable");
       newHeaders.set("X-Proxy-Cache", "MISS");
 
       const mimeParam = url.searchParams.get("mime");
-      if (mimeParam === "m3u8") {
+      if (mimeParam === "m3u8" || url.pathname.endsWith(".m3u8")) {
         newHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
-      } else if (mimeParam === "ts") {
+      } else if (mimeParam === "ts" || url.pathname.endsWith(".ts")) {
         newHeaders.set("Content-Type", "video/MP2T");
+      } else if (mimeParam === "mp4" || url.pathname.endsWith(".mp4")) {
+        newHeaders.set("Content-Type", "video/mp4");
       } else if (response.headers.get("Content-Type") === "application/octet-stream") {
         const contentLength = response.headers.get("Content-Length");
         if (contentLength && parseInt(contentLength, 10) < 1024 * 1024) {

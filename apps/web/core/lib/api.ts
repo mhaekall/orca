@@ -1,6 +1,5 @@
 // core/lib/api.ts — Centralized API client. All backend calls go through here.
 
-import { getAppBaseUrl } from "./capacitor";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 
@@ -18,7 +17,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     url = path;
   } else if (isLocalNextRoute) {
     // Di Capacitor & server, butuh absolute URL karena tidak ada domain
-    url = `${getAppBaseUrl()}${path}`;
+    url = `https://orcanime.pages.dev${path}`;
   } else {
     url = `${API}${path}`;
   }

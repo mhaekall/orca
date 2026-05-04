@@ -55,15 +55,36 @@ export default function WatchScreen() {
   // 5. Final video URL — jangan modifikasi URL, TG proxy tidak butuh ekstensi
   const videoUrl = directSource?.url || resolvedData?.videoUrl || null;
 
-  const player = useVideoPlayer(videoUrl ? { uri: videoUrl } : null, player => {
+  console.log('=== SOURCES ===', JSON.stringify(allSources));
+  console.log('=== directSource ===', JSON.stringify(directSource));
+  console.log('=== videoUrl ===', videoUrl);
+
+  const videoSource = videoUrl ? {
+    uri: videoUrl,
+    // Kalau type hls, ExoPlayer perlu tahu
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+    },
+  } : null;
+
+  const player = useVideoPlayer(videoSource, player => {
     player.play();
   });
 
   // useVideoPlayer tidak reaktif — update source saat videoUrl resolve dari null
   useEffect(() => {
     if (player && videoUrl) {
-      player.replace({ uri: videoUrl });
-      player.play();
+      const newSource = {
+        uri: videoUrl,
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      };
+      
+      if (typeof player.replaceAsync === 'function') {
+        player.replaceAsync(newSource).then(() => player.play());
+      } else {
+        player.replace(newSource);
+        player.play();
+      }
     }
   }, [videoUrl]);
 

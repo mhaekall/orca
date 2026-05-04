@@ -93,7 +93,7 @@ export default function WatchScreen() {
       uri: videoUrl,
       metadata: { title: displayTitle || '' },
       headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' },
-      type: sourceType === 'hls' ? 'hls' as const : 'progressive' as const,
+      ...(sourceType === 'hls' ? { contentType: 'hls' as const } : {}),
     };
     console.log('[Player] Loading source:', videoUrl, 'type:', sourceType);
     player.replaceAsync(source)

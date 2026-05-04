@@ -1,0 +1,134 @@
+WARNING:root:PROXY_SECRET environment variable is not set! Using fallback for development only.
+==================================================
+🔥 MASS CACHE WARMUP (Scraper Node: Local Termux)
+==================================================
+Menemukan 95 episode pending. Memulai ekstraksi tautan (bypass Cloudflare)...\n
+[1/95] ⏳ Mengekstrak: Ace of the Diamond act II -Second Season- | Ep 4.0 | samehadaku
+[Extractor] Falling back to SmartExtractor for https://s0.wibufile.com/video01/DnAII
+[Extractor] Falling back to SmartExtractor for https://s0.wibufile.com/video01/DnAII
+[Extractor] Falling back to SmartExtractor for https://mega.nz/embed/dnkCmIpL#goTnGkO1rFclZxGBZYaw1rEwJ0zMZdFwBq8l03V2kB4
+[Extractor] Falling back to SmartExtractor for https://mega.nz/embed/YzkXVboA#cPRE-wOKHEY7HewbXpFvkpE292He9D_-PjSOBjEcIw8
+[Extractor] Falling back to SmartExtractor for https://filedon.co/embed/mI09GBdtDe
+[Extractor] Falling back to SmartExtractor for https://filedon.co/embed/VEA40g4Eqw
+[Extractor] Domain s0.wibufile.com failed with 404. Blacklisting for 5 minutes.
+[Extractor] Domain s0.wibufile.com failed with 404. Blacklisting for 5 minutes.
+[Extractor] Falling back to SmartExtractor for https://acefile.co/f/111595694/dnaii-s2-04-720p-samehadaku-care-mkv
+[Extractor] Falling back to SmartExtractor for https://krakenfiles.com/view/dvV8rUSyHC/file.html
+[Extractor] Falling back to SmartExtractor for https://www.mediafire.com/file/u8fhidbxzklg6m0/DnAII+S2-04-720p-SAMEHADAKU.CARE.rar/file
+[Extractor] Falling back to SmartExtractor for https://filedon.co/view/hjEfXihDly
+[Extractor] Falling back to SmartExtractor for https://acefile.co/f/111595743/dnaii-s2-04-1080p-samehadaku-care-mkv
+[Extractor] Falling back to SmartExtractor for https://www.mediafire.com/file/h708fgqe2zt70dv/DnAII+S2-04-1080p-SAMEHADAKU.CARE.rar/file
+[Extractor] Falling back to SmartExtractor for https://filedon.co/view/AoYQmXT6H5
+[Extractor] Falling back to SmartExtractor for https://krakenfiles.com/view/bNQAd0ti6X/file.html
+[Extractor] Falling back to SmartExtractor for https://acefile.co/f/111596871/dnaii-s2-04-720p-x265-samehadaku-care-mkv
+[Extractor] Falling back to SmartExtractor for https://www.mediafire.com/file/8uvosy9be6gtj76/DnAII+S2-04-720p-[x265]-SAMEHADAKU.CARE.rar/file
+[Extractor] Falling back to SmartExtractor for https://krakenfiles.com/view/v35KSdYEAq/file.html
+[Extractor] Falling back to SmartExtractor for https://filedon.co/view/Z2rq4wxrd0
+[Extractor] Falling back to SmartExtractor for https://acefile.co/f/111596872/dnaii-s2-04-1080p-x265-samehadaku-care-mkv
+[Extractor] Falling back to SmartExtractor for https://www.mediafire.com/file/ncpd195duu85gzv/DnAII+S2-04-1080p-[x265]-SAMEHADAKU.CARE.rar/file
+[Extractor] Falling back to SmartExtractor for https://filedon.co/view/BrEOdMtlZK
+[Extractor] Falling back to SmartExtractor for https://krakenfiles.com/view/ezmtgSQ8ck/file.html
+  └─ Hit: L3
+  └─ Found 27 sources
+  └─ ✅ Selesai
+[2/95] ⏳ Mengekstrak: Ace of the Diamond act II -Second Season- | Ep 3.0 | samehadaku
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/warmup_all_pending.py", line 63, in warmup_all_pending
+    payload = await stream_cache.get_stream(url, provider)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../services/stream_cache.py", line 597, in get_stream
+    payload = await self._coalesced_scrape(episode_url, provider_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../services/stream_cache.py", line 770, in _coalesced_scrape
+    result = await self._locked_scrape(episode_url, provider_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../services/stream_cache.py", line 817, in _locked_scrape
+    payload = await _live_scrape(episode_url, provider_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../services/stream_cache.py", line 359, in _live_scrape
+    raw_result = await provider.get_episode_sources(episode_url)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../services/providers.py", line 68, in get_episode_sources
+    result = await self.cb.call(self.provider.get_episode_sources, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../utils/circuit_breaker.py", line 58, in call
+    result = await func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/services/scraper/providers/samehadaku/provider.py", line 37, in get_episode_sources
+    ajax_res = await client.post(
+               ^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_client.py", line 1859, in post
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/../utils/ssrf_guard.py", line 108, in handle_async_request
+    return await super().handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/connection.py", line 103, in handle_async_request
+    return await self._connection.handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/http11.py", line 136, in handle_async_request
+    raise exc
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/http11.py", line 106, in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/http11.py", line 177, in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_async/http11.py", line 217, in _receive_event
+    data = await self._network_stream.read(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/httpcore/_backends/anyio.py", line 35, in read
+    return await self._stream.receive(max_bytes=max_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/anyio/streams/tls.py", line 239, in receive
+    data = await self._call_sslobject_method(self._ssl_object.read, max_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/anyio/streams/tls.py", line 182, in _call_sslobject_method
+    data = await self.transport_stream.receive()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 1284, in receive
+    await self._protocol.read_event.wait()
+  File "/data/data/com.termux/files/usr/lib/python3.12/asyncio/locks.py", line 212, in wait
+    await fut
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/workspace/anime-scraper-pro/apps/api/scripts/warmup_all_pending.py", line 87, in <module>
+    asyncio.run(warmup_all_pending())
+  File "/data/data/com.termux/files/usr/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.12/asyncio/runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt

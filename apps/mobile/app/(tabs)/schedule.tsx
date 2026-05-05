@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from "react";
+import { View, Text, FlatList, Pressable, StyleSheet, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,11 +10,104 @@ import { Skeleton } from "../../components/Skeleton";
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function formatViews(v: number): string {
-  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
-  return v.toString();
-}
+const { width: WINDOW_WIDTH } = Dimensions.get("window");
+
+const absoluteFill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
+
+// Memoized Card Component to prevent re-renders
+const ScheduleCard = memo(({ item, idx }: { item: any, idx: number }) => {
+  const id = String(item.anilistId || item.id);
+  if (!id || id === "undefined") return null;
+  
+  const img = item.poster || item.img || item.coverImage?.extraLarge || item.banner || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
+  let title = "";
+  if (typeof item.title === "string") {
+    title = item.title;
+  } else if (item.title) {
+    title = item.title.english || item.title.romaji || item.title.userPreferred || item.title.native || "";
+  }
+  if (!title) title = "Unknown Title";
+
+  const score = item.score || item.averageScore || 0;
+  const airingTime = item.airingTime ? String(item.airingTime) : "";
+  const eps = item.latestEpisode ? String(item.latestEpisode) : "?";
+  
+  return (
+    <View style={styles.cardWrapper}>
+      <Link href={`/anime/${id}` as any} asChild>
+        <Pressable style={styles.cardPressable}>
+          <View style={styles.cardImageContainer}>
+            <Image source={{ uri: img }} style={absoluteFill} contentFit="cover" />
+            <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={absoluteFill} />
+          </View>
+          
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
+              {title}
+            </Text>
+            
+            <View style={styles.cardMetaRow}>
+              {airingTime !== "" && (
+                <View style={styles.timeBadge}>
+                  <Text style={styles.timeText}>{airingTime}</Text>
+                </View>
+              )}
+              
+              {(score > 0 && airingTime !== "") && (
+                 <Text style={styles.dotSeparator}>•</Text>
+              )}
+
+              {score > 0 && (
+                <View style={styles.scoreBadge}>
+                  <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                  <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.cardBottomRow}>
+              <Text style={styles.epLabelText}>
+                Episode {eps}
+              </Text>
+              <View style={styles.playButtonCircle}>
+                <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </Link>
+    </View>
+  );
+});
+
+const renderScheduleCard = ({ item, index }: { item: any, index: number }) => <ScheduleCard item={item} idx={index} />;
+
+// Component for each day's vertical list
+const DayPage = memo(({ dayPage }: { dayPage: any }) => {
+  return (
+    <View style={{ width: WINDOW_WIDTH }}>
+      {dayPage.data.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Tidak ada rilis pada hari ini.</Text>
+        </View>
+      ) : (
+        <FlatList<any>
+          showsVerticalScrollIndicator={false}
+          style={styles.listContainer}
+          contentContainerStyle={styles.listContent}
+          data={dayPage.data}
+          keyExtractor={(item, index) => String(item.anilistId || item.id || index)}
+          renderItem={renderScheduleCard}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+        />
+      )}
+    </View>
+  );
+});
+
+const renderDayPage = ({ item }: { item: any }) => <DayPage dayPage={item} />;
 
 export default function ScheduleScreen() {
   const [activeDay, setActiveDay] = useState<string>("Senin");
@@ -59,19 +152,60 @@ export default function ScheduleScreen() {
   }, []);
 
   const schedData = swrData?.data || {};
-  let currentItems = schedData[activeDay] || [];
-  if (!Array.isArray(currentItems)) {
-    currentItems = [];
-  }
   
-  // Sort items safely by airing time
-  currentItems = [...currentItems].sort((a, b) => {
-    const timeA = a?.airingTime ? String(a.airingTime) : "";
-    const timeB = b?.airingTime ? String(b.airingTime) : "";
-    if (!timeA) return 1;
-    if (!timeB) return -1;
-    return timeA.localeCompare(timeB);
-  });
+  // Memoize sorted items for ALL days to support swipeable pages
+  const allDaysData = useMemo(() => {
+    return weekDates.map((dayObj) => {
+      let items = schedData[dayObj.fullDay] || [];
+      if (!Array.isArray(items)) items = [];
+      
+      const sorted = [...items].sort((a, b) => {
+        const timeA = a?.airingTime ? String(a.airingTime) : "";
+        const timeB = b?.airingTime ? String(b.airingTime) : "";
+        if (!timeA) return 1;
+        if (!timeB) return -1;
+        return timeA.localeCompare(timeB);
+      });
+
+      return {
+        ...dayObj,
+        data: sorted
+      };
+    });
+  }, [schedData, weekDates]);
+
+  const flatListRef = useRef<any>(null);
+
+  // Sync scroll to activeDay when header is pressed
+  const handleDayPress = useCallback((index: number, dayName: string) => {
+    setActiveDay(dayName);
+    flatListRef.current?.scrollToIndex({ index, animated: true });
+  }, []);
+
+  // Update activeDay when user swipes
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems && viewableItems.length > 0) {
+      const newDay = viewableItems[0].item.fullDay;
+      if (newDay) {
+        setActiveDay(newDay);
+      }
+    }
+  }).current;
+
+  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+
+  // Use an effect to scroll to the initial active day on first render
+  useEffect(() => {
+    if (weekDates.length > 0 && activeDay) {
+       const idx = weekDates.findIndex(d => d.fullDay === activeDay);
+       if (idx !== -1) {
+         // setTimeout to ensure flatlist is fully mounted before scrolling
+         setTimeout(() => {
+           flatListRef.current?.scrollToIndex({ index: idx, animated: false });
+         }, 100);
+       }
+    }
+  }, [weekDates]);
 
   return (
     <View style={styles.container}>
@@ -83,12 +217,12 @@ export default function ScheduleScreen() {
 
         {/* Static Day Picker */}
         <View style={styles.pickerContainer}>
-          {weekDates.map((dayObj) => {
+          {weekDates.map((dayObj: any, index: number) => {
             const isActive = activeDay === dayObj.fullDay;
             return (
               <Pressable
                 key={dayObj.fullDay}
-                onPress={() => setActiveDay(dayObj.fullDay)}
+                onPress={() => handleDayPress(index, dayObj.fullDay)}
                 style={({pressed}) => [
                   styles.dayButton,
                   isActive ? styles.dayButtonActive : styles.dayButtonInactive,
@@ -110,97 +244,35 @@ export default function ScheduleScreen() {
         </View>
       </View>
 
-      {/* List Jadwal */}
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        style={styles.listContainer}
-        contentContainerStyle={styles.listContent}
-      >
-        {isLoading && Object.keys(schedData).length === 0 ? (
-          <View>
-             {Array.from({ length: 6 }).map((_, i) => (
-                <View key={i} style={styles.skeletonRow}>
-                   <View style={{ width: 100, height: "100%" }}>
-                     <Skeleton w={100} h={130} r={0} />
-                   </View>
-                   <View style={styles.skeletonContent}>
-                     <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
-                     <Skeleton w="50%" h={12} r={4} />
-                   </View>
-                </View>
-             ))}
-          </View>
-        ) : currentItems.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Tidak ada rilis pada hari ini.</Text>
-          </View>
-        ) : (
-          currentItems.map((item: any, idx: number) => {
-            const id = String(item.anilistId || item.id);
-            if (!id || id === "undefined") return null;
-            
-            const img = item.poster || item.img || item.coverImage?.extraLarge || item.banner || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
-            let title = "";
-            if (typeof item.title === "string") {
-              title = item.title;
-            } else if (item.title) {
-              title = item.title.english || item.title.romaji || item.title.userPreferred || item.title.native || "";
-            }
-            if (!title) title = "Unknown Title";
-
-            const score = item.score || item.averageScore || 0;
-            const airingTime = item.airingTime ? String(item.airingTime) : "";
-            const eps = item.latestEpisode ? String(item.latestEpisode) : "?";
-            
-            return (
-              <View key={`${id}-${idx}`} style={styles.cardWrapper}>
-                <Link href={`/anime/${id}` as any} asChild>
-                  <Pressable style={styles.cardPressable}>
-                    <View style={styles.cardImageContainer}>
-                      <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
-                      <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={StyleSheet.absoluteFillObject} />
-                    </View>
-                    
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardTitle} numberOfLines={2}>
-                        {title}
-                      </Text>
-                      
-                      <View style={styles.cardMetaRow}>
-                        {airingTime !== "" && (
-                          <View style={styles.timeBadge}>
-                            <Text style={styles.timeText}>{airingTime}</Text>
-                          </View>
-                        )}
-                        
-                        {(score > 0 && airingTime !== "") && (
-                           <Text style={styles.dotSeparator}>•</Text>
-                        )}
-
-                        {score > 0 && (
-                          <View style={styles.scoreBadge}>
-                            <Star size={11} color="#FFD60A" fill="#FFD60A" />
-                            <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={styles.cardBottomRow}>
-                        <Text style={styles.epLabelText}>
-                          Episode {eps}
-                        </Text>
-                        <View style={styles.playButtonCircle}>
-                          <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
-                        </View>
-                      </View>
-                    </View>
-                  </Pressable>
-                </Link>
+      {/* List Jadwal Horizontal Pager */}
+      {isLoading && Object.keys(schedData).length === 0 ? (
+        <View style={styles.listContainer}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={styles.skeletonRow}>
+              <View style={{ width: 100, height: "100%" }}>
+                <Skeleton w={100} h={130} r={0} />
               </View>
-            );
-          })
-        )}
-      </ScrollView>
+              <View style={styles.skeletonContent}>
+                <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
+                <Skeleton w="50%" h={12} r={4} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <FlatList<any>
+          ref={flatListRef}
+          data={allDaysData}
+          keyExtractor={(item) => item.fullDay}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          getItemLayout={(_, index) => ({ length: WINDOW_WIDTH, offset: WINDOW_WIDTH * index, index })}
+          renderItem={renderDayPage}
+        />
+      )}
     </View>
   );
 }

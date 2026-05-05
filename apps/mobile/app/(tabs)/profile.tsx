@@ -32,8 +32,8 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-
-        {/* Header Profile Section */}        <View style={styles.headerSection}>
+        {/* Header Profile Section */}
+        <View style={styles.headerSection}>
           <View style={styles.avatarWrapper}>
             <View style={styles.avatarContainer}>
               <Image 

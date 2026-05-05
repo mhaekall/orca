@@ -75,6 +75,7 @@ export default function NotificationsScreen() {
       </View>
 
       <ScrollView
+        showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
         refreshControl={

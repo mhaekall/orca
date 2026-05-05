@@ -157,7 +157,8 @@ async def ingest_pending(
                 await upstash_del(lock_key)
                 raise e
             finally:
-                pass
+                await upstash_del(lock_key)
+                logger.info(f"Released lock for {anilist_id} Ep {episode_num}")
 
     logger.info("Pending ingestion batch completed.")
     await database.disconnect()

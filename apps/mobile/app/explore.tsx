@@ -187,6 +187,7 @@ export default function ExploreScreen() {
           </View>
         ) : results.length > 0 ? (
           <FlatList
+            showsVerticalScrollIndicator={false}
             data={results}
             keyExtractor={(item) => String(item.anilistId || item.id)}
             numColumns={3}
@@ -224,7 +225,7 @@ export default function ExploreScreen() {
         )
       ) : (
         // Explore Default State
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
           
           {history.length > 0 && (
             <View style={{ marginBottom: 32 }}>

@@ -351,7 +351,7 @@ export default function WatchScreen() {
       </View>
 
       {/* Konten Halaman */}
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {anime ? (
           <>
             {/* Judul & Detail Singkat */}

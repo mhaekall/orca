@@ -154,6 +154,7 @@ async def ingest_pending(
             except Exception as e:
                 logger.error(f"Error during ingestion of {anilist_id} Ep {episode_num}: {e}")
                 await upstash_del(lock_key)
+                raise e
             finally:
                 pass
 

@@ -48,7 +48,7 @@ const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }
   const updatedAt = item.updatedAt;
 
   return (
-    <Pressable onPress={() => router.push(`/anime/${id}` as any)} style={styles.historyItemRow}>
+    <Pressable onPress={() => router.push(`/anime/${id}` as any)} style={styles.historyItemRow as any}>
       {/* Timeline Column */}
       <View style={styles.timelineCol}>
         <View style={styles.timelineDot} />
@@ -185,10 +185,10 @@ const renderTabPage = ({ item, itemWidth, user, signInWithGoogle }: any) => {
             ) : (
               <View>
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <View key={i} style={[styles.historyItemRow, { marginBottom: 20 }]}>
-                    <Skeleton w={48} h={64} r={8} style={{ marginRight: 16 }} />
-                    <View style={{ flex: 1 }}>
-                      <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
+                  <View key={i} style={[styles.historyItemRow, { marginBottom: 20 }] as any}>
+                    <Skeleton w={48} h={64} r={8} style={{ marginRight: 16 } as any} />
+                    <View style={{ flex: 1 } as any}>
+                      <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 } as any} />
                       <Skeleton w="40%" h={12} r={4} />
                     </View>
                   </View>
@@ -299,12 +299,12 @@ export default function CollectionScreen() {
                 <Pressable
                   key={tab.id}
                   onPress={() => handleTabPress(index, tab.id)}
-                  style={[styles.tabButton]}
+                  style={styles.tabButton as any}
                 >
-                  <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  <Text style={[styles.tabText, isActive && styles.tabTextActive] as any}>
                     {tab.label}
                   </Text>
-                  {isActive && <View style={styles.activeTabIndicator} />}
+                  {isActive && <View style={styles.activeTabIndicator as any} />}
                 </Pressable>
               );
             })}
@@ -366,10 +366,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
     letterSpacing: -0.5,
+    textAlign: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 20,
     paddingHorizontal: 4,
   },

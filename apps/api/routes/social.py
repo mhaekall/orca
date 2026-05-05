@@ -330,16 +330,11 @@ async def get_global_notifications():
 
 import os
 import httpx
-
+from fastapi import APIRouter
+from services.notifier import TelegramNotifier
 
 @router.post("/report")
 async def submit_report(report: ReportCreate):
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-
-    if not bot_token or not chat_id:
-        return {"success": False, "message": "Telegram not configured"}
-
     message = f"🚨 <b>USER REPORT</b> 🚨\n\n"
     message += f"<b>User:</b> <code>{report.user_id}</code>\n"
     message += f"<b>Anime ID:</b> {report.anilist_id} | <b>Ep:</b> {report.episode_number}\n"
@@ -348,9 +343,6 @@ async def submit_report(report: ReportCreate):
         message += f"<b>Player Error:</b> <code>{report.player_error}</code>\n"
     if report.video_url:
         message += f"<b>Stream URL:</b> <code>{report.video_url}</code>\n"
-
-    tg_proxy = "https://tele-proxy.moehamadhkl.workers.dev"
-    url = f"{tg_proxy}/bot{bot_token}/sendMessage"
 
     reply_markup = {
         "inline_keyboard": [
@@ -363,23 +355,9 @@ async def submit_report(report: ReportCreate):
         ]
     }
 
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "HTML",
-        "reply_markup": reply_markup,
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(url, json=payload)
-            if res.status_code != 200:
-                return {
-                    "success": False,
-                    "message": f"Telegram Error {res.status_code}: {res.text} (URL: {url}, Payload: {payload})",
-                }
-    except Exception as e:
-        print(f"Error sending report to telegram: {repr(e)}")
-        return {"success": False, "message": repr(e)}
+    success = await TelegramNotifier.send(topic="report", message=message, reply_markup=reply_markup)
+    
+    if not success:
+        return {"success": False, "message": "Failed to send report to Telegram via Notifier."}
 
     return {"success": True}

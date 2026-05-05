@@ -7,6 +7,24 @@ load_dotenv()
 UPSTASH_REDIS_REST_URL = os.environ.get("UPSTASH_REDIS_REST_URL")
 UPSTASH_REDIS_REST_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN")
 
+# Fallback credentials for Sharding
+UPSTASH_CREDENTIALS = []
+
+# Gather all REDIS_URL_X and REDIS_TOKEN_X
+for k, v in os.environ.items():
+    if k.startswith("UPSTASH_REDIS_REST_URL_") or k.startswith("REDIS_URL_"):
+        idx = k.split("_")[-1]
+        token_key = k.replace("URL", "TOKEN")
+        token = os.environ.get(token_key)
+        if token:
+            UPSTASH_CREDENTIALS.append({"url": v, "token": token})
+
+# Also include the default one if no numbered ones exist, or as the first one
+if UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN:
+    if {"url": UPSTASH_REDIS_REST_URL, "token": UPSTASH_REDIS_REST_TOKEN} not in UPSTASH_CREDENTIALS:
+        UPSTASH_CREDENTIALS.insert(0, {"url": UPSTASH_REDIS_REST_URL, "token": UPSTASH_REDIS_REST_TOKEN})
+
+
 QSTASH_TOKEN = os.environ.get("QSTASH_TOKEN")
 QSTASH_CURRENT_SIGNING_KEY = os.environ.get("QSTASH_CURRENT_SIGNING_KEY")
 QSTASH_NEXT_SIGNING_KEY = os.environ.get("QSTASH_NEXT_SIGNING_KEY")

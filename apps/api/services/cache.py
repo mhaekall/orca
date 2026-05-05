@@ -1,17 +1,35 @@
 import asyncio
 import json
 import time
+import hashlib
 
 from services.clients import client
-from services.config import UPSTASH_REDIS_REST_TOKEN, UPSTASH_REDIS_REST_URL
+from services.config import UPSTASH_CREDENTIALS
 
 _local_cache = {}
+
+def get_redis_credentials(key: str):
+    if not UPSTASH_CREDENTIALS:
+        return None, None
+    
+    # Hitung nilai hash dari key
+    hash_value = int(hashlib.md5(key.encode()).hexdigest(), 16)
+    
+    # Modulo untuk menentukan akun mana yang dipakai
+    account_index = hash_value % len(UPSTASH_CREDENTIALS) 
+    
+    creds = UPSTASH_CREDENTIALS[account_index]
+    return creds["url"], creds["token"]
 
 
 async def upstash_get(key: str):
     try:
-        url = f"{UPSTASH_REDIS_REST_URL}/get/{key}"
-        res = await client.get(url, headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
+        url, token = get_redis_credentials(key)
+        if not url or not token:
+            return _local_cache.get(key)
+            
+        endpoint = f"{url}/get/{key}"
+        res = await client.get(endpoint, headers={"Authorization": f"Bearer {token}"})
         data = res.json()
 
         if "error" in data:
@@ -31,25 +49,38 @@ async def upstash_get(key: str):
 
 
 async def upstash_keys(pattern: str):
+    # WARNING: keys search is tricky with sharding, we must query ALL shards and combine results
+    all_keys = []
     try:
-        url = f"{UPSTASH_REDIS_REST_URL}/keys/{pattern}"
-        res = await client.get(url, headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"})
-        data = res.json()
-        return data.get("result", [])
+        for creds in UPSTASH_CREDENTIALS:
+            url, token = creds["url"], creds["token"]
+            endpoint = f"{url}/keys/{pattern}"
+            res = await client.get(endpoint, headers={"Authorization": f"Bearer {token}"})
+            data = res.json()
+            if "result" in data and isinstance(data["result"], list):
+                all_keys.extend(data["result"])
+        return list(set(all_keys))
     except Exception as e:
         print(f"[Upstash] Keys error: {e}")
-        return []
+        return all_keys
 
 
 async def upstash_set(key: str, value: dict, ex: int = 3600, nx: bool = False):
     try:
+        url, token = get_redis_credentials(key)
+        if not url or not token:
+            if nx and key in _local_cache:
+                return False
+            _local_cache[key] = value
+            return True
+            
         payload = json.dumps(value)
         command = ["SET", key, payload, "EX", str(ex)]
         if nx:
             command.append("NX")
         res = await client.post(
-            UPSTASH_REDIS_REST_URL,
-            headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"},
+            url,
+            headers={"Authorization": f"Bearer {token}"},
             json=command,
         )
         data = res.json()
@@ -72,9 +103,12 @@ async def upstash_set(key: str, value: dict, ex: int = 3600, nx: bool = False):
 
 def upstash_del(key: str):
     _local_cache.pop(key, None)
+    url, token = get_redis_credentials(key)
+    if not url or not token:
+        return
     return client.post(
-        f"{UPSTASH_REDIS_REST_URL}/del/{key}",
-        headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"},
+        f"{url}/del/{key}",
+        headers={"Authorization": f"Bearer {token}"},
     )
 
 

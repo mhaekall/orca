@@ -20,6 +20,7 @@ from services.cleanup import cleanup_expired_cache, vacuum_old_episodes
 from services.config import QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY
 from services.pipeline import sync_anime_episodes
 from services.prefetch import smart_prefetch_episodes
+from services.notifier import TelegramNotifier
 
 # Inisialisasi Router (Hapus prefix ganda)
 router = APIRouter()
@@ -314,34 +315,30 @@ async def triage_webhook(request: Request):
         )
 
         # Send to Telegram
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        chat_id = os.getenv("TELEGRAM_CHAT_ID")
-
-        if bot_token and chat_id:
-            async with httpx.AsyncClient() as client:
-                res = await client.post(
-                    f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                    json={
-                        "chat_id": chat_id,
-                        "text": message,
-                        "parse_mode": "Markdown",
-                        "reply_markup": {
-                            "inline_keyboard": [
-                                [
-                                    {
-                                        "text": "🔄 Retry Failed Episodes",
-                                        "callback_data": "retry_all_errors",
-                                    },
-                                    {"text": "🗑️ Clear Errors", "callback_data": "clear_all_errors"},
-                                ]
-                            ]
-                        },
+        reply_markup = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "🔄 Retry Failed Episodes",
+                        "callback_data": "retry_all_errors",
                     },
-                )
-                if res.status_code >= 400:
-                    print(f"[Triage] Failed to send Telegram alert: {res.text}")
-        else:
-            print("[Triage] Telegram credentials missing. Could not send alert.")
+                    {"text": "🗑️ Clear Errors", "callback_data": "clear_all_errors"},
+                ]
+            ]
+        }
+        
+        # Note: Notifier default parse_mode is HTML. Triage message uses Markdown. 
+        # We need to change the message formatting slightly for HTML.
+        html_message = (
+            f"🚨 <b>Auto-Triage Alert: {errors_found} Ingestion Errors</b> 🚨\n\n"
+            f"The system detected <b>{errors_found}</b> failed or rate-limited ingestion tasks.\n\n"
+            "<b>Sample Errors:</b>\n" + "\n".join(details).replace('`', '<code>').replace('`', '</code>') + "\n\n"
+            "⚠️ Please check Hugging Face logs or run the manual resume script."
+        )
+
+        success = await TelegramNotifier.send(topic="triage", message=html_message, reply_markup=reply_markup)
+        if not success:
+            print("[Triage] Failed to send alert via Notifier.")
 
         return Response(
             status_code=200, content=f"Triage complete. {errors_found} errors reported."
@@ -445,23 +442,18 @@ async def billing_webhook(request: Request):
             await database.execute(insert_log)
 
         # 5. Telegram Notification
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        chat_id = os.getenv("TELEGRAM_CHAT_ID")
-        if bot_token and chat_id:
-            status_emoji = "✅" if found_user_id else "⚠️"
-            tg_msg = (
-                f"💰 *New Payment Received!* {status_emoji}\n\n"
-                f"Provider: `{provider.upper()}`\n"
-                f"Amount: `Rp {amount:,.0f}`\n"
-                f"Message: `{message}`\n"
-                f"User: `{found_user_id or 'NOT FOUND'}`\n"
-                f"Status: `{'PRO Activated' if found_user_id else 'Manual Check Needed'}`"
-            )
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                    json={"chat_id": chat_id, "text": tg_msg, "parse_mode": "Markdown"},
-                )
+        status_emoji = "✅" if found_user_id else "⚠️"
+        # Convert Markdown to HTML for Notifier
+        html_msg = (
+            f"💰 <b>New Payment Received!</b> {status_emoji}\n\n"
+            f"Provider: <code>{provider.upper()}</code>\n"
+            f"Amount: <code>Rp {amount:,.0f}</code>\n"
+            f"Message: <code>{message}</code>\n"
+            f"User: <code>{found_user_id or 'NOT FOUND'}</code>\n"
+            f"Status: <code>{'PRO Activated' if found_user_id else 'Manual Check Needed'}</code>"
+        )
+        
+        await TelegramNotifier.send(topic="billing", message=html_msg)
 
         return Response(status_code=200, content="Payment Processed")
     except Exception as e:
@@ -471,12 +463,14 @@ async def billing_webhook(request: Request):
 
 
 @router.post("/webhook/telegram")
-async def telegram_webhook(request: Request):
+@router.post("/webhook/telegram/{topic}")
+async def telegram_webhook(request: Request, topic: str = "default"):
     """ChatOps Webhook: Listens for button clicks and text commands from the Telegram Bot"""
     try:
         data = await request.json()
 
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        from services.notifier import TelegramNotifier
+        bot_token, _ = TelegramNotifier._get_credentials(topic)
         if not bot_token:
             return Response(status_code=500, content="Missing TELEGRAM_BOT_TOKEN")
 
@@ -487,43 +481,34 @@ async def telegram_webhook(request: Request):
 
             async with httpx.AsyncClient() as client:
                 if text.startswith("/start"):
+                    msg = (
+                        "🤖 *Orca 5 ChatOps CLI*\n\n"
+                        "*General Commands:*\n"
+                        "`/check_status` - Cek sinkronisasi metadata anime\n"
+                        "`/fix_status` - Perbaiki otomatis metadata Sesi Tayang Terbaru\n\n"
+                        "*Ingestion Commands:*\n"
+                        "`/pending` - Cek antrean episode pending\n"
+                        "`/ingest` - Trigger manual batch ingestion\n"
+                        "`/errors` - Lihat log error ingestion\n"
+                        "`/retry_errors` - Retry episode yang gagal\n"
+                        "`/clear_errors` - Bersihkan semua log error\n"
+                        "`/status` - Cek status sinkronisasi & Redis"
+                    )
                     await client.post(
                         f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                        json={
-                            "chat_id": chat_id,
-                            "text": "🤖 *Orca 5 ChatOps CLI*\n\nCommands:\n`/check_status` - Cek sinkronisasi metadata anime\n`/fix_status` - Perbaiki otomatis metadata Sesi Tayang Terbaru menjadi RELEASING",
-                            "parse_mode": "Markdown",
-                        },
+                        json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
                     )
 
                 elif text.startswith("/check_status"):
                     from db.connection import database
-
                     await database.connect()
                     try:
-                        # Query Sesi Tayang Terbaru yg statusnya bukan RELEASING
-                        query2 = """
-                            SELECT m."cleanTitle", m.status
-                            FROM anime_metadata m
-                            JOIN episodes e ON m."anilistId" = e."anilistId"
-                            WHERE m.status != 'FINISHED' OR m.status IS NULL
-                            GROUP BY m."anilistId", m."cleanTitle", m.status
-                            ORDER BY max(e."updatedAt") DESC
-                            LIMIT 20
-                        """
+                        query2 = 'SELECT m."cleanTitle", m.status FROM anime_metadata m JOIN episodes e ON m."anilistId" = e."anilistId" WHERE m.status != \'FINISHED\' OR m.status IS NULL GROUP BY m."anilistId", m."cleanTitle", m.status ORDER BY max(e."updatedAt") DESC LIMIT 20'
                         latest_rows = await database.fetch_all(query2)
-
-                        query1 = """
-                            SELECT m."cleanTitle"
-                            FROM anime_metadata m
-                            WHERE m.status IN ('RELEASING', 'Releasing', 'ongoing', 'Ongoing', 'ONGOING')
-                        """
+                        query1 = 'SELECT m."cleanTitle" FROM anime_metadata m WHERE m.status IN (\'RELEASING\', \'Releasing\', \'ongoing\', \'Ongoing\', \'ONGOING\')'
                         releasing_rows = await database.fetch_all(query1)
                         releasing_titles = set([r["cleanTitle"] for r in releasing_rows])
-
-                        extra_latest = [
-                            r for r in latest_rows if r["cleanTitle"] not in releasing_titles
-                        ]
+                        extra_latest = [r for r in latest_rows if r["cleanTitle"] not in releasing_titles]
 
                         if extra_latest:
                             msg = "⚠️ *Status Anomaly Detected!*\nAnime di Sesi Tayang Terbaru tapi status bukan RELEASING:\n"
@@ -532,38 +517,15 @@ async def telegram_webhook(request: Request):
                             msg += "\nGunakan `/fix_status` untuk memperbaiki otomatis."
                         else:
                             msg = "✅ *All Good!*\nSemua anime di Sesi Tayang Terbaru sudah berstatus RELEASING."
-
-                        await client.post(
-                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                            json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
-                        )
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
                     except Exception as e:
-                        await client.post(
-                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                            json={"chat_id": chat_id, "text": f"Error: {e}"},
-                        )
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
 
                 elif text.startswith("/fix_status"):
                     from db.connection import database
-
                     await database.connect()
                     try:
-                        query_fix = """
-                            UPDATE anime_metadata m
-                            SET status = 'RELEASING'
-                            FROM (
-                                SELECT m2."anilistId"
-                                FROM anime_metadata m2
-                                JOIN episodes e ON m2."anilistId" = e."anilistId"
-                                WHERE (m2.status != 'FINISHED' OR m2.status IS NULL)
-                                AND m2.status NOT IN ('RELEASING', 'Releasing', 'ongoing', 'Ongoing', 'ONGOING')
-                                GROUP BY m2."anilistId"
-                                ORDER BY max(e."updatedAt") DESC
-                                LIMIT 20
-                            ) as target
-                            WHERE m."anilistId" = target."anilistId"
-                            RETURNING m."cleanTitle"
-                        """
+                        query_fix = 'UPDATE anime_metadata m SET status = \'RELEASING\' FROM (SELECT m2."anilistId" FROM anime_metadata m2 JOIN episodes e ON m2."anilistId" = e."anilistId" WHERE (m2.status != \'FINISHED\' OR m2.status IS NULL) AND m2.status NOT IN (\'RELEASING\', \'Releasing\', \'ongoing\', \'Ongoing\', \'ONGOING\') GROUP BY m2."anilistId" ORDER BY max(e."updatedAt") DESC LIMIT 20) as target WHERE m."anilistId" = target."anilistId" RETURNING m."cleanTitle"'
                         updated_rows = await database.fetch_all(query_fix)
                         if updated_rows:
                             msg = f"✅ *Success!*\nBerhasil memperbaiki status {len(updated_rows)} anime menjadi RELEASING:\n"
@@ -571,16 +533,94 @@ async def telegram_webhook(request: Request):
                                 msg += f"- {r['cleanTitle']}\n"
                         else:
                             msg = "✅ Tidak ada anime yang perlu diperbaiki saat ini."
-
-                        await client.post(
-                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                            json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
-                        )
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
                     except Exception as e:
-                        await client.post(
-                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                            json={"chat_id": chat_id, "text": f"Error: {e}"},
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
+
+                elif text.startswith("/pending"):
+                    from db.connection import database
+                    await database.connect()
+                    try:
+                        query = 'SELECT count(*) as total FROM episodes e JOIN video_cache vc ON e."episodeUrl" = vc."episodeUrl" WHERE e."episodeUrl" NOT LIKE \'%tg-proxy%\' AND e."episodeUrl" NOT LIKE \'%workers.dev%\' AND e."episodeUrl" IS NOT NULL AND e."episodeUrl" != \'\' AND vc."expiresAt" > NOW()'
+                        res = await database.fetch_one(query)
+                        total = res["total"] if res else 0
+                        msg = f"⏳ Terdapat *{total}* episode pending yang siap di-ingest."
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+                    except Exception as e:
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
+                
+                elif text.startswith("/ingest"):
+                    from services.queue import QStashPublisher
+                    try:
+                        QStashPublisher.spawn_batch_worker()
+                        msg = "🚀 *Batch Ingestion Triggered!*\nWorker telah diperintahkan untuk memulai ingestion."
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+                    except Exception as e:
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
+
+                elif text.startswith("/errors"):
+                    from services.cache import upstash_keys, upstash_get
+                    error_keys = await upstash_keys("ingest_error:*")
+                    if not error_keys:
+                        msg = "✅ Tidak ada error ingestion saat ini."
+                    else:
+                        msg = f"🚨 *Terdapat {len(error_keys)} Error Ingestion!*\n\n"
+                        for key in error_keys[:10]:
+                            val = await upstash_get(key)
+                            val_str = str(val)[:60].replace("\n", " ")
+                            msg += f"- `{key}`: {val_str}...\n"
+                        if len(error_keys) > 10:
+                            msg += f"\n_...dan {len(error_keys)-10} error lainnya._"
+                        msg += "\n\nGunakan `/retry_errors` atau `/clear_errors`."
+                    await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+
+                elif text.startswith("/clear_errors"):
+                    from services.cache import upstash_keys, upstash_del
+                    error_keys = await upstash_keys("ingest_error:*")
+                    for key in error_keys:
+                        await upstash_del(key)
+                    msg = f"🗑️ Berhasil menghapus *{len(error_keys)}* log error."
+                    await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+
+                elif text.startswith("/retry_errors"):
+                    from services.cache import upstash_keys, upstash_del
+                    from services.queue import enqueue_sync
+                    error_keys = await upstash_keys("ingest_error:*")
+                    anilist_ids = set()
+                    for key in error_keys:
+                        parts = key.split(":")
+                        if len(parts) >= 3:
+                            anilist_ids.add(parts[1])
+                        await upstash_del(key)
+                    if anilist_ids:
+                        for aid in anilist_ids:
+                            await enqueue_sync(int(aid))
+                        msg = f"🔄 *Self-Healing Initiated!*\nMenjadwalkan ulang Full Sync untuk {len(anilist_ids)} Anime. Log error dibersihkan."
+                    else:
+                        msg = "⚠️ Tidak ada error spesifik yang bisa di-retry."
+                    await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+
+                elif text.startswith("/status"):
+                    from services.cache import upstash_keys
+                    from db.connection import database
+                    await database.connect()
+                    try:
+                        q_eps = 'SELECT count(*) as c FROM episodes WHERE "episodeUrl" LIKE \'%tg-proxy%\' OR "episodeUrl" LIKE \'%workers.dev%\''
+                        res_eps = await database.fetch_one(q_eps)
+                        c_eps = res_eps["c"] if res_eps else 0
+                        
+                        lock_keys = await upstash_keys("ingest:*")
+                        # exclude ingest_error:* and ingest_progress:*
+                        real_locks = [k for k in lock_keys if not k.startswith("ingest_error") and not k.startswith("ingest_progress")]
+                        
+                        msg = (
+                            f"📊 *System Status*\n\n"
+                            f"📺 *Episodes Ingested:* {c_eps:,}\n"
+                            f"🔒 *Active Ingest Locks:* {len(real_locks)}\n"
                         )
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"})
+                    except Exception as e:
+                        await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
 
         # --- Handle Button Clicks ---
         if "callback_query" in data:
@@ -671,10 +711,7 @@ async def telegram_webhook(request: Request):
         return Response(status_code=200)
     except Exception as e:
         print(f"[Telegram Webhook] Error: {e}")
-        return Response(status_code=200)  # Always return 200 to prevent retries
-
-
-# --- 🚀 ENTERPRISE WORKFLOW INGESTION ---
+        return Response(status_code=200)  # Always return 200 to prevent retries\n\n\n# --- 🚀 ENTERPRISE WORKFLOW INGESTION ---
 
 
 @serve.post("/webhook/ingest-workflow")

@@ -125,6 +125,7 @@ export default function WatchScreen() {
   // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready
   const player = useVideoPlayer(null, player => {
     player.loop = false;
+    player.keepScreenOnWhilePlaying = false; // Bypass uncaught promise rejection on APK without expo-keep-awake module
   });
 
   const [hasRestoredTime, setHasRestoredTime] = useState(false);
@@ -248,7 +249,9 @@ export default function WatchScreen() {
             user_id: user.id,
             anilist_id: parseInt(id as string),
             episode_number: parseFloat(episode as string),
-            issue_type: issue
+            issue_type: issue,
+            video_url: videoUrl,
+            player_error: playerError
           }),
         });
         Alert.alert("Terima Kasih", `Laporan '${issue}' telah dikirim ke tim kami.`);

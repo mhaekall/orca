@@ -341,14 +341,34 @@ async def submit_report(report: ReportCreate):
         return {"success": False, "message": "Telegram not configured"}
 
     message = f"🚨 <b>USER REPORT</b> 🚨\n\n"
-    message += f"<b>User:</b> {report.user_id}\n"
-    message += f"<b>Anime ID:</b> {report.anilist_id}\n"
-    message += f"<b>Episode:</b> {report.episode_number}\n"
+    message += f"<b>User:</b> <code>{report.user_id}</code>\n"
+    message += f"<b>Anime ID:</b> {report.anilist_id} | <b>Ep:</b> {report.episode_number}\n"
     message += f"<b>Issue:</b> {report.issue_type}\n"
+    if report.player_error:
+        message += f"<b>Player Error:</b> <code>{report.player_error}</code>\n"
+    if report.video_url:
+        message += f"<b>Stream URL:</b> <code>{report.video_url}</code>\n"
 
     tg_proxy = "https://tele-proxy.moehamadhkl.workers.dev"
     url = f"{tg_proxy}/bot{bot_token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🔧 Triage & Re-Ingest Video",
+                    "callback_data": f"retry_video_{report.anilist_id}_{report.episode_number}",
+                }
+            ]
+        ]
+    }
+
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML",
+        "reply_markup": reply_markup,
+    }
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

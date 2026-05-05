@@ -647,6 +647,28 @@ async def telegram_webhook(request: Request):
                             },
                         )
 
+                elif action and action.startswith("retry_video_"):
+                    from services.queue import enqueue_sync
+
+                    parts = action.split("_")
+                    if len(parts) >= 4:
+                        aid = parts[2]
+                        ep = parts[3]
+
+                        await upstash_del(f"ingest_error:{aid}:{ep}")
+                        await upstash_del(f"ingest:{aid}:{ep}")
+
+                        await enqueue_sync(int(aid))
+
+                        await client.post(
+                            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                            json={
+                                "chat_id": chat_id,
+                                "text": f"🔄 <b>Triage Initiated!</b>\nRe-syncing Anime <code>{aid}</code> (Episode {ep}) to self-heal...",
+                                "parse_mode": "HTML",
+                            },
+                        )
+
         return Response(status_code=200)
     except Exception as e:
         print(f"[Telegram Webhook] Error: {e}")

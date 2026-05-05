@@ -39,3 +39,5 @@ class ReportCreate(BaseModel):
     anilist_id: int
     episode_number: float
     issue_type: str
+    video_url: str | None = None
+    player_error: str | None = None

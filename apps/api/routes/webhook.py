@@ -253,7 +253,7 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
         engine_status = "Available" if IngestionEngine is not None else "None"
-        await _run_ingestion_bg(1000000, 177634, "samehadaku", 3.0, "https://v2.samehadaku.how/dummy.mp4")
+        await _run_ingestion_bg(1000000, 197754, "samehadaku", 5.0, "https://v2.samehadaku.how/liar-game-episode-5/")
         return Response(
             status_code=200,
             content=f"Ingestion bg ran successfully! Engine Status: {engine_status}",

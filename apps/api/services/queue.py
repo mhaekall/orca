@@ -141,7 +141,7 @@ class QStashPublisher:
                 try:
                     import asyncio
                     async def send_err():
-                        bot_token = os.getenv("TELEGRAM_BOT_TOKEN_5", "8563966917:AAFnsLNlrOjC8lU9O7fVT5VeAcuiSFbyQXY")
+                        bot_token = os.getenv("TELEGRAM_BOT_TOKEN_5", "")
 
                         try:
                             from services.cache import upstash_set

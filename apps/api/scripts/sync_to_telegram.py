@@ -134,7 +134,7 @@ async def sync_episode(anilist_id: int, episode_number: float):
 
     # 4. Upload to Telegram
     print("\n[TAHAP 3] MENGUNGGAH KE TELEGRAM SWARM STORAGE...")
-    os.environ["TELEGRAM_BOT_TOKEN"] = "8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE"
+    # os.environ["TELEGRAM_BOT_TOKEN"] = "YOUR_BOT_TOKEN"
     os.environ["TELEGRAM_CHAT_ID"] = "-1003704693082"
     uploader = TelegramUploader()
 

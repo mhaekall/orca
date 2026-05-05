@@ -581,8 +581,8 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                             msg += f"\n_...dan {len(error_keys)-10} error lainnya._"
                         msg += "\n\nGunakan <code>/retry_errors</code> atau <code>/clear_errors</code>."
                     res = await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"})
-                        if res.status_code != 200:
-                            print(f"[Telegram Error] {res.status_code}: {res.text}")
+                    if res.status_code != 200:
+                        print(f"[Telegram Error] {res.status_code}: {res.text}")
 
                 elif text.startswith("/clear_errors"):
                     from services.cache import upstash_keys, upstash_del
@@ -591,8 +591,8 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                         await upstash_del(key)
                     msg = f"🗑️ Berhasil menghapus <b>{len(error_keys)}</b> log error."
                     res = await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"})
-                        if res.status_code != 200:
-                            print(f"[Telegram Error] {res.status_code}: {res.text}")
+                    if res.status_code != 200:
+                        print(f"[Telegram Error] {res.status_code}: {res.text}")
 
                 elif text.startswith("/retry_errors"):
                     from services.cache import upstash_keys, upstash_del
@@ -611,8 +611,8 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                     else:
                         msg = "⚠️ Tidak ada error spesifik yang bisa di-retry."
                     res = await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"})
-                        if res.status_code != 200:
-                            print(f"[Telegram Error] {res.status_code}: {res.text}")
+                    if res.status_code != 200:
+                        print(f"[Telegram Error] {res.status_code}: {res.text}")
 
                 elif text.startswith("/status"):
                     from services.cache import upstash_keys

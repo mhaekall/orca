@@ -18,10 +18,7 @@ function createAuth() {
         }),
         socialProviders: {
             google: {
-              clientId: [
-                  process.env.GOOGLE_CLIENT_ID || "",
-                  "475749423464-pbmr1a7p4994qj4rt7l1s45etaqda87q.apps.googleusercontent.com"
-              ],
+              clientId: process.env.GOOGLE_CLIENT_ID || "",
               clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
             },
         },

@@ -477,9 +477,7 @@ async def telegram_webhook(request: Request):
 
         bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
         if not bot_token:
-            part1 = "8640932204"
-            part2 = "AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0"
-            bot_token = f"{part1}:{part2}"  # Fallback to Orca 5
+            return Response(status_code=500, content="Missing TELEGRAM_BOT_TOKEN")
 
         # --- Handle Text Commands ---
         if "message" in data and "text" in data["message"]:

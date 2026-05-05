@@ -1028,6 +1028,7 @@ async def get_cached_stream(
                         try:
                             import httpx
                             import urllib.parse
+
                             cf_worker = "https://video-proxy.moehamadhkl.workers.dev"
                             encoded_url = urllib.parse.quote_plus(embed_url)
                             proxy_req_url = f"{cf_worker}/proxy?url={encoded_url}&extract=mp4"
@@ -1036,16 +1037,24 @@ async def get_cached_stream(
                                 if resp.status_code == 200:
                                     resolved_data = resp.json()
                                     if resolved_data and resolved_data.get("videoUrl"):
-                                        result["sources"].insert(0, {
-                                            "url": resolved_data["videoUrl"],
-                                            "type": "hls", # Native ExoPlayer will parse this
-                                            "quality": "1080p",
-                                            "source": "video-proxy-resolved"
-                                        })
-                                        result["headers"] = {"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"}
+                                        result["sources"].insert(
+                                            0,
+                                            {
+                                                "url": resolved_data["videoUrl"],
+                                                "type": "hls",  # Native ExoPlayer will parse this
+                                                "quality": "1080p",
+                                                "source": "video-proxy-resolved",
+                                            },
+                                        )
+                                        result["headers"] = {
+                                            "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"
+                                        }
                         except Exception as e:
                             import logging
-                            logging.warning(f"[Thin Client] Failed to resolve iframe {embed_url}: {e}")
+
+                            logging.warning(
+                                f"[Thin Client] Failed to resolve iframe {embed_url}: {e}"
+                            )
 
             # Kick off prefetch untuk episode berikutnya (semua episodes list)
             asyncio.create_task(

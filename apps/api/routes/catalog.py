@@ -74,7 +74,10 @@ async def debug_kuronime(url: str = Query(...)):
     except Exception as e:
         import traceback
 
-        return {"error": str(e), "trace": traceback.format_exc()}
+        return {
+            "error": str(e),
+            "trace": "Internal Server Error" if not os.getenv("DEBUG") else traceback.format_exc(),
+        }
 
 
 # ── GET /api/v2/anime/{anilist_id} ─────────────────────────────────────────────
@@ -149,7 +152,11 @@ async def get_anime_v2(anilist_id: int, background_tasks: BackgroundTasks, respo
         import traceback
 
         traceback.print_exc()
-        return {"success": False, "error": str(e), "trace": traceback.format_exc()}
+        return {
+            "success": False,
+            "error": str(e),
+            "trace": "Internal Server Error" if not os.getenv("DEBUG") else traceback.format_exc(),
+        }
 
 
 # ── GET /api/v2/anime/{anilist_id}/episodes ────────────────────────────────────
@@ -484,10 +491,8 @@ async def admin_export_swarm_vault_tg():
         csv_content = output.getvalue().encode("utf-8")
 
         # Obfuscated token or fetched from env
-        part1 = "8640932204"
-        part2 = "AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0"
-        bot_token = f"{part1}:{part2}"
-        chat_id = "1558640518"
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
         tg_url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -562,7 +567,11 @@ async def debug_curl(url: str):
     except Exception as e:
         import traceback
 
-        return {"success": False, "error": str(e), "trace": traceback.format_exc()}
+        return {
+            "success": False,
+            "error": str(e),
+            "trace": "Internal Server Error" if not os.getenv("DEBUG") else traceback.format_exc(),
+        }
 
 
 @router.get("/v2/debug/stream")

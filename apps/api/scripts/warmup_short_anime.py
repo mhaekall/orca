@@ -14,6 +14,7 @@ from services.stream_cache import stream_cache
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
+
 async def warmup_short_anime():
     await database.connect()
 
@@ -57,12 +58,12 @@ async def warmup_short_anime():
 
     success_count = 0
     for idx, row in enumerate(rows):
-        title = row['cleanTitle'] or "Unknown"
-        ep_num = row['episodeNumber']
-        provider = row['providerId']
-        url = row['episodeUrl']
+        title = row["cleanTitle"] or "Unknown"
+        ep_num = row["episodeNumber"]
+        provider = row["providerId"]
+        url = row["episodeUrl"]
 
-        print(f"[{idx+1}/{len(rows)}] ⏳ Mengekstrak: {title} | Ep {ep_num} | {provider}")
+        print(f"[{idx + 1}/{len(rows)}] ⏳ Mengekstrak: {title} | Ep {ep_num} | {provider}")
 
         try:
             payload = await stream_cache.get_stream(url, provider)
@@ -71,7 +72,7 @@ async def warmup_short_anime():
                 print(f"  └─ Hit: {layer}")
                 if "sources" in payload:
                     print(f"  └─ Found {len(payload['sources'])} sources")
-                    if len(payload['sources']) > 0:
+                    if len(payload["sources"]) > 0:
                         success_count += 1
             print("  └─ ✅ Selesai")
         except Exception as e:
@@ -81,6 +82,7 @@ async def warmup_short_anime():
 
     print(f"\n🎉 WARMUP SELESAI! Berhasil memanaskan {success_count} dari {len(rows)} episode.")
     await database.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(warmup_short_anime())

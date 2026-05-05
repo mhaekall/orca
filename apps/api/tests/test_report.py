@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 
+
 async def test():
     try:
         url = "https://api.telegram.org/bot12345:ABC/sendMessage"
@@ -13,5 +14,6 @@ async def test():
     except Exception as e:
         print("Exception:", str(e))
         print("Exception type:", type(e))
+
 
 asyncio.run(test())

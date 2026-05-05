@@ -826,18 +826,18 @@ function MainApp() {
       if (res.ok && data.success) {
         setKey(k);
         setAuth(true);
-        localStorage.setItem("orca_key", k);
+        sessionStorage.setItem("orca_key", k);
       } else {
         throw new Error(data.error ?? "Invalid passcode");
       }
     } catch (e: unknown) {
       addToast((e as Error).message, "error");
-      localStorage.removeItem("orca_key");
+      sessionStorage.removeItem("orca_key");
     }
   }, [addToast]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("orca_key");
+    const saved = sessionStorage.getItem("orca_key");
     if (saved) verifyToken(saved);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -845,7 +845,7 @@ function MainApp() {
   const logout = useCallback(() => {
     setAuth(false);
     setKey("");
-    localStorage.removeItem("orca_key");
+    sessionStorage.removeItem("orca_key");
   }, []);
 
   // ── Polling: fast lane (ingest-stats only, every 8s) ──────────────────────

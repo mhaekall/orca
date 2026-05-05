@@ -259,7 +259,13 @@ async def force_db_setup():
     except Exception as e:
         import traceback
 
-        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": "Internal Server Error"
+            if not os.getenv("DEBUG")
+            else traceback.format_exc(),
+        }
 
 
 @app.exception_handler(Exception)
@@ -268,7 +274,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"success": False, "error": str(exc), "trace": traceback.format_exc()},
+        content={
+            "success": False,
+            "error": str(exc),
+            "trace": "Internal Server Error" if not os.getenv("DEBUG") else traceback.format_exc(),
+        },
     )
 
 
@@ -317,7 +327,13 @@ async def debug_sync_anime(anilist_id: int):
     except Exception as e:
         import traceback
 
-        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": "Internal Server Error"
+            if not os.getenv("DEBUG")
+            else traceback.format_exc(),
+        }
 
 
 @app.post("/admin/sync-popular", tags=["Admin"], dependencies=[Depends(verify_admin_key)])
@@ -489,7 +505,11 @@ async def ping_tele():
     except Exception as e:
         import traceback
 
-        return {"error": str(e), "repr": repr(e), "trace": traceback.format_exc()}
+        return {
+            "error": str(e),
+            "repr": repr(e),
+            "trace": "Internal Server Error" if not os.getenv("DEBUG") else traceback.format_exc(),
+        }
 
 
 @app.get("/api/v2/admin/test-upload")
@@ -504,10 +524,8 @@ async def test_upload():
         with open(file_path, "wb") as f:
             f.write(os.urandom(10240))
 
-        part1 = "8640932204"
-        part2 = "AAEzRhYIrbfRsfsI62aaQcWr-39xO7t1VX0"
-        bot_token = f"{part1}:{part2}"
-        chat_id = "1558640518"
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
         tg_proxy = "https://tele-proxy.moehamadhkl.workers.dev"
         url = f"{tg_proxy}/bot{bot_token}/sendDocument"
 
@@ -520,7 +538,11 @@ async def test_upload():
     except Exception as e:
         import traceback
 
-        return {"error": str(e), "repr": repr(e), "trace": traceback.format_exc()}
+        return {
+            "error": str(e),
+            "repr": repr(e),
+            "trace": "Internal Server Error" if not os.getenv("DEBUG") else traceback.format_exc(),
+        }
 
 
 @app.head("/healthz", tags=["System"])

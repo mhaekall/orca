@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import useSWR from "swr";
@@ -11,6 +11,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ScheduleScreen() {
   const [activeDay, setActiveDay] = useState<string>("Senin");
+  const [weekDates, setWeekDates] = useState<any[]>([]);
 
   const { data: swrData, isLoading } = useSWR(
     `${API_URL}/api/v2/schedule?v=2`,
@@ -18,24 +19,39 @@ export default function ScheduleScreen() {
     { revalidateOnFocus: false }
   );
 
-  const schedData = swrData?.data || {};
-  const days = Object.keys(schedData).filter(k => k !== "TBA");
-  if (schedData["TBA"]) days.push("TBA");
-
-  // Set default day to today once data is available
   useEffect(() => {
-    if (Object.keys(schedData).length > 0) {
-      const todayIndex = new Date().getDay() - 1;
-      const daysArr = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
-      const today = daysArr[todayIndex < 0 ? 6 : todayIndex];
-      if (schedData[today]) {
-        setActiveDay(today);
-      } else {
-        setActiveDay(Object.keys(schedData)[0] || "Senin");
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday
+    const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - distanceToMonday);
+    
+    const week = [];
+    const daysArr = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+    const shortDaysArr = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+    
+    let initialActive = "Senin";
+    
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const isToday = d.toDateString() === today.toDateString();
+      if (isToday) {
+        initialActive = daysArr[i];
       }
+      week.push({
+        fullDay: daysArr[i],
+        shortDay: shortDaysArr[i],
+        dateNum: d.getDate(),
+        isToday
+      });
     }
-  }, [schedData]);
+    setWeekDates(week);
+    setActiveDay(initialActive);
+  }, []);
 
+  const schedData = swrData?.data || {};
   const currentItems = schedData[activeDay] || [];
 
   return (
@@ -45,41 +61,33 @@ export default function ScheduleScreen() {
         <Text style={styles.titleText}>
           Jadwal Rilis
         </Text>
-        <Text style={styles.subtitleText}>
-          Cek jadwal tayang episode terbaru minggu ini.
-        </Text>
 
-        {/* Segmented Control / Day Picker */}
+        {/* Static Day Picker */}
         <View style={styles.pickerContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerScrollContent}>
-            {days.length === 0 && isLoading ? (
-              <ActivityIndicator size="small" color="#8e8e93" style={styles.pickerLoader} />
-            ) : (
-              days.map((day) => {
-                const isActive = activeDay === day;
-                return (
-                  <Pressable
-                    key={day}
-                    onPress={() => setActiveDay(day)}
-                    style={({pressed}) => [
-                      styles.dayButton,
-                      isActive ? styles.dayButtonActive : styles.dayButtonInactive,
-                      pressed && !isActive && styles.dayButtonPressed
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayButtonText,
-                        isActive ? styles.dayButtonTextActive : styles.dayButtonTextInactive
-                      ]}
-                    >
-                      {day}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
+          {weekDates.map((dayObj) => {
+            const isActive = activeDay === dayObj.fullDay;
+            return (
+              <Pressable
+                key={dayObj.fullDay}
+                onPress={() => setActiveDay(dayObj.fullDay)}
+                style={({pressed}) => [
+                  styles.dayButton,
+                  isActive ? styles.dayButtonActive : styles.dayButtonInactive,
+                  pressed && !isActive && styles.dayButtonPressed,
+                ]}
+              >
+                <Text style={[styles.dayButtonText, isActive ? styles.dayButtonTextActive : styles.dayButtonTextInactive]}>
+                  {dayObj.shortDay}
+                </Text>
+                <Text style={[styles.dateNumberText, isActive ? styles.dateNumberTextActive : styles.dateNumberTextInactive]}>
+                  {dayObj.dateNum}
+                </Text>
+                {dayObj.isToday && (
+                  <View style={[styles.todayIndicator, isActive ? styles.todayIndicatorActive : styles.todayIndicatorInactive]} />
+                )}
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -88,7 +96,7 @@ export default function ScheduleScreen() {
         style={styles.listContainer}
         contentContainerStyle={styles.listContent}
       >
-        {isLoading && days.length === 0 ? (
+        {isLoading && Object.keys(schedData).length === 0 ? (
           <View>
              {Array.from({ length: 6 }).map((_, i) => (
                 <View key={i} style={styles.skeletonRow}>
@@ -171,40 +179,29 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     paddingBottom: 16,
     backgroundColor: '#0a0812',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   titleText: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: 'white',
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
-  subtitleText: {
-    color: '#8e8e93',
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: '500',
-    marginBottom: 24,
+    color: '#f2f2f7',
+    marginBottom: 20,
   },
   pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     backgroundColor: '#1f1c29',
-    padding: 4,
-    borderRadius: 9999,
+    padding: 6,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    flexDirection: 'row',
-  },
-  pickerScrollContent: {
-    paddingHorizontal: 8,
-  },
-  pickerLoader: {
-    marginVertical: 8,
-    marginHorizontal: 'auto',
   },
   dayButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 9999,
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    position: 'relative',
   },
   dayButtonActive: {
     backgroundColor: 'white',
@@ -216,18 +213,43 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   dayButtonText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
   dayButtonTextActive: {
-    color: 'black',
+    color: '#0a0812',
   },
   dayButtonTextInactive: {
     color: '#8e8e93',
   },
+  dateNumberText: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dateNumberTextActive: {
+    color: '#0a0812',
+  },
+  dateNumberTextInactive: {
+    color: '#f2f2f7',
+  },
+  todayIndicator: {
+    position: 'absolute',
+    top: 6,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  todayIndicatorActive: {
+    backgroundColor: '#0A84FF',
+  },
+  todayIndicatorInactive: {
+    backgroundColor: '#30D158',
+  },
   listContainer: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   listContent: {
     paddingBottom: 120,

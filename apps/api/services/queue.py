@@ -8,6 +8,7 @@ from services.config import QSTASH_TOKEN
 
 _batch_workers = set()
 
+
 class QStashPublisher:
     """Lightweight QStash REST publisher."""
 
@@ -137,24 +138,34 @@ class QStashPublisher:
                 import traceback
                 import httpx
                 import os
+
                 err_msg = f"<b>[HF SPACE CRASH]</b> Queue native worker failed:\n<pre>{traceback.format_exc()}</pre>"
                 try:
                     import asyncio
+
                     async def send_err():
                         bot_token = os.getenv("TELEGRAM_BOT_TOKEN_5", "")
 
                         try:
                             from services.cache import upstash_set
                             import time
-                            await upstash_set(f"hf_crash_log_{int(time.time())}", {"error": err_msg}, ex=86400)
+
+                            await upstash_set(
+                                f"hf_crash_log_{int(time.time())}", {"error": err_msg}, ex=86400
+                            )
                         except:
                             pass
 
                         async with httpx.AsyncClient(timeout=10.0) as c:
                             await c.post(
                                 f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                                json={"chat_id": "1558640518", "text": err_msg[:4000], "parse_mode": "HTML"}
+                                json={
+                                    "chat_id": "1558640518",
+                                    "text": err_msg[:4000],
+                                    "parse_mode": "HTML",
+                                },
                             )
+
                     await send_err()
                 except:
                     pass

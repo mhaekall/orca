@@ -1,35 +1,50 @@
 import { Tabs } from "expo-router";
 import { House, Calendar, Bookmark, CircleUser } from "lucide-react-native";
 import { Platform, View } from "react-native";
+import { Image } from "expo-image";
+import { useAuth } from "../../lib/auth";
 
 // Helper component to handle dynamic scale and background pill
-function TabIcon({ IconComponent, color, focused }: { IconComponent: any, color: string, focused: boolean }) {
-  const size = focused ? 22 : 26; // Sedikit lebih kecil saat aktif
+function TabIcon({ IconComponent, color, focused, isProfile, userImg }: { IconComponent: any, color: string, focused: boolean, isProfile?: boolean, userImg?: string }) {
+  const size = 26; // Ukuran tetap sama (ukuran saat ada pill bg)
 
   return (
     <View 
       style={[
         { alignItems: "center", justifyContent: "center" },
-        focused && {
+        focused ? {
           backgroundColor: "rgba(255, 255, 255, 0.08)", // Latar belakang (pill) saat aktif
-          paddingHorizontal: 16,
-          paddingVertical: 6,
-          borderRadius: 16,
-          marginTop: 2, // Kompensasi posisi agar sejajar dengan label
+          paddingHorizontal: 18,
+          paddingVertical: 8,
+          borderRadius: 18,
+          marginTop: -2, // Naikkan posisi icon (kompensasi padding)
+        } : {
+          marginTop: -6, // Naikkan posisi icon saat tidak aktif
         }
       ]}
     >
-      <IconComponent 
-        size={size} 
-        color={color} 
-        strokeWidth={focused ? 2.5 : 2} 
-        fill={focused ? color : "transparent"} 
-      />
+      {isProfile && userImg ? (
+        <Image 
+          source={{ uri: userImg }} 
+          style={{ width: size, height: size, borderRadius: size / 2, borderWidth: focused ? 1.5 : 0, borderColor: color }} 
+          contentFit="cover"
+        />
+      ) : (
+        <IconComponent 
+          size={size} 
+          color={color} 
+          strokeWidth={focused ? 2.5 : 2} 
+          fill={focused ? color : "transparent"} 
+        />
+      )}
     </View>
   );
 }
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const userImg = user?.image || user?.picture || user?.avatarUrl || user?.avatar;
+
   return (
     <Tabs
       screenOptions={{
@@ -41,14 +56,14 @@ export default function TabLayout() {
           elevation: 0,
           height: Platform.OS === "ios" ? 90 : 70,
           paddingBottom: Platform.OS === "ios" ? 30 : 12,
-          paddingTop: 12,
+          paddingTop: 8, // Mengurangi padding top agar ikon lebih naik
         },
         tabBarActiveTintColor: "#ffffff", // Web uses white for active
         tabBarInactiveTintColor: "rgba(255,255,255,0.4)", // Web uses white/40 for inactive
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: "bold",
-          marginTop: 2,
+          marginTop: 6, // Jarak teks dengan ikon tetap proporsional
         },
       }}
     >
@@ -84,7 +99,7 @@ export default function TabLayout() {
         options={{
           title: "Profil",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon IconComponent={CircleUser} color={color} focused={focused} />
+            <TabIcon IconComponent={CircleUser} color={color} focused={focused} isProfile={true} userImg={userImg} />
           ),
         }}
       />

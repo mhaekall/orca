@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 
+
 async def test():
     try:
         url = "https://jonyyyyyyyu-anime-scraper-api.hf.space/api/v2/social/report"
@@ -11,5 +12,6 @@ async def test():
             print("Response:", res.text)
     except Exception as e:
         print("Exception:", repr(e))
+
 
 asyncio.run(test())

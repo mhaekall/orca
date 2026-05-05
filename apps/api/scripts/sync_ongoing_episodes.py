@@ -25,9 +25,7 @@ async def sync_ongoing_episodes():
         rows = await database.fetch_all(query)
         anilist_ids = [row["anilistId"] for row in rows]
 
-        logger.info(
-            f"Found {len(anilist_ids)} ongoing animes to resync. Starting sync..."
-        )
+        logger.info(f"Found {len(anilist_ids)} ongoing animes to resync. Starting sync...")
 
         sem = asyncio.Semaphore(5)
 

@@ -10,9 +10,10 @@ async def main():
         res = await client.post(
             f"{UPSTASH_REDIS_REST_URL}/lpush/debug_tg_log",
             headers={"Authorization": f"Bearer {UPSTASH_REDIS_REST_TOKEN}"},
-            json=["test"]
+            json=["test"],
         )
         print(res.status_code)
         print(res.json())
+
 
 asyncio.run(main())

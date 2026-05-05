@@ -32,6 +32,7 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
 
   useEffect(() => {
     setIsLoading(true);
+    const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       const query = new URLSearchParams({
         page: currentPage.toString(),
@@ -42,7 +43,10 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
         ...(provider ? { provider } : {})
       });
       
-      fetch(`${api}/api/v2/admin/database?${query.toString()}`, { headers: authHeaders })
+      fetch(`${api}/api/v2/admin/database?${query.toString()}`, { 
+        headers: authHeaders,
+        signal: controller.signal
+      })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.success) {
@@ -53,13 +57,17 @@ export function DatabaseTab({ api, authHeaders, handleAction }: DatabaseTabProps
           }
           setIsLoading(false);
         }).catch(err => {
+          if (err.name === 'AbortError') return;
           console.error(err);
           addToast('Network error fetching database', 'error');
           setIsLoading(false);
         });
     }, 500);
     
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [api, authHeaders, currentPage, search, hideEmpty, onlyTg, provider, addToast]);
 
   const toggleAnimeEpisodes = async (anime: AnimeRow) => {

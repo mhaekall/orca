@@ -16,15 +16,12 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState("insights"); 
   
   const [logs, setLogs] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   
   const [stats, setStats] = useState<any>(null);
   const [ingestionStats, setIngestionStats] = useState<any>(null);
   const [cacheStats, setCacheStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [ingestTasks, setIngestTasks] = useState<any[]>([]);
-
-  // Pass down state handlers for MissionControlTab
 
   const verifyToken = async (key: string) => {
     try {
@@ -62,25 +59,30 @@ function MainApp() {
 
   const authHeaders = useMemo(() => ({ 'x-admin-key': password }), [password]);
 
-  const fetchData = () => {
+  const fetchHeavyData = async () => {
     if (!password) return;
-
-    fetch(`${API}/api/v2/admin/stats`, { headers: authHeaders })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
+    try {
+      const statsRes = await fetch(`${API}/api/v2/admin/stats`, { headers: authHeaders });
+      if (statsRes.ok) {
+        const data = await statsRes.json();
         if (data?.success) {
           setStats({ total_anime: data.total_anime, total_episodes: data.total_episodes });
           setIngestionStats({ ingested: data.ingested_episodes || 0, pending: data.pending_episodes || 0 });
         }
-      }).catch(console.error);
+      }
+      
+      const analyticsRes = await fetch(`${API}/api/v2/admin/analytics`, { headers: authHeaders });
+      if (analyticsRes.ok) {
+        const data = await analyticsRes.json();
+        if (data?.success) setAnalytics(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    fetch(`${API}/api/v2/admin/analytics`, { headers: authHeaders })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.success) {
-          setAnalytics(data);
-        }
-      }).catch(console.error);
+  const fetchFastData = () => {
+    if (!password) return;
 
     fetch(`${API}/api/v2/admin/cache-stats`, { headers: authHeaders })
       .then(async res => {
@@ -95,11 +97,8 @@ function MainApp() {
           setIngestTasks(data.active_tasks || []);
           if (data.logs && data.logs.length > 0) {
             setLogs(prev => {
-              const newLogs = [...prev];
-              data.logs.forEach((log: string) => {
-                if (!newLogs.includes(log)) newLogs.push(log);
-              });
-              return newLogs.slice(0, 100);
+              const combined = [...data.logs, ...prev];
+              return Array.from(new Set(combined)).slice(0, 100);
             });
           }
         }
@@ -108,11 +107,11 @@ function MainApp() {
 
   useEffect(() => {
     if (!auth) return;
-    fetchData();
-    // Only poll terminal feed/ingest stats, not the heavy DB
-    const interval = setInterval(fetchData, 8000);
+    fetchHeavyData();
+    fetchFastData();
+    const interval = setInterval(fetchFastData, 8000);
     return () => clearInterval(interval);
-  }, [auth]);
+  }, [auth, authHeaders]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,13 +224,11 @@ function MainApp() {
 
               <MissionControlTab 
                 api={API} 
-                authHeaders={authHeaders} 
-                loading={loading} 
-                setLoading={setLoading}
+                authHeaders={authHeaders}
                 logs={logs}
                 ingestTasks={ingestTasks}
                 setActiveTab={setActiveTab}
-                fetchData={fetchData}
+                fetchData={fetchFastData}
               />
             </div>
           )}
@@ -249,9 +246,7 @@ function MainApp() {
           {activeTab === 'vault' && (
             <VaultTab 
               api={API} 
-              authHeaders={authHeaders} 
-              loading={loading} 
-              setLoading={setLoading} 
+              authHeaders={authHeaders}
               addLog={addLog} 
             />
           )}

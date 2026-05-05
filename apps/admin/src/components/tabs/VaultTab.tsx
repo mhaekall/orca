@@ -6,21 +6,21 @@ import { useToast } from '../ui/ToastProvider';
 interface VaultTabProps {
   api: string;
   authHeaders: HeadersInit;
-  loading: boolean;
-  setLoading: (l: boolean) => void;
   addLog: (msg: string) => void;
 }
 
-export function VaultTab({ api, authHeaders, loading, setLoading, addLog }: VaultTabProps) {
+export function VaultTab({ api, authHeaders, addLog }: VaultTabProps) {
   const { addToast } = useToast();
   const [vaultData, setVaultData] = useState<any[]>([]);
   const [vaultSearch, setVaultSearch] = useState("");
   const [vaultCurrentPage, setVaultCurrentPage] = useState(1);
   const [vaultTotalPages, setVaultTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
+    const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       const query = new URLSearchParams({
         page: vaultCurrentPage.toString(),
@@ -28,7 +28,10 @@ export function VaultTab({ api, authHeaders, loading, setLoading, addLog }: Vaul
         ...(vaultSearch ? { search: vaultSearch } : {})
       });
       
-      fetch(`${api}/api/v2/admin/swarm-vault?${query.toString()}`, { headers: authHeaders })
+      fetch(`${api}/api/v2/admin/swarm-vault?${query.toString()}`, { 
+        headers: authHeaders,
+        signal: controller.signal
+      })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.success) {
@@ -39,17 +42,21 @@ export function VaultTab({ api, authHeaders, loading, setLoading, addLog }: Vaul
           }
           setIsLoading(false);
         }).catch(err => {
+          if (err.name === 'AbortError') return;
           console.error(err);
           addToast('Network error fetching vault data', 'error');
           setIsLoading(false);
         });
     }, 500);
     
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [api, authHeaders, vaultCurrentPage, vaultSearch, addToast]);
 
   const handleExportVault = async () => {
-    setLoading(true);
+    setIsExporting(true);
     addLog("Exporting Swarm Vault as CSV...");
     try {
       const res = await fetch(`${api}/api/v2/admin/swarm-vault/export`, { headers: authHeaders });
@@ -67,11 +74,11 @@ export function VaultTab({ api, authHeaders, loading, setLoading, addLog }: Vaul
     } catch (e: any) {
       addToast(`Export Error: ${e.message}`, 'error');
     }
-    setLoading(false);
+    setIsExporting(false);
   };
 
   const handleExportVaultTelegram = async () => {
-    setLoading(true);
+    setIsExporting(true);
     addLog("Sending Swarm Vault backup to @myorca5_bot...");
     try {
       const res = await fetch(`${api}/api/v2/admin/swarm-vault/export-tg`, { method: "POST", headers: authHeaders });
@@ -84,7 +91,7 @@ export function VaultTab({ api, authHeaders, loading, setLoading, addLog }: Vaul
     } catch (e: any) {
       addToast(`Network Error: ${e.message}`, 'error');
     }
-    setLoading(false);
+    setIsExporting(false);
   };
 
   return (
@@ -98,11 +105,11 @@ export function VaultTab({ api, authHeaders, loading, setLoading, addLog }: Vaul
           <p className="text-sm text-gray-400">Pusat perlindungan data URL Proxy Telegram. Eksport database HLS Swarm.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <button onClick={handleExportVaultTelegram} disabled={loading} className="px-5 py-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+          <button onClick={handleExportVaultTelegram} disabled={isExporting} className="px-5 py-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
             Send to @myorca5_bot
           </button>
-          <button onClick={handleExportVault} disabled={loading} className="px-5 py-2.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+          <button onClick={handleExportVault} disabled={isExporting} className="px-5 py-2.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             Export to CSV
           </button>

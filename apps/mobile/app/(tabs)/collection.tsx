@@ -98,11 +98,11 @@ const CollectionGrid = React.memo(({ items, itemWidth }: { items: any[], itemWid
 
   return (
     <View style={styles.gridList}>
-      {items.map((item) => {
+      {items.map((item, idx) => {
         const pct = item.totalEps > 0 ? Math.min(100, Math.max(0, (item.progress / item.totalEps) * 100)) : 0;
         const isComp = item.status === "COMPLETED";
         return (
-          <View key={item.id} style={{ width: itemWidth } as any}>
+          <View key={`${item.id}-${idx}`} style={{ width: itemWidth } as any}>
             <AnimeCard
               id={item.id}
               title={item.title}

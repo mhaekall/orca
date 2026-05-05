@@ -147,7 +147,7 @@ const DayPage: any = memo(({ dayPage }: { dayPage: any }) => {
           style={styles.listContainer}
           contentContainerStyle={styles.listContent}
           data={dayPage.data}
-          keyExtractor={(item: any, index: number) => String(item.anilistId || item.id || index)}
+          keyExtractor={(item: any, index: number) => String(item.anilistId || item.id || '') + '-' + index}
           renderItem={renderItemFn}
           initialNumToRender={8}
           maxToRenderPerBatch={8}

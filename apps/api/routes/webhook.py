@@ -252,17 +252,16 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
     if admin_key != os.environ.get("ADMIN_API_KEY"):
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
-        from services.config import UPSTASH_REDIS_REST_URL
-        await _run_ingestion_bg(1000000, 197754, "samehadaku", 5.0, "https://v2.samehadaku.how/liar-game-episode-5/")
+        from services.queue import QStashPublisher
+
+        QStashPublisher.spawn_batch_worker(shard_id, total_shards)
         return Response(
             status_code=200,
-            content=f"Ingestion bg ran successfully! Redis: {UPSTASH_REDIS_REST_URL}",
+            content=f"Auto ingestion worker spawned successfully! Shard {shard_id}/{total_shards}",
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"[Admin] Error: {e}\n{tb}")
-        return Response(status_code=500, content=f"Error: {e}\n{tb}")
+        print(f"[Admin] Error triggering auto ingest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/admin/trigger-10h-sync")

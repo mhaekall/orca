@@ -17,8 +17,9 @@ import { Link, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import useSWR, { mutate } from "swr";
-import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star } from "lucide-react-native";
+import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star, ChevronRight } from "lucide-react-native";
 import { LatestGrid } from "../../components/LatestGrid";
+import { useAuth } from "../../lib/auth";
 
 const { width: W, height: H } = Dimensions.get("window");
 const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
@@ -430,6 +431,81 @@ function VertRow({ items, showRank, cw = 110, ch = 158 }: { items: any[]; showRa
   );
 }
 
+function formatDuration(sec: number) {
+  if (!sec) return "0m";
+  const m = Math.floor(sec / 60);
+  return `${m}m`;
+}
+
+// ── Watch History Row ─────────────────────────────────────────────────────────
+function WatchHistoryRow({ items }: { items: any[] }) {
+  const router = useRouter();
+  if (!items || items.length === 0) return null;
+
+  return (
+    <View style={{ marginBottom: 32 } as any}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 }}>
+        <Text style={{ color: "#fff", fontSize: 18, fontWeight: FONT_SEMIBOLD, letterSpacing: -0.2 }}>Lanjutkan Menonton</Text>
+        <Pressable onPress={() => router.push("/collection")} style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ color: "#0A84FF", fontSize: 12, fontWeight: FONT_BOLD, marginRight: 2 }}>Selengkapnya</Text>
+          <ChevronRight size={14} color="#0A84FF" />
+        </Pressable>
+      </View>
+      <FlatList<any>
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 } as any}
+        data={items.slice(0, 8)}
+        keyExtractor={(item: any, index: number) => String(item.anilistId || item.animeSlug || '') + '-' + String(item.episode || '') + '-' + index}
+        renderItem={({ item }: any) => {
+          const id = String(item.animeSlug || item.anilistId);
+          const title = item.cleanTitle || item.nativeTitle || `Anime #${id}`;
+          const img = item.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
+          const ep = item.episode || "?";
+          const ts = item.timestampSec || 0;
+          const dur = item.durationSec || 0;
+          const pct = dur > 0 ? Math.min(100, Math.max(0, (ts / dur) * 100)) : 0;
+
+          return (
+            <Link href={`/watch/${id}/${ep}` as any} asChild>
+              <Pressable style={{ width: 160 } as any}>
+                <View style={{ height: 90, borderRadius: 10, overflow: "hidden", backgroundColor: SURFACE2, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" } as any}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject as any} contentFit="cover" />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject as any} />
+                  
+                  <View style={{ position: "absolute", top: '35%', left: '40%' } as any}>
+                     <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' } as any}>
+                       <Play size={14} color="#fff" fill="#fff" style={{ marginLeft: 2 } as any} />
+                     </View>
+                  </View>
+
+                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 } as any}>
+                    {dur > 0 && (
+                      <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.2)' } as any}>
+                        <View style={{ height: '100%', backgroundColor: '#0A84FF', width: `${pct}%` } as any} />
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 } as any}>
+                     <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD } as any}>EPS {ep}</Text>
+                  </View>
+                </View>
+                
+                <Text style={{ color: "#fff", fontSize: 12, fontWeight: FONT_SEMIBOLD, marginBottom: 2, lineHeight: 16 } as any} numberOfLines={1}>
+                  {title}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: FONT_MEDIUM } as any}>
+                   Tersisa {dur > 0 ? formatDuration(dur - ts) : "..."}
+                </Text>
+              </Pressable>
+            </Link>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
 // ── Section Header ────────────────────────────────────────────────────────────
 // Removed icon and simplified text
 function SecHeader({ label }: { label: string }) {
@@ -443,10 +519,32 @@ function SecHeader({ label }: { label: string }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const userId = user?.id || user?.email;
+
   const { data, isLoading, isValidating, error, mutate } = useSWR(`${API}/api/v2/home?v=3`, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   });
+
+  const { data: historyRes } = useSWR(
+    userId ? `${API}/api/v2/social/progress?user_id=${userId}` : null,
+    fetcher,
+    { revalidateOnFocus: true }
+  );
+  
+  const historyItems = React.useMemo(() => {
+    const raw = Array.isArray(historyRes) ? historyRes : [];
+    const grouped = new Map();
+    raw.forEach((item: any) => {
+      const id = String(item.anilistId || item.animeSlug);
+      const existing = grouped.get(id);
+      if (!existing || new Date(item.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+        grouped.set(id, item);
+      }
+    });
+    return Array.from(grouped.values()).sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [historyRes]);
 
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const headerBg = scrollY.interpolate({
@@ -533,6 +631,9 @@ export default function HomeScreen() {
               <HeroCard item={hero} />
             </View>
           )}
+
+          {/* Riwayat Ditonton (Watch History) */}
+          <WatchHistoryRow items={historyItems} />
 
           {/* Sedang Tayang — Grid 3x3 */}
           {ongoing.length > 0 && (

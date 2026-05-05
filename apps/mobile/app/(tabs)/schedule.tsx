@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet, Dimensions } from "react-native";
+import { View, Text, FlatList, Pressable, StyleSheet, Dimensions, Alert } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import useSWR from "swr";
-import { Play, Star, Eye } from "lucide-react-native";
+import { Play, Star, Eye, Plus, Bookmark } from "lucide-react-native";
 import { Skeleton } from "../../components/Skeleton";
+import { useAuth } from "../../lib/auth";
 
 import { ChevronRight } from "lucide-react-native";
 
@@ -19,6 +20,7 @@ const absoluteFill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 
 // Memoized Card Component to prevent re-renders
 const ScheduleCard = memo(({ item, idx, isToday, isPast }: { item: any, idx: number, isToday: boolean, isPast: boolean }) => {
   const router = useRouter();
+  const { user } = useAuth();
   const id = String(item.anilistId || item.id);
   if (!id || id === "undefined") return null;
   
@@ -53,50 +55,75 @@ const ScheduleCard = memo(({ item, idx, isToday, isPast }: { item: any, idx: num
   }
 
   const statusText = isAired ? `Eps ${eps} Rilis` : `Eps ${eps} Segera Rilis`;
+  const statusColor = isAired ? "#0A84FF" : "rgba(255,255,255,0.5)";
+
+  const handleSaveCollection = async () => {
+    if (!user) {
+      Alert.alert("Login Dibutuhkan", "Silakan login untuk menyimpan ke koleksi.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/v2/collection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          anilistId: id,
+          status: "Watching",
+          progress: 0
+        }),
+      });
+      if (res.ok) {
+        Alert.alert("Tersimpan", "Anime berhasil ditambahkan ke Koleksi.");
+      } else {
+        Alert.alert("Gagal", "Terjadi kesalahan saat menyimpan.");
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Gagal", "Jaringan bermasalah.");
+    }
+  };
   
   return (
-    <View style={styles.cardWrapper}>
-      <Pressable onPress={() => router.push(`/anime/${id}` as any)} style={styles.cardPressable}>
-        <View style={styles.cardImageContainer}>
-          <Image source={{ uri: img }} style={absoluteFill} contentFit="cover" />
-          <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={absoluteFill} />
-        </View>
-        
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {title}
-          </Text>
-          
-          <View style={styles.cardMetaRow}>
-            {airingTime !== "" && (
-              <View style={styles.timeBadge}>
-                <Text style={styles.timeText}>{airingTime}</Text>
+    <Pressable onPress={() => router.push(`/anime/${id}` as any)} style={styles.itemRow}>
+      <View style={styles.itemImageContainer}>
+        <Image 
+          source={{ uri: img }}
+          style={absoluteFill}
+          contentFit="cover"
+        />
+      </View>
+      
+      <View style={styles.itemDetails}>
+        <Text style={styles.itemTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        <View style={styles.itemStats}>
+          {airingTime !== "" && (
+            <View style={styles.statGroup}>
+              <View style={styles.airingTimeBadge}>
+                <Text style={styles.airingTimeText}>{airingTime}</Text>
               </View>
-            )}
-            
-            {(score > 0 && airingTime !== "") && (
-               <Text style={styles.dotSeparator}>•</Text>
-            )}
-
-            {score > 0 && (
-              <View style={styles.scoreBadge}>
-                <Star size={11} color="#FFD60A" fill="#FFD60A" />
+              <Text style={styles.dotSeparator}>●</Text>
+            </View>
+          )}
+          <Text style={[styles.epText, { color: statusColor }]}>{statusText}</Text>
+          {score > 0 ? (
+            <View style={styles.statGroup}>
+              <Text style={[styles.dotSeparator, {marginLeft: 4}]}>●</Text>
+              <View style={[styles.statGroup, {gap: 4, marginLeft: 4}]}>
+                <Star color="#FFD60A" fill="#FFD60A" size={10} />
                 <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
               </View>
-            )}
-          </View>
-
-          <View style={styles.cardBottomRow}>
-            <Text style={styles.epLabelText}>
-              {statusText}
-            </Text>
-            <View style={styles.playButtonCircle}>
-              <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
             </View>
-          </View>
+          ) : null}
         </View>
+      </View>
+
+      <Pressable onPress={handleSaveCollection} hitSlop={10} style={styles.actionButton}>
+        <Bookmark size={18} color="rgba(255,255,255,0.6)" />
       </Pressable>
-    </View>
+    </Pressable>
   );
 });
 
@@ -321,15 +348,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#f2f2f7',
     marginBottom: 20,
+    textAlign: 'center',
   },
   pickerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#1f1c29',
-    padding: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'transparent',
+    paddingVertical: 6,
   },
   dayButton: {
     flex: 1,
@@ -415,87 +440,75 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  cardWrapper: {
-    width: "100%",
-    height: 130,
-    marginBottom: 16,
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
-  cardPressable: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#1a1825",
-    borderRadius: 16,
-    overflow: "hidden",
+  itemImageContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#1f1c29',
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  cardImageContainer: {
-    width: 100,
-    height: "100%",
-    backgroundColor: "#0a0812",
-  },
-  cardContent: {
+  itemDetails: {
     flex: 1,
-    padding: 14,
-    justifyContent: "center",
-    paddingLeft: 12,
+    paddingRight: 8,
   },
-  cardTitle: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f2f2f7',
     lineHeight: 20,
+    marginBottom: 6,
   },
-  cardMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
+  itemStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    flexWrap: 'wrap',
   },
-  timeBadge: {
-    backgroundColor: "rgba(50, 215, 75, 0.1)",
+  statGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  airingTimeBadge: {
+    backgroundColor: 'rgba(50, 215, 75, 0.1)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  timeText: {
-    color: "#32D74B",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  scoreBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  scoreText: {
-    color: "#FFD60A",
-    fontSize: 11,
-    fontWeight: "700",
+  airingTimeText: {
+    color: '#32D74B',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   dotSeparator: {
-    color: "rgba(255,255,255,0.2)",
+    color: '#48484a',
     fontSize: 10,
   },
-  cardBottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: "auto",
+  epText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
-  epLabelText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 11,
-    fontWeight: "600",
+  scoreText: {
+    color: '#FFD60A',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
-  playButtonCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

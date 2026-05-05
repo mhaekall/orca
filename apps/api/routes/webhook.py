@@ -252,12 +252,10 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
     if admin_key != os.environ.get("ADMIN_API_KEY"):
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
-        from services.queue import QStashPublisher
-
-        QStashPublisher.spawn_batch_worker(shard_id, total_shards)
+        engine_status = "Available" if IngestionEngine is not None else "None"
         return Response(
             status_code=200,
-            content=f"Auto ingestion worker spawned successfully! Shard {shard_id}/{total_shards}",
+            content=f"Auto ingestion worker spawned successfully! Engine Status: {engine_status}",
         )
     except Exception as e:
         print(f"[Admin] Error triggering auto ingest: {e}")

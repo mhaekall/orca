@@ -69,7 +69,7 @@ const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }
              {dur > 0 && (
                <>
                  <View style={styles.historyProgBarBg}>
-                   <View style={[styles.historyProgBarFill, { width: `${pct}%` }]} />
+                   <View style={[styles.historyProgBarFill, { width: `${pct}%` }] as any} />
                  </View>
                  <Text style={styles.historyProgText}>{formatDuration(ts)} / {formatDuration(dur)} ditonton</Text>
                </>
@@ -102,7 +102,7 @@ const CollectionGrid = React.memo(({ items, itemWidth }: { items: any[], itemWid
         const pct = item.totalEps > 0 ? Math.min(100, Math.max(0, (item.progress / item.totalEps) * 100)) : 0;
         const isComp = item.status === "COMPLETED";
         return (
-          <View key={item.id} style={{ width: itemWidth }}>
+          <View key={item.id} style={{ width: itemWidth } as any}>
             <AnimeCard
               id={item.id}
               title={item.title}
@@ -144,7 +144,7 @@ const HistoryList = React.memo(({ items }: { items: any[] }) => {
   );
 });
 
-const renderTabPage = ({ item, itemWidth, user, signInWithGoogle }: any) => {
+const TabPage = React.memo(({ item, itemWidth, user, signInWithGoogle }: any) => {
   return (
     <View style={{ width: WINDOW_WIDTH }}>
       {!user ? (
@@ -175,9 +175,9 @@ const renderTabPage = ({ item, itemWidth, user, signInWithGoogle }: any) => {
             item.id === "all" ? (
               <View style={styles.gridList}>
                 {Array.from({ length: 9 }).map((_, i) => (
-                  <View key={i} style={{ width: itemWidth, marginBottom: 16 }}>
-                     <Skeleton w="100%" h={itemWidth * 1.5} r={16} style={{ marginBottom: 8 }} />
-                     <Skeleton w="90%" h={14} r={6} style={{ marginBottom: 4 }} />
+                  <View key={i} style={{ width: itemWidth, marginBottom: 16 } as any}>
+                     <Skeleton w="100%" h={itemWidth * 1.5} r={16} style={{ marginBottom: 8 } as any} />
+                     <Skeleton w="90%" h={14} r={6} style={{ marginBottom: 4 } as any} />
                      <Skeleton w="60%" h={14} r={6} />
                   </View>
                 ))}
@@ -199,7 +199,7 @@ const renderTabPage = ({ item, itemWidth, user, signInWithGoogle }: any) => {
              <View style={styles.emptyState}>
               <Text style={styles.errorText}>Koneksi Terputus</Text>
               <Text style={styles.emptyDesc}>Gagal memuat data dari server.</Text>
-              <Pressable onPress={item.mutate} style={styles.retryButton}>
+              <Pressable onPress={item.mutate} style={styles.retryButton as any}>
                 <RefreshCcw size={14} color="white" />
                 <Text style={styles.retryText}>Muat Ulang</Text>
               </Pressable>
@@ -211,7 +211,7 @@ const renderTabPage = ({ item, itemWidth, user, signInWithGoogle }: any) => {
       )}
     </View>
   );
-};
+});
 
 export default function CollectionScreen() {
   const { user, isLoading: authLoading, signInWithGoogle } = useAuth();
@@ -248,10 +248,9 @@ export default function CollectionScreen() {
     return Array.isArray(historyRes) ? historyRes : [];
   }, [historyRes]);
 
-  const windowWidth = Dimensions.get('window').width;
   const padding = 20; 
   const gap = 12; 
-  const itemWidth = (windowWidth - (padding * 2) - (gap * 2)) / 3;
+  const itemWidth = (WINDOW_WIDTH - (padding * 2) - (gap * 2)) / 3;
 
   const flatListRef = useRef<any>(null);
 
@@ -277,7 +276,7 @@ export default function CollectionScreen() {
   ], [allItems, historyItems, colLoading, hisLoading, colError, hisError, mutateCol, mutateHis]);
 
   const renderItemFn = useCallback(({ item }: any) => {
-     return renderTabPage({ item, itemWidth, user, signInWithGoogle });
+     return <TabPage item={item} itemWidth={itemWidth} user={user} signInWithGoogle={signInWithGoogle} />;
   }, [itemWidth, user, signInWithGoogle]);
 
   return (
@@ -317,9 +316,9 @@ export default function CollectionScreen() {
          <View style={styles.scrollContent}>
            <View style={styles.gridContainer}>
              {Array.from({ length: 9 }).map((_, i) => (
-               <View key={i} style={{ width: itemWidth, marginBottom: 16 }}>
-                  <Skeleton w="100%" h={itemWidth * 1.5} r={16} style={{ marginBottom: 8 }} />
-                  <Skeleton w="90%" h={14} r={6} style={{ marginBottom: 4 }} />
+               <View key={i} style={{ width: itemWidth, marginBottom: 16 } as any}>
+                  <Skeleton w="100%" h={itemWidth * 1.5} r={16} style={{ marginBottom: 8 } as any} />
+                  <Skeleton w="90%" h={14} r={6} style={{ marginBottom: 4 } as any} />
                </View>
              ))}
            </View>
@@ -328,7 +327,7 @@ export default function CollectionScreen() {
         <FlatList<any>
           ref={flatListRef}
           data={pagesData}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}

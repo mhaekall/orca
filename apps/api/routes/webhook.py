@@ -252,12 +252,11 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
     if admin_key != os.environ.get("ADMIN_API_KEY"):
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
-        from services.cache import upstash_set
-        res = await upstash_set("test_string", "This is a test string")
-        res2 = await upstash_set("test_dict", {"msg": "This is a dict"})
+        from services.config import UPSTASH_REDIS_REST_URL
+        await _run_ingestion_bg(1000000, 197754, "samehadaku", 5.0, "https://v2.samehadaku.how/liar-game-episode-5/")
         return Response(
             status_code=200,
-            content=f"upstash_set string: {res}, dict: {res2}",
+            content=f"Ingestion bg ran successfully! Redis: {UPSTASH_REDIS_REST_URL}",
         )
     except Exception as e:
         import traceback

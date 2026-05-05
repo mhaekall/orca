@@ -3,7 +3,9 @@ import { AuthProvider } from "../lib/auth";
 import { SWRProvider } from "../lib/swr-provider";
 import { StatusBar } from "expo-status-bar";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, LogBox } from "react-native";
+
+LogBox.ignoreLogs(["Unable to activate keep awake", "Uncaught (in promise, id: "]);
 
 const customTheme = {
   ...DarkTheme,

@@ -78,7 +78,7 @@ class QStashPublisher:
             )
             return
 
-        target_url = os.getenv("API_PUBLIC_URL", "https://jonyyyyyyyu-anime-scraper-api.hf.space")
+        target_url = os.getenv("WORKER_PUBLIC_URL", "https://jonyyyyyyyu-anime-ingestion-worker.hf.space")
         target_url = f"{target_url.rstrip('/')}/api/v2/webhook/ingest"
         qstash_url = os.getenv("QSTASH_URL", "https://qstash.upstash.io").rstrip("/")
 

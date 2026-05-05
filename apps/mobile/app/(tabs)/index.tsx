@@ -446,7 +446,7 @@ function WatchHistoryRow({ items }: { items: any[] }) {
     <View style={{ marginBottom: 32 } as any}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 }}>
         <Text style={{ color: "#fff", fontSize: 18, fontWeight: FONT_SEMIBOLD, letterSpacing: -0.2 }}>Lanjutkan Menonton</Text>
-        <Pressable onPress={() => router.push("/collection")} style={{ flexDirection: "row", alignItems: "center" }}>
+        <Pressable onPress={() => router.push("/collection?tab=history")} style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={{ color: "#0A84FF", fontSize: 12, fontWeight: FONT_BOLD, marginRight: 2 }}>Selengkapnya</Text>
           <ChevronRight size={14} color="#0A84FF" />
         </Pressable>
@@ -467,15 +467,15 @@ function WatchHistoryRow({ items }: { items: any[] }) {
           const pct = dur > 0 ? Math.min(100, Math.max(0, (ts / dur) * 100)) : 0;
 
           return (
-            <Link href={`/watch/${id}/${ep}` as any} asChild>
-              <Pressable style={{ width: 160 } as any}>
-                <View style={{ height: 90, borderRadius: 10, overflow: "hidden", backgroundColor: SURFACE2, marginBottom: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" } as any}>
+            <Link href={`/anime/${id}` as any} asChild>
+              <Pressable style={{ width: 140 } as any}>
+                <View style={{ height: 78, borderRadius: 10, overflow: "hidden", backgroundColor: SURFACE2, marginBottom: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" } as any}>
                   <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject as any} contentFit="cover" />
                   <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject as any} />
                   
-                  <View style={{ position: "absolute", top: '35%', left: '40%' } as any}>
-                     <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' } as any}>
-                       <Play size={14} color="#fff" fill="#fff" style={{ marginLeft: 2 } as any} />
+                  <View style={{ position: "absolute", top: '32%', left: '41%' } as any}>
+                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' } as any}>
+                       <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 } as any} />
                      </View>
                   </View>
 
@@ -486,7 +486,7 @@ function WatchHistoryRow({ items }: { items: any[] }) {
                       </View>
                     )}
                   </View>
-                  <View style={{ position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 } as any}>
+                  <View style={{ position: "absolute", top: 4, right: 4, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 } as any}>
                      <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD } as any}>EPS {ep}</Text>
                   </View>
                 </View>

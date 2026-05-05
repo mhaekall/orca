@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { View, Text, ScrollView, FlatList, Pressable, Dimensions, StyleSheet } from "react-native";
 import { Bookmark, Clock, RefreshCcw } from "lucide-react-native";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import useSWR from "swr";
 import { useAuth } from "../../lib/auth";
 import { AnimeCard } from "../../components/AnimeCard";
@@ -216,8 +216,25 @@ const TabPage = React.memo(({ item, itemWidth, user, signInWithGoogle }: any) =>
 export default function CollectionScreen() {
   const { user, isLoading: authLoading, signInWithGoogle } = useAuth();
   const userId = user?.id || user?.email; // fallback to email for mock user
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
 
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState(tab === "history" ? "history" : "all");
+
+  const flatListRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (tab === "history") {
+       setActiveTab("history");
+       setTimeout(() => {
+         flatListRef.current?.scrollToIndex({ index: 1, animated: false });
+       }, 100);
+    } else {
+       setActiveTab("all");
+       setTimeout(() => {
+         flatListRef.current?.scrollToIndex({ index: 0, animated: false });
+       }, 100);
+    }
+  }, [tab]);
 
   const { data: collectionRes, isLoading: colLoading, error: colError, mutate: mutateCol } = useSWR(
     userId ? `${API_URL}/api/v2/collection?user_id=${userId}` : null,
@@ -245,14 +262,21 @@ export default function CollectionScreen() {
   }, [collectionRes]);
 
   const historyItems = useMemo(() => {
-    return Array.isArray(historyRes) ? historyRes : [];
+    const raw = Array.isArray(historyRes) ? historyRes : [];
+    const grouped = new Map();
+    raw.forEach((item: any) => {
+      const id = String(item.anilistId || item.animeSlug);
+      const existing = grouped.get(id);
+      if (!existing || new Date(item.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+        grouped.set(id, item);
+      }
+    });
+    return Array.from(grouped.values()).sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [historyRes]);
 
   const padding = 20; 
   const gap = 12; 
   const itemWidth = (WINDOW_WIDTH - (padding * 2) - (gap * 2)) / 3;
-
-  const flatListRef = useRef<any>(null);
 
   const handleTabPress = useCallback((index: number, tabId: string) => {
     setActiveTab(tabId);

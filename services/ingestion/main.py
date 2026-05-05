@@ -196,6 +196,8 @@ class IngestionEngine:
                     await record_ingestion_metric(
                         provider_id, False, time.time() - start_time, error_type
                     )
+                    from services.cache import upstash_set
+                    await upstash_set(f"ingest_error:{anilist_id}:{episode_number}", f"Pipeline failed with error_type: {error_type}")
                 except Exception:
                     pass
                 return False

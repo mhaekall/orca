@@ -229,14 +229,16 @@ class IngestionEngine:
         except Exception as e:
             print(f"[Ingestion] Database update/pipeline failed: {e}")
             error_type = "system_error"
+            import traceback
+            tb_str = traceback.format_exc()
             try:
                 await record_ingestion_metric(
                     provider_id, False, time.time() - start_time, error_type
                 )
+                from services.cache import upstash_set
+                await upstash_set(f"ingest_error:{anilist_id}:{episode_number}", f"Internal Error: {str(e)}\n{tb_str}")
             except Exception:
                 pass
-            import traceback
-
             traceback.print_exc()
             return False
         finally:

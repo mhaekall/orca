@@ -2,12 +2,19 @@ import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import useSWR from "swr";
-import { Play, Star, ChevronRight } from "lucide-react-native";
+import { Play, Star, Eye } from "lucide-react-native";
 import { Skeleton } from "../../components/Skeleton";
 
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function formatViews(v: number): string {
+  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
+  return v.toString();
+}
 
 export default function ScheduleScreen() {
   const [activeDay, setActiveDay] = useState<string>("Senin");
@@ -52,7 +59,19 @@ export default function ScheduleScreen() {
   }, []);
 
   const schedData = swrData?.data || {};
-  const currentItems = schedData[activeDay] || [];
+  let currentItems = schedData[activeDay] || [];
+  if (!Array.isArray(currentItems)) {
+    currentItems = [];
+  }
+  
+  // Sort items safely by airing time
+  currentItems = [...currentItems].sort((a, b) => {
+    const timeA = a?.airingTime ? String(a.airingTime) : "";
+    const timeB = b?.airingTime ? String(b.airingTime) : "";
+    if (!timeA) return 1;
+    if (!timeB) return -1;
+    return timeA.localeCompare(timeB);
+  });
 
   return (
     <View style={styles.container}>
@@ -93,6 +112,7 @@ export default function ScheduleScreen() {
 
       {/* List Jadwal */}
       <ScrollView 
+        showsVerticalScrollIndicator={false}
         style={styles.listContainer}
         contentContainerStyle={styles.listContent}
       >
@@ -100,7 +120,9 @@ export default function ScheduleScreen() {
           <View>
              {Array.from({ length: 6 }).map((_, i) => (
                 <View key={i} style={styles.skeletonRow}>
-                   <Skeleton w={70} h={70} r={12} />
+                   <View style={{ width: 100, height: "100%" }}>
+                     <Skeleton w={100} h={130} r={0} />
+                   </View>
                    <View style={styles.skeletonContent}>
                      <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
                      <Skeleton w="50%" h={12} r={4} />
@@ -114,54 +136,67 @@ export default function ScheduleScreen() {
           </View>
         ) : (
           currentItems.map((item: any, idx: number) => {
-            const id = item.id || item.anilistId;
-            if (!id) return null;
-            return (
-              <Link href={`/anime/${id}`} key={`${id}-${idx}`} asChild>
-                <Pressable style={({pressed}) => [styles.itemRow, pressed && styles.itemRowPressed]}>
-                  <View style={styles.itemImageContainer}>
-                    <Image 
-                      source={{ uri: item.img || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg" }}
-                      style={StyleSheet.absoluteFillObject}
-                      contentFit="cover"
-                      transition={200}
-                    />
-                    <View style={styles.itemImageOverlay}>
-                      <Play color="white" fill="white" size={20} style={styles.playIcon} />
-                    </View>
-                  </View>
-                  
-                  <View style={styles.itemDetails}>
-                    <Text style={styles.itemTitle} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    <View style={styles.itemStats}>
-                      {item.airingTime && (
-                        <View style={styles.statGroup}>
-                          <View style={styles.airingTimeBadge}>
-                            <Text style={styles.airingTimeText}>{item.airingTime}</Text>
-                          </View>
-                          <Text style={styles.dotSeparator}>●</Text>
-                        </View>
-                      )}
-                      <Text style={styles.epText}>Ep. {item.latestEpisode || '?'}</Text>
-                      {item.score ? (
-                        <View style={styles.statGroup}>
-                          <Text style={[styles.dotSeparator, {marginLeft: 4}]}>●</Text>
-                          <View style={[styles.statGroup, {gap: 4, marginLeft: 4}]}>
-                            <Star color="#FFD60A" fill="#FFD60A" size={10} />
-                            <Text style={styles.scoreText}>{(item.score / 10).toFixed(1)}</Text>
-                          </View>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
+            const id = String(item.anilistId || item.id);
+            if (!id || id === "undefined") return null;
+            
+            const img = item.poster || item.img || item.coverImage?.extraLarge || item.banner || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
+            let title = "";
+            if (typeof item.title === "string") {
+              title = item.title;
+            } else if (item.title) {
+              title = item.title.english || item.title.romaji || item.title.userPreferred || item.title.native || "";
+            }
+            if (!title) title = "Unknown Title";
 
-                  <View style={styles.chevronContainer}>
-                    <ChevronRight color="rgba(255,255,255,0.4)" size={16} />
-                  </View>
-                </Pressable>
-              </Link>
+            const score = item.score || item.averageScore || 0;
+            const airingTime = item.airingTime ? String(item.airingTime) : "";
+            const eps = item.latestEpisode ? String(item.latestEpisode) : "?";
+            
+            return (
+              <View key={`${id}-${idx}`} style={styles.cardWrapper}>
+                <Link href={`/anime/${id}` as any} asChild>
+                  <Pressable style={styles.cardPressable}>
+                    <View style={styles.cardImageContainer}>
+                      <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                      <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={StyleSheet.absoluteFillObject} />
+                    </View>
+                    
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>
+                        {title}
+                      </Text>
+                      
+                      <View style={styles.cardMetaRow}>
+                        {airingTime !== "" && (
+                          <View style={styles.timeBadge}>
+                            <Text style={styles.timeText}>{airingTime}</Text>
+                          </View>
+                        )}
+                        
+                        {(score > 0 && airingTime !== "") && (
+                           <Text style={styles.dotSeparator}>•</Text>
+                        )}
+
+                        {score > 0 && (
+                          <View style={styles.scoreBadge}>
+                            <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                            <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={styles.cardBottomRow}>
+                        <Text style={styles.epLabelText}>
+                          Episode {eps}
+                        </Text>
+                        <View style={styles.playButtonCircle}>
+                          <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                </Link>
+              </View>
             );
           })
         )}
@@ -258,16 +293,17 @@ const styles = StyleSheet.create({
   skeletonRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1f1c29',
-    padding: 12,
+    backgroundColor: '#1a1825',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    height: 130,
   },
   skeletonContent: {
     flex: 1,
-    marginLeft: 16,
+    padding: 14,
     justifyContent: 'center',
   },
   emptyContainer: {
@@ -280,88 +316,87 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+  cardWrapper: {
+    width: "100%",
+    height: 130,
+    marginBottom: 16,
   },
-  itemRowPressed: {
-    opacity: 0.5,
-  },
-  itemImageContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: '#1f1c29',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  itemImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playIcon: {
-    opacity: 0.8,
-  },
-  itemDetails: {
+  cardPressable: {
     flex: 1,
-    paddingRight: 8,
+    flexDirection: "row",
+    backgroundColor: "#1a1825",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
   },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f2f2f7',
+  cardImageContainer: {
+    width: 100,
+    height: "100%",
+    backgroundColor: "#0a0812",
+  },
+  cardContent: {
+    flex: 1,
+    padding: 14,
+    justifyContent: "center",
+    paddingLeft: 12,
+  },
+  cardTitle: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
     lineHeight: 20,
-    marginBottom: 6,
   },
-  itemStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 8,
-    flexWrap: 'wrap',
+    marginBottom: 12,
   },
-  statGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  airingTimeBadge: {
-    backgroundColor: 'rgba(50, 215, 75, 0.1)',
+  timeBadge: {
+    backgroundColor: "rgba(50, 215, 75, 0.1)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  airingTimeText: {
-    color: '#32D74B',
-    fontSize: 12,
-    fontWeight: 'bold',
+  timeText: {
+    color: "#32D74B",
+    fontSize: 11,
+    fontWeight: "700",
   },
-  dotSeparator: {
-    color: '#48484a',
-    fontSize: 10,
-  },
-  epText: {
-    color: '#8e8e93',
-    fontSize: 12,
-    fontWeight: '500',
+  scoreBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
   scoreText: {
-    color: '#FFD60A',
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: "#FFD60A",
+    fontSize: 11,
+    fontWeight: "700",
   },
-  chevronContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  dotSeparator: {
+    color: "rgba(255,255,255,0.2)",
+    fontSize: 10,
+  },
+  cardBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: "auto",
+  },
+  epLabelText: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  playButtonCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

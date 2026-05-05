@@ -74,9 +74,9 @@ export default function CollectionScreen() {
       </View>
 
       {/* Main Content */}
-      <ScrollView 
-        style={styles.scrollContent} 
-        contentContainerStyle={styles.scrollContainer}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollContent}        contentContainerStyle={styles.scrollContainer}
       >
         {!user ? (
           <View style={styles.emptyState}>

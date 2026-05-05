@@ -164,7 +164,7 @@ export default function AnimeDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} bounces={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent} bounces={false}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <Image

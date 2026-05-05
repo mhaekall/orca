@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, Dimensions } from "react-native";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import useSWR from "swr";
 import { Play, Star, Eye } from "lucide-react-native";
 import { Skeleton } from "../../components/Skeleton";
+
+import { ChevronRight } from "lucide-react-native";
 
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -15,7 +17,8 @@ const { width: WINDOW_WIDTH } = Dimensions.get("window");
 const absoluteFill = { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 } as const;
 
 // Memoized Card Component to prevent re-renders
-const ScheduleCard = memo(({ item, idx }: { item: any, idx: number }) => {
+const ScheduleCard = memo(({ item, idx, isToday, isPast }: { item: any, idx: number, isToday: boolean, isPast: boolean }) => {
+  const router = useRouter();
   const id = String(item.anilistId || item.id);
   if (!id || id === "undefined") return null;
   
@@ -31,59 +34,80 @@ const ScheduleCard = memo(({ item, idx }: { item: any, idx: number }) => {
   const score = item.score || item.averageScore || 0;
   const airingTime = item.airingTime ? String(item.airingTime) : "";
   const eps = item.latestEpisode ? String(item.latestEpisode) : "?";
+
+  let isAired = false;
+  if (isPast) {
+     isAired = true;
+  } else if (isToday && airingTime) {
+     const match = airingTime.match(/(\d+):(\d+)/);
+     if (match) {
+        const hour = parseInt(match[1], 10);
+        const minute = parseInt(match[2], 10);
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        if (currentHour > hour || (currentHour === hour && currentMinute >= minute)) {
+           isAired = true;
+        }
+     }
+  }
+
+  const statusText = isAired ? `Eps ${eps} Rilis` : `Eps ${eps} Segera Rilis`;
   
   return (
     <View style={styles.cardWrapper}>
-      <Link href={`/anime/${id}` as any} asChild>
-        <Pressable style={styles.cardPressable}>
-          <View style={styles.cardImageContainer}>
-            <Image source={{ uri: img }} style={absoluteFill} contentFit="cover" />
-            <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={absoluteFill} />
-          </View>
+      <Pressable onPress={() => router.push(`/anime/${id}` as any)} style={styles.cardPressable}>
+        <View style={styles.cardImageContainer}>
+          <Image source={{ uri: img }} style={absoluteFill} contentFit="cover" />
+          <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={absoluteFill} />
+        </View>
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {title}
+          </Text>
           
-          <View style={styles.cardContent}>
-            <Text style={styles.cardTitle} numberOfLines={2}>
-              {title}
-            </Text>
-            
-            <View style={styles.cardMetaRow}>
-              {airingTime !== "" && (
-                <View style={styles.timeBadge}>
-                  <Text style={styles.timeText}>{airingTime}</Text>
-                </View>
-              )}
-              
-              {(score > 0 && airingTime !== "") && (
-                 <Text style={styles.dotSeparator}>•</Text>
-              )}
-
-              {score > 0 && (
-                <View style={styles.scoreBadge}>
-                  <Star size={11} color="#FFD60A" fill="#FFD60A" />
-                  <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.cardBottomRow}>
-              <Text style={styles.epLabelText}>
-                Episode {eps}
-              </Text>
-              <View style={styles.playButtonCircle}>
-                <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+          <View style={styles.cardMetaRow}>
+            {airingTime !== "" && (
+              <View style={styles.timeBadge}>
+                <Text style={styles.timeText}>{airingTime}</Text>
               </View>
+            )}
+            
+            {(score > 0 && airingTime !== "") && (
+               <Text style={styles.dotSeparator}>•</Text>
+            )}
+
+            {score > 0 && (
+              <View style={styles.scoreBadge}>
+                <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                <Text style={styles.scoreText}>{(score / 10).toFixed(1)}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.cardBottomRow}>
+            <Text style={styles.epLabelText}>
+              {statusText}
+            </Text>
+            <View style={styles.playButtonCircle}>
+              <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
             </View>
           </View>
-        </Pressable>
-      </Link>
+        </View>
+      </Pressable>
     </View>
   );
 });
 
-const renderScheduleCard = ({ item, index }: { item: any, index: number }) => <ScheduleCard item={item} idx={index} />;
+const DayPage: any = memo(({ dayPage }: { dayPage: any }) => {
+  const isToday = dayPage.isToday;
+  const isPast = dayPage.isPast;
 
-// Component for each day's vertical list
-const DayPage = memo(({ dayPage }: { dayPage: any }) => {
+  const renderItemFn = useCallback(({ item, index }: any) => {
+     return <ScheduleCard item={item} idx={index} isToday={isToday} isPast={isPast} />;
+  }, [isToday, isPast]);
+
   return (
     <View style={{ width: WINDOW_WIDTH }}>
       {dayPage.data.length === 0 ? (
@@ -96,8 +120,8 @@ const DayPage = memo(({ dayPage }: { dayPage: any }) => {
           style={styles.listContainer}
           contentContainerStyle={styles.listContent}
           data={dayPage.data}
-          keyExtractor={(item, index) => String(item.anilistId || item.id || index)}
-          renderItem={renderScheduleCard}
+          keyExtractor={(item: any, index: number) => String(item.anilistId || item.id || index)}
+          renderItem={renderItemFn}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
           windowSize={5}
@@ -126,7 +150,11 @@ export default function ScheduleScreen() {
     
     const monday = new Date(today);
     monday.setDate(today.getDate() - distanceToMonday);
+    monday.setHours(0,0,0,0);
     
+    const todayStart = new Date(today);
+    todayStart.setHours(0,0,0,0);
+
     const week = [];
     const daysArr = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const shortDaysArr = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
@@ -144,7 +172,8 @@ export default function ScheduleScreen() {
         fullDay: daysArr[i],
         shortDay: shortDaysArr[i],
         dateNum: d.getDate(),
-        isToday
+        isToday,
+        isPast: d.getTime() < todayStart.getTime()
       });
     }
     setWeekDates(week);
@@ -249,16 +278,15 @@ export default function ScheduleScreen() {
         <View style={styles.listContainer}>
           {Array.from({ length: 6 }).map((_, i) => (
             <View key={i} style={styles.skeletonRow}>
-              <View style={{ width: 100, height: "100%" }}>
-                <Skeleton w={100} h={130} r={0} />
-              </View>
-              <View style={styles.skeletonContent}>
-                <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
-                <Skeleton w="50%" h={12} r={4} />
-              </View>
+                <View style={{ width: 64, height: 64 }}>
+                  <Skeleton w={64} h={64} r={14} />
+                </View>
+                <View style={styles.skeletonContent}>
+                  <Skeleton w="80%" h={16} r={6} style={{ marginBottom: 8 }} />
+                  <Skeleton w="50%" h={12} r={4} />
+                </View>
             </View>
-          ))}
-        </View>
+          ))}        </View>
       ) : (
         <FlatList<any>
           ref={flatListRef}
@@ -365,17 +393,16 @@ const styles = StyleSheet.create({
   skeletonRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1825',
+    backgroundColor: '#1f1c29',
+    padding: 12,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 16,
-    overflow: 'hidden',
-    height: 130,
+    marginBottom: 12,
   },
   skeletonContent: {
     flex: 1,
-    padding: 14,
+    marginLeft: 16,
     justifyContent: 'center',
   },
   emptyContainer: {

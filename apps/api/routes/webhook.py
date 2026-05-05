@@ -252,16 +252,15 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
     if admin_key != os.environ.get("ADMIN_API_KEY"):
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
-        engine_status = "Available" if IngestionEngine is not None else "None"
-        await _run_ingestion_bg(1000000, 197754, "samehadaku", 5.0, "https://v2.samehadaku.how/liar-game-episode-5/")
+        from services.config import UPSTASH_REDIS_REST_URL
         return Response(
             status_code=200,
-            content=f"Ingestion bg ran successfully! Engine Status: {engine_status}",
+            content=f"Redis URL is: {UPSTASH_REDIS_REST_URL}",
         )
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
-        print(f"[Admin] Error triggering auto ingest: {e}\n{tb}")
+        print(f"[Admin] Error: {e}\n{tb}")
         return Response(status_code=500, content=f"Error: {e}\n{tb}")
 
 

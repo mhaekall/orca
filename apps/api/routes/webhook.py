@@ -253,13 +253,16 @@ async def admin_trigger_auto_ingest(request: Request, shard_id: int = 0, total_s
         raise HTTPException(status_code=403, detail="Unauthorized")
     try:
         engine_status = "Available" if IngestionEngine is not None else "None"
+        await _run_ingestion_bg(1000000, 177634, "samehadaku", 3.0, "https://v2.samehadaku.how/dummy.mp4")
         return Response(
             status_code=200,
-            content=f"Auto ingestion worker spawned successfully! Engine Status: {engine_status}",
+            content=f"Ingestion bg ran successfully! Engine Status: {engine_status}",
         )
     except Exception as e:
-        print(f"[Admin] Error triggering auto ingest: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        tb = traceback.format_exc()
+        print(f"[Admin] Error triggering auto ingest: {e}\n{tb}")
+        return Response(status_code=500, content=f"Error: {e}\n{tb}")
 
 
 @router.post("/admin/trigger-10h-sync")

@@ -13,7 +13,7 @@ import {
   Animated,
 } from "react-native";
 import { Image } from "expo-image";
-import { Link, useRouter } from "expo-router";
+import { Link, useRouter, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import useSWR, { mutate } from "swr";
@@ -443,7 +443,7 @@ function WatchHistoryRow({ items }: { items: any[] }) {
   if (!items || items.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 32 } as any}>
+    <View style={{ marginBottom: 32 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 }}>
         <Text style={{ color: "#fff", fontSize: 18, fontWeight: FONT_SEMIBOLD, letterSpacing: -0.2 }}>Lanjutkan Menonton</Text>
         <Pressable onPress={() => router.push("/collection?tab=history")} style={{ flexDirection: "row", alignItems: "center" }}>
@@ -454,7 +454,7 @@ function WatchHistoryRow({ items }: { items: any[] }) {
       <FlatList<any>
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 } as any}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
         data={items.slice(0, 8)}
         keyExtractor={(item: any, index: number) => String(item.anilistId || item.animeSlug || '') + '-' + String(item.episode || '') + '-' + index}
         renderItem={({ item }: any) => {
@@ -468,33 +468,33 @@ function WatchHistoryRow({ items }: { items: any[] }) {
 
           return (
             <Link href={`/anime/${id}` as any} asChild>
-              <Pressable style={{ width: 140 } as any}>
-                <View style={{ height: 78, borderRadius: 10, overflow: "hidden", backgroundColor: SURFACE2, marginBottom: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" } as any}>
-                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject as any} contentFit="cover" />
-                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject as any} />
+              <Pressable style={{ width: 140 }}>
+                <View style={{ height: 78, borderRadius: 10, overflow: "hidden", backgroundColor: SURFACE2, marginBottom: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" }}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject} />
                   
-                  <View style={{ position: "absolute", top: '32%', left: '41%' } as any}>
-                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' } as any}>
-                       <Play size={12} color="#fff" fill="#fff" style={{ marginLeft: 2 } as any} />
+                  <View style={{ position: "absolute", top: '32%', left: '41%' }}>
+                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                       <Play size={12} color="#fff" />
                      </View>
                   </View>
 
-                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 } as any}>
+                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
                     {dur > 0 && (
-                      <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.2)' } as any}>
-                        <View style={{ height: '100%', backgroundColor: '#0A84FF', width: `${pct}%` } as any} />
+                      <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                        <View style={{ height: '100%', backgroundColor: '#0A84FF', width: `${pct}%` }} />
                       </View>
                     )}
                   </View>
-                  <View style={{ position: "absolute", top: 4, right: 4, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 } as any}>
-                     <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD } as any}>EPS {ep}</Text>
+                  <View style={{ position: "absolute", top: 4, right: 4, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
+                     <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD }}>EPS {ep}</Text>
                   </View>
                 </View>
                 
-                <Text style={{ color: "#fff", fontSize: 12, fontWeight: FONT_SEMIBOLD, marginBottom: 2, lineHeight: 16 } as any} numberOfLines={1}>
+                <Text style={{ color: "#fff", fontSize: 12, fontWeight: FONT_SEMIBOLD, marginBottom: 2, lineHeight: 16 }} numberOfLines={1}>
                   {title}
                 </Text>
-                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: FONT_MEDIUM } as any}>
+                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: FONT_MEDIUM }}>
                    Tersisa {dur > 0 ? formatDuration(dur - ts) : "..."}
                 </Text>
               </Pressable>
@@ -527,10 +527,16 @@ export default function HomeScreen() {
     dedupingInterval: 60000,
   });
 
-  const { data: historyRes } = useSWR(
+  const { data: historyRes, mutate: mutateHistory } = useSWR(
     userId ? `${API}/api/v2/social/progress?user_id=${userId}` : null,
     fetcher,
     { revalidateOnFocus: true }
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (userId) mutateHistory();
+    }, [userId, mutateHistory])
   );
   
   const historyItems = React.useMemo(() => {

@@ -1,17 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Dimensions, Platform, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import useSWR from 'swr';
-import { Play, Bookmark, Share as ShareIcon, Star, ArrowLeft, Eye, Clock, Calendar, Check, Info } from 'lucide-react-native';
+import { Play, Bookmark, Share as ShareIcon, Star, ArrowLeft, Eye, Clock, Calendar, Check, Info, Search, Bell, Forward } from 'lucide-react-native';
 import { AnimeCard } from '../../components/AnimeCard';
 import { Skeleton } from '../../components/Skeleton';
 import { useAuth } from '../../lib/auth';
 import { Alert } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
+const paddingTopSafe = Platform.OS === "android" ? 30 : 50;
 const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -43,6 +44,13 @@ export default function AnimeDetailScreen() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [epChunkIndex, setEpChunkIndex] = useState(0);
   const [isToggling, setIsToggling] = useState(false);
+
+  const scrollY = React.useRef(new Animated.Value(0)).current;
+  const headerBg = scrollY.interpolate({
+    inputRange: [0, 150],
+    outputRange: ["rgba(10, 8, 18, 0)", "rgba(10, 8, 18, 1)"],
+    extrapolate: "clamp",
+  });
 
   const { data, isLoading, error } = useSWR(
     `${API_URL}/api/v2/anime/${id}`,
@@ -170,85 +178,152 @@ export default function AnimeDetailScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       
       {/* Top Bar Floating */}
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()}>
-          <BlurView intensity={20} tint="dark" style={styles.blurIcon}>
-            <ArrowLeft color="white" size={20} />
-          </BlurView>
+      <Animated.View style={[styles.header, { backgroundColor: headerBg }]}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <ArrowLeft color="white" size={24} />
         </Pressable>
-        <Pressable onPress={handleShare}>
-          <BlurView intensity={20} tint="dark" style={styles.blurIcon}>
-            <ShareIcon color="white" size={18} />
-          </BlurView>
+        
+        <Pressable onPress={() => router.push("/explore" as any)} style={styles.search}>
+          <Search size={16} color="rgba(255,255,255,0.4)" />
+          <Text style={styles.searchText}>Cari anime...</Text>
         </Pressable>
-      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent} bounces={false}>
+        <Pressable onPress={() => router.push("/notifications" as any)} style={styles.bellBtn}>
+          <Bell size={21} color="rgba(255,255,255,0.8)" />
+        </Pressable>
+      </Animated.View>
+
+      <Animated.ScrollView 
+        showsVerticalScrollIndicator={false} 
+        style={styles.scrollView as any} 
+        contentContainerStyle={styles.scrollContent as any} 
+        bounces={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
         {/* Hero Section */}
-        <View style={styles.heroSection}>
+        <View style={styles.heroSection as any}>
           <Image
             source={{ uri: typeof d.coverImage === 'string' ? d.coverImage : (d.coverImage?.extraLarge || d.coverImage?.large || d.bannerImage || d.poster || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg") }}
-            style={styles.heroImage}
+            style={styles.heroImage as any}
             contentFit="cover"
             transition={300}
           />
           
           <LinearGradient
-            colors={['rgba(10, 8, 18, 0.5)', 'rgba(10, 8, 18, 0)']}
-            style={styles.heroGradientTop}
+            colors={["rgba(10,8,18,0.4)", "transparent", "rgba(10,8,18,0.7)", "#0a0812"]}
+            locations={[0, 0.3, 0.7, 1]}
+            style={StyleSheet.absoluteFillObject}
           />
 
-          <LinearGradient
-            colors={['transparent', 'rgba(10, 8, 18, 0.7)', '#0a0812']}
-            locations={[0, 0.6, 1]}
-            style={styles.heroGradientMiddle}
-          />
+          <View style={styles.heroBottom}>
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", width: "100%" }}>
+               <View style={{ flex: 1, paddingRight: 16 }}>
+                  {/* Premium Abstract Calligraphy Badge (Edge & Larger) */}
+                  <View style={{ alignSelf: 'flex-start', marginBottom: 12, marginLeft: -20, position: 'relative' }}>
+                    {/* Background shape */}
+                    <View style={{
+                      position: 'absolute',
+                      top: 16, bottom: 4, left: 0, right: 20,
+                      backgroundColor: isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF', 
+                      transform: [{ rotate: '-3deg' }, { skewX: '-12deg' }],
+                      borderTopRightRadius: 4, borderBottomRightRadius: 16,
+                      shadowColor: isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF', shadowOpacity: 0.8, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+                    }} />
+                    
+                    {/* Text on top */}
+                    <Text style={{
+                      color: '#fff', fontSize: 24, 
+                      paddingHorizontal: 22, paddingVertical: 8,
+                      fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
+                      fontWeight: 'bold', fontStyle: 'italic',
+                      textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
+                    }}>
+                      {isFinished ? 'Tamat' : scheduleDay ? `Tiap ${scheduleDay}` : 'Sedang Tayang'}
+                    </Text>
+                  </View>
+
+                  <Text style={{ color: "#fff", fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginBottom: d.nativeTitle && d.nativeTitle !== d.cleanTitle ? 4 : 8, lineHeight: 28 }} numberOfLines={2}>
+                    {d.cleanTitle || d.nativeTitle || d.title?.english || d.title?.romaji || d.title}
+                  </Text>
+                  
+                  {d.nativeTitle && d.nativeTitle !== d.cleanTitle && (
+                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500', marginBottom: 8 }} numberOfLines={1}>
+                      {d.nativeTitle}
+                    </Text>
+                  )}
+                  
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
+                    <View style={{ backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: 'bold' }}>
+                        {isFinished ? 'TAMAT' : 'ONGOING'}
+                      </Text>
+                    </View>
+                  </View>
+               </View>
+
+               <View style={{ gap: 12, alignItems: 'center', paddingBottom: 4 }}>
+                  <Pressable 
+                     onPress={handleShare}
+                     style={({pressed}) => [
+                       styles.bookmarkCircle, 
+                       pressed && { opacity: 0.8, transform: [{scale: 0.95}] }
+                     ] as any} 
+                   >
+                     <Forward color="white" size={16} />
+                  </Pressable>
+
+                  <Pressable 
+                     onPress={toggleCollection}
+                     disabled={isToggling}
+                     style={({pressed}) => [
+                       styles.bookmarkCircle, 
+                       isToggling && { opacity: 0.5 },
+                       pressed && !isToggling && { opacity: 0.8, transform: [{scale: 0.95}] }
+                     ] as any} 
+                   >
+                    {isToggling ? (
+                      <ActivityIndicator size="small" color="#e5e5ea" />
+                    ) : isSaved ? (
+                      <Bookmark color="#0A84FF" fill="#0A84FF" size={16} />
+                    ) : (
+                      <Bookmark color="#e5e5ea" size={16} />
+                    )}
+                  </Pressable>
+
+                 {firstEp && (
+                   <Pressable 
+                     onPress={() => router.push(`/watch/${id}/${firstEp}` as any)}
+                     style={styles.heroPlayBtn}
+                   >
+                     <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+                   </Pressable>
+                 )}
+               </View>
+            </View>
+          </View>
         </View>
 
         <View style={styles.contentSection}>
           {/* Title Area */}
           <View style={styles.titleArea}>
-            <View style={styles.statusRow}>
-              {isFinished ? (
-                <View style={[styles.statusBadge, { backgroundColor: 'rgba(48, 209, 88, 0.15)' }]}>
-                  <View style={[styles.statusDot, { backgroundColor: '#30D158', shadowColor: '#30D158' }]} />
-                  <Text style={[styles.statusText, { color: '#30D158' }]}>Tamat</Text>
-                </View>
-              ) : scheduleDay ? (
-                <View style={[styles.statusBadge, { backgroundColor: 'rgba(255, 214, 10, 0.15)' }]}>
-                  <Calendar size={12} color="#FFD60A" strokeWidth={2.5} />
-                  <Text style={[styles.statusText, { color: '#FFD60A' }]}>Tiap {scheduleDay}</Text>
-                </View>
-              ) : (
-                <View style={[styles.statusBadge, { backgroundColor: 'rgba(10, 132, 255, 0.15)' }]}>
-                  <View style={[styles.statusDot, { backgroundColor: '#0A84FF', shadowColor: '#0A84FF' }]} />
-                  <Text style={[styles.statusText, { color: '#0A84FF' }]}>Sedang Tayang</Text>
-                </View>
-              )}
-            </View>
-            
-            <Text style={styles.mainTitle}>
-              {d.cleanTitle || d.nativeTitle || d.title?.english || d.title?.romaji || d.title}
-            </Text>
-            {d.nativeTitle && d.nativeTitle !== d.cleanTitle && <Text style={styles.subTitle}>{d.nativeTitle}</Text>}
-            
             {/* Rich Metadata Strip */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaStrip}>
               {d.score > 0 && (
                 <View style={styles.metaPill}>
-                  <Star color="#FFD60A" fill="#FFD60A" size={14} />
+                  <Star color="#FFD60A" fill="#FFD60A" size={12} />
                   <Text style={styles.metaPillText}>{(d.score / 10).toFixed(1)}</Text>
                 </View>
               )}
               {realViews > 0 && (
                 <View style={styles.metaPill}>
-                  <Eye color="rgba(255,255,255,0.6)" size={14} />
+                  <Eye color="rgba(255,255,255,0.6)" size={12} />
                   <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{formatViews(realViews)}</Text>
                 </View>
               )}
               {d.trending > 0 && (
                 <View style={styles.metaPill}>
-                  <Text style={{ fontSize: 13, marginRight: 4 }}>🔥</Text>
+                  <Text style={{ fontSize: 11, marginRight: 4 }}>🔥</Text>
                   <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>Trending #{d.trending}</Text>
                 </View>
               )}
@@ -258,7 +333,7 @@ export default function AnimeDetailScreen() {
                 </View>
               )}
               <View style={styles.metaPill}>
-                <Info color="rgba(255,255,255,0.6)" size={14} />
+                <Info color="rgba(255,255,255,0.6)" size={12} />
                 <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>Eps {d.totalEpisodes || eps.length || '?'}</Text>
               </View>
               {d.season && d.seasonYear && (
@@ -283,50 +358,20 @@ export default function AnimeDetailScreen() {
                 ))}
               </View>
             )}
-
-            {/* Actions */}
-            <View style={styles.actionsRow}>
-              {firstEp ? (
-                <Pressable 
-                  onPress={() => router.push(`/watch/${id}/${firstEp}` as any)}
-                  style={styles.primaryButton as any}
-                >
-                  <Play color="white" size={20} />
-                  <Text style={styles.primaryButtonText}>Mulai Tonton</Text>
-                </Pressable>
-              ) : (
-                <Pressable style={styles.disabledButton as any}>
-                  <Text style={styles.disabledButtonText}>Belum Tersedia</Text>
-                </Pressable>
-              )}
-
-              <Pressable 
-                onPress={toggleCollection}
-                disabled={isToggling}
-                style={styles.bookmarkButton as any} 
-              >
-                {isToggling ? (
-                  <ActivityIndicator size="small" color="#e5e5ea" />
-                ) : isSaved ? (
-                  <Bookmark color="#0A84FF" fill="#0A84FF" size={20} />
-                ) : (
-                  <Bookmark color="#e5e5ea" size={20} />
-                )}
-              </Pressable>
-            </View>
           </View>
 
           {/* Synopsis */}
           <View style={styles.synopsisSection}>
             <Text style={styles.sectionTitle}>Sinopsis</Text>
-            <Text style={styles.synopsisText} numberOfLines={isExpanded ? undefined : 4}>
-              {desc}
+            <Text style={styles.synopsisText} onPress={() => setIsExpanded(!isExpanded)}>
+              {isExpanded ? desc : (desc.length > 130 ? `${desc.substring(0, 130).trim()}... ` : desc)}
+              {!isExpanded && desc.length > 130 && (
+                <Text style={styles.expandButtonText}>Baca Selengkapnya</Text>
+              )}
             </Text>
-            {desc.length > 150 && (
-              <Pressable onPress={() => setIsExpanded(!isExpanded)} style={styles.expandButton as any}>
-                <Text style={styles.expandButtonText}>
-                  {isExpanded ? "Sembunyikan" : "Baca Selengkapnya"}
-                </Text>
+            {isExpanded && (
+              <Pressable onPress={() => setIsExpanded(false)} style={styles.expandButton as any}>
+                <Text style={styles.expandButtonText}>Sembunyikan</Text>
               </Pressable>
             )}
           </View>
@@ -386,14 +431,14 @@ export default function AnimeDetailScreen() {
                         onPress={() => router.push(`/watch/${id}/${epNum}` as any)}
                         style={[styles.historyItemRow, !isLast && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }] as any}
                       >
-                        <Image source={{ uri: img }} style={styles.historyImg as any} contentFit="cover" />
-                        <View style={styles.historyDetails as any}>
-                          <Text style={styles.historyTitle as any} numberOfLines={2}>{epTitle}</Text>
-                          <Text style={styles.historyEp as any}>Episode {epNum}</Text>
+                        <Image source={{ uri: img }} style={styles.historyImg} contentFit="cover" />
+                        <View style={styles.historyDetails}>
+                          <Text style={styles.historyTitle} numberOfLines={2}>{epTitle}</Text>
+                          <Text style={styles.historyEp}>Episode {epNum}</Text>
                         </View>
-                        <View style={{ justifyContent: 'center' } as any}>
-                          <View style={styles.episodePlayCircle as any}>
-                            <Play size={12} color="#fff" style={{ marginLeft: 2 } as any} />
+                        <View style={{ justifyContent: 'center' }}>
+                          <View style={styles.episodePlayCircle}>
+                            <Play size={12} color="#fff" style={{ marginLeft: 2 }} />
                           </View>
                         </View>
                       </Pressable>
@@ -429,7 +474,7 @@ export default function AnimeDetailScreen() {
           )}
 
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -480,14 +525,15 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     width: '100%',
-    height: 480, // slightly taller
+    aspectRatio: 3/4,
     position: 'relative',
     backgroundColor: '#0a0812',
+    overflow: 'hidden',
   },
   heroImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.7,
+    opacity: 0.8,
   },
   heroGradientTop: {
     position: 'absolute',
@@ -507,37 +553,66 @@ const styles = StyleSheet.create({
     height: 100,
     bottom: 0,
   },
-  topBar: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 40,
+  header: {
+    position: "absolute", top: 0, left: 0, right: 0, zIndex: 100,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingTop: paddingTopSafe + 10, paddingBottom: 16,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center", justifyContent: "center",
+  },
+  bellBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center", justifyContent: "center",
+  },
+  search: {
+    flex: 1,
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 8, gap: 8,
+  },
+  searchText: { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: '400' },
+  heroBottom: {
+    position: "absolute",
+    bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 50,
+    padding: 20,
+    paddingTop: 40,
   },
-  blurIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+  heroPlayBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#0A84FF",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#0A84FF",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
-  iconButtonPressed: {
-    opacity: 0.6,
-    transform: [{ scale: 0.95 }],
+  bookmarkCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   contentSection: {
     paddingHorizontal: 20,
-    marginTop: -120,
+    marginTop: 16,
     position: 'relative',
     zIndex: 10,
   },
   titleArea: {
-    marginBottom: 32,
+    marginBottom: 16,
   },
   statusRow: {
     flexDirection: 'row',
@@ -596,7 +671,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   metaPillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: 'white',
   },
@@ -605,7 +680,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   genreBadge: {
     paddingHorizontal: 12,

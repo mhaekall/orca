@@ -154,27 +154,63 @@ export default function WatchScreen() {
     return () => sub.remove();
   }, [player, hasRestoredTime, watchSessionData]);
 
+  const userId = user?.id || user?.email;
+
   useEffect(() => {
-    if (!player || !user) return;
-    const interval = setInterval(() => {
-      if (player.playing) {
-        fetch(`${API_URL}/api/v2/social/watch-session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: user.id,
-            anilist_id: parseInt(id as string),
-            episode_number: parseFloat(episode as string),
-            watch_duration_sec: Math.floor(player.currentTime || 0),
-            total_duration_sec: Math.floor(player.duration || 0),
-            quality_watched: "Auto",
-            provider_used: "Cloudflare"
-          }),
-        }).catch(console.error);
+    if (!player || !userId) return;
+
+    const saveProgress = () => {
+      try {
+        if (!player) return;
+        const currentT = player.currentTime || 0;
+        const durationT = player.duration || 0;
+        if (currentT > 1) {
+          // Update granular watch session
+          fetch(`${API_URL}/api/v2/social/watch-session`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: userId,
+              anilist_id: parseInt(id as string),
+              episode_number: parseFloat(episode as string),
+              watch_duration_sec: Math.floor(currentT),
+              total_duration_sec: Math.floor(durationT),
+              quality_watched: "Auto",
+              provider_used: "Cloudflare"
+            }),
+          }).catch(() => {});
+
+          // Update main watch history for Collection/Home timeline
+          const isComp = durationT > 0 && (currentT / durationT) > 0.9;
+          fetch(`${API_URL}/api/v2/social/progress`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: userId,
+              anilistId: id,
+              episodeNumber: episode,
+              progressSeconds: Math.floor(currentT),
+              durationSeconds: Math.floor(durationT),
+              isCompleted: isComp
+            }),
+          }).catch(() => {});
+        }
+      } catch (e) {
+        // Ignore native player destroyed errors during unmount
       }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [player, user, id, episode]);
+    };
+
+    const interval = setInterval(() => {
+      try {
+        if (player && player.playing) saveProgress();
+      } catch (e) {}
+    }, 15000);
+
+    return () => {
+      clearInterval(interval);
+      saveProgress();
+    };
+  }, [player, userId, id, episode]);
 
   const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
 

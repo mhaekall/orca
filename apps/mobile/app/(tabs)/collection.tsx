@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { View, Text, ScrollView, FlatList, Pressable, Dimensions, StyleSheet } from "react-native";
 import { Bookmark, Clock, RefreshCcw } from "lucide-react-native";
 import { Image } from "expo-image";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import useSWR from "swr";
 import { useAuth } from "../../lib/auth";
 import { AnimeCard } from "../../components/AnimeCard";
@@ -246,6 +246,15 @@ export default function CollectionScreen() {
     userId ? `${API_URL}/api/v2/social/progress?user_id=${userId}` : null,
     fetcher,
     { revalidateOnFocus: true }
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        mutateCol();
+        mutateHis();
+      }
+    }, [userId, mutateCol, mutateHis])
   );
 
   const allItems = useMemo(() => {

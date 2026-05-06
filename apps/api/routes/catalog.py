@@ -1176,7 +1176,7 @@ async def admin_diagnose_episode(request: Request):
 
 
 @router.post("/v2/admin/episode/{episode_id}/reingest", dependencies=[Depends(verify_admin_key)])
-async def admin_reingest_episode(episode_id: int):
+async def admin_reingest_episode(episode_id: int, background_tasks: BackgroundTasks):
     try:
         # Fetch episode details
         row = await database.fetch_one(
@@ -1206,14 +1206,24 @@ async def admin_reingest_episode(episode_id: int):
         except:
             pass
 
-        # Trigger background sync which will scrape the provider, insert the episode, and queue ingestion
-        from services.queue import enqueue_sync
+        # Fast Re-ingest background task
+        async def _do_fast_reingest(aid: int, ep: float):
+            try:
+                print(f"[Admin] Fast re-ingest starting for {aid} Ep {ep}")
+                from services.pipeline import sync_anime_episodes
+                await sync_anime_episodes(aid)
+                
+                from scripts.ingest_pending import ingest_pending
+                await ingest_pending(1, anilist_id=str(aid), ep_num=str(ep))
+                print(f"[Admin] Fast re-ingest completed for {aid} Ep {ep}")
+            except Exception as e:
+                print(f"[Admin] Fast re-ingest error for {aid} Ep {ep}: {e}")
 
-        await enqueue_sync(anilist_id)
+        background_tasks.add_task(_do_fast_reingest, anilist_id, ep_num)
 
         return {
             "success": True,
-            "message": f"Episode {ep_num} deleted and queued for re-ingestion.",
+            "message": f"Episode {ep_num} deleted and queued for fast re-ingestion.",
         }
     except Exception as e:
         return {"success": False, "error": str(e)}

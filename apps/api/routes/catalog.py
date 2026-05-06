@@ -177,7 +177,7 @@ async def get_episodes_v2(anilist_id: int, background_tasks: BackgroundTasks, re
     rows = await database.fetch_all(
         """
         SELECT DISTINCT ON ("episodeNumber")
-               "episodeNumber", "episodeTitle", "episodeUrl", "providerId", "thumbnailUrl"
+               "episodeNumber", "episodeTitle", "episodeUrl", "providerId", "thumbnailUrl", "updatedAt"
         FROM   episodes
         WHERE  "anilistId" = :id
         ORDER  BY "episodeNumber" DESC,

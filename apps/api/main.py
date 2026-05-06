@@ -158,11 +158,18 @@ async def ingest_stats():
     try:
         try:
             log_res = await client.get(
-                f"{UPSTASH_REDIS_REST_URL}/lrange/debug_tg_log/0/49", headers=headers
+                f"{UPSTASH_REDIS_REST_URL}/lrange/debug_tg_log/0/199", headers=headers
             )
             log_data = log_res.json()
             if log_data and log_data.get("result"):
-                logs = [urllib.parse.unquote(str(l)) for l in log_data["result"]]
+                # Deduplicate logs here in backend to make frontend dumb
+                seen = set()
+                logs = []
+                for l in log_data["result"]:
+                    val = urllib.parse.unquote(str(l))
+                    if val not in seen:
+                        seen.add(val)
+                        logs.append(val)
         except Exception as e:
             print(f"[IngestStats] Logs error: {e}")
             pass

@@ -136,10 +136,14 @@ function Toast({ items, remove }: { items: ToastItem[]; remove: (id: number) => 
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, color }: { label: string; value: string | number | undefined; color: string }) {
+function StatCard({ label, value, color, onClick }: { label: string; value: string | number | undefined; color: string; onClick?: () => void }) {
   const display = value !== undefined ? String(value) : null;
+  const Wrapper = onClick ? "button" : "div";
   return (
-    <div className="bg-zinc-900 border border-white/5 rounded-3xl p-5 flex flex-col justify-end min-h-28 relative overflow-hidden group hover:border-white/10 transition-colors">
+    <Wrapper 
+      onClick={onClick}
+      className={`bg-zinc-900 border border-white/5 rounded-3xl p-5 flex flex-col justify-end min-h-28 relative overflow-hidden group hover:border-white/10 transition-colors text-left ${onClick ? "cursor-pointer active:scale-[0.98]" : ""}`}
+    >
       <div className={`absolute top-0 left-0 right-0 h-px ${color}`} />
       {display === null ? (
         <div className="h-10 w-24 bg-white/5 rounded-lg animate-pulse mb-2" />
@@ -149,7 +153,7 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
         </div>
       )}
       <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">{label}</div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -234,6 +238,7 @@ function InsightsTab({
   setActiveTab: (t: string) => void;
 }) {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [showTgModal, setShowTgModal] = useState(false);
 
   const fire = async (endpoint: string, label: string) => {
     setActionLoading((p) => ({ ...p, [endpoint]: true }));
@@ -252,7 +257,7 @@ function InsightsTab({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Anime" value={stats?.total_anime} color="bg-gradient-to-r from-white to-zinc-400" />
         <StatCard label="Episodes" value={stats?.total_episodes} color="bg-gradient-to-r from-indigo-400 to-purple-500" />
-        <StatCard label="TG Swarm HLS" value={stats?.ingested_episodes} color="bg-gradient-to-r from-violet-400 to-fuchsia-500" />
+        <StatCard label="TG Swarm HLS" value={stats?.ingested_episodes} color="bg-gradient-to-r from-violet-400 to-fuchsia-500" onClick={() => setShowTgModal(true)} />
         <StatCard label="Pending Queue" value={stats?.pending_episodes} color="bg-gradient-to-r from-orange-400 to-amber-500" />
       </div>
 
@@ -359,75 +364,128 @@ function InsightsTab({
           </div>
         </div>
 
-        {/* Terminal feed — SSE-aware */}
+        {/* Terminal feed */}
         <TerminalFeed api={api} headers={headers} initialLogs={logs} />
+      </div>
+
+      {showTgModal && <TgHealthModal api={api} headers={headers} onClose={() => setShowTgModal(false)} />}
+    </div>
+  );
+}
+
+// ─── TG Swarm Health Modal ──────────────────────────────────────────────────
+function TgHealthModal({ api, headers, onClose }: { api: string; headers: HeadersInit; onClose: () => void }) {
+  const [links, setLinks] = useState<any[]>([]);
+  const [health, setHealth] = useState<Record<number, { status: string; healthy: boolean }>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${api}/api/v2/admin/swarm-vault?limit=50`, { headers });
+        const d = await res.json();
+        if (d.success && active) {
+          const items = d.data || [];
+          setLinks(items);
+          setLoading(false);
+
+          for (const item of items) {
+            if (!active) break;
+            fetch(`${api}/api/v2/admin/episode/diagnose`, {
+              method: "POST",
+              headers: { ...headers, "Content-Type": "application/json" },
+              body: JSON.stringify({ url: item.episodeUrl })
+            })
+              .then(r => r.json())
+              .then(diag => {
+                if (active) setHealth(p => ({ ...p, [item.id]: diag }));
+              })
+              .catch(() => {});
+          }
+        }
+      } catch {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [api, headers]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-center p-4 pt-10 pb-10">
+      <div className="bg-zinc-950 border border-white/10 rounded-[2rem] w-full max-w-3xl flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-white/5">
+          <div>
+            <h3 className="text-xl font-black text-white">TG Swarm Health</h3>
+            <p className="text-xs text-zinc-500 mt-1">Live diagnostic of top 50 recent Telegram HLS segments</p>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide relative">
+          {loading ? (
+            <div className="text-center py-20 text-zinc-500 text-sm animate-pulse font-medium">Fetching secure vault links...</div>
+          ) : links.length === 0 ? (
+            <div className="text-center py-20 text-zinc-500 text-sm font-medium">Swarm idle — no secure vault links found.</div>
+          ) : (
+            links.map(link => {
+              const diag = health[link.id];
+              return (
+                <div key={link.id} className="bg-zinc-900 border border-white/5 p-4 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{link.title || "Unknown Title"}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] text-zinc-400 font-mono">ID {link.anilistId}</span>
+                      <span className="text-[10px] text-zinc-600 bg-black px-2 py-0.5 rounded uppercase font-black">Ep {link.episodeNumber}</span>
+                    </div>
+                    <p className="text-[9px] text-zinc-500 font-mono truncate mt-2 opacity-60" title={link.episodeUrl}>
+                      {link.episodeUrl}
+                    </p>
+                  </div>
+                  <div className="shrink-0 flex items-center w-28 justify-end">
+                    {!diag ? (
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase animate-pulse">Diagnosing...</span>
+                    ) : diag.healthy ? (
+                      <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider">✅ Healthy</span>
+                    ) : (
+                      <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate" title={diag.status}>❌ Error</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Terminal Feed — SSE connection attempt, polling fallback ─────────────────
+// ─── Terminal Feed — Dumb Component ───────────────────────────────────────────
 function TerminalFeed({
-  api, headers, initialLogs,
+  initialLogs,
 }: {
   api: string; headers: HeadersInit; initialLogs: string[];
 }) {
-  const [lines, setLines] = useState<string[]>(initialLogs);
-  const [connected, setConnected] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Try SSE, fall back gracefully (HF space may not support it)
-  useEffect(() => {
-    let es: EventSource | null = null;
-    const key = (headers as Record<string, string>)["x-admin-key"] ?? "";
-    try {
-      es = new EventSource(`${api}/api/v2/admin/logs/stream?key=${encodeURIComponent(key)}`);
-      es.onopen = () => setConnected(true);
-      es.onmessage = (e) => {
-        const msg = e.data as string;
-        setLines((prev) => {
-          if (prev[0] === msg) return prev; // dedup head
-          return [msg, ...prev].slice(0, 200);
-        });
-      };
-      es.onerror = () => {
-        setConnected(false);
-        es?.close();
-      };
-    } catch {
-      // SSE not supported
-    }
-    return () => es?.close();
-  }, [api, headers]);
-
-  // Sync external log pushes (from polling) into terminal
-  useEffect(() => {
-    if (initialLogs.length === 0) return;
-    setLines((prev) => {
-      const merged = [...initialLogs, ...prev];
-      const seen = new Set<string>();
-      return merged.filter((l) => {
-        if (seen.has(l)) return false;
-        seen.add(l);
-        return true;
-      }).slice(0, 200);
-    });
-  }, [initialLogs]);
 
   return (
     <div className="bg-black border border-white/5 rounded-3xl p-5 flex flex-col h-72">
       <div className="flex items-center gap-2 mb-4">
-        <span className={`w-2 h-2 rounded-full shrink-0 transition-colors ${connected ? "bg-green-500 animate-pulse" : "bg-zinc-700"}`} />
+        <span className="w-2 h-2 rounded-full shrink-0 transition-colors bg-green-500 animate-pulse" />
         <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-          Terminal Feed {connected && <span className="text-green-500">· LIVE</span>}
+          Terminal Feed <span className="text-green-500">· LIVE</span>
         </h3>
       </div>
       <div className="flex-1 overflow-y-auto font-mono text-[10px] text-green-400 leading-5 flex flex-col-reverse scrollbar-hide">
         <div ref={bottomRef} />
-        {lines.length === 0 ? (
+        {initialLogs.length === 0 ? (
           <span className="opacity-40">Awaiting telemetry...</span>
         ) : (
-          lines.map((log, i) => (
+          initialLogs.map((log, i) => (
             <div key={i} className="pb-0.5 opacity-75 hover:opacity-100 transition-opacity break-all">
               {log}
             </div>
@@ -858,13 +916,7 @@ function MainApp() {
       const d = await res.json();
       if (d.success) {
         setIngestTasks(d.active_tasks ?? []);
-        if (d.logs?.length) {
-          setLogs((prev) => {
-            const merged = [...d.logs, ...prev];
-            const seen = new Set<string>();
-            return merged.filter((l) => !seen.has(l) && seen.add(l)).slice(0, 200);
-          });
-        }
+        if (d.logs) setLogs(d.logs); // Dumb frontend: just accept what backend gives
       }
     } catch { /* AbortError or network */ }
     return () => ctrl.abort();

@@ -341,6 +341,64 @@ async def admin_get_database(
         return {"success": False, "error": str(e)}
 
 
+@router.get("/v2/admin/swarm-health", dependencies=[Depends(verify_admin_key)])
+async def admin_swarm_health(filter: str = Query("all", pattern="^(all|healthy|error)$")):
+    """
+    Fetch all TG Swarm links and diagnose them concurrently.
+    Backend does all the heavy lifting so frontend remains completely dumb.
+    """
+    try:
+        where_clause = "(\"episodeUrl\" LIKE '%tg-proxy%' OR \"episodeUrl\" LIKE '%workers.dev%')"
+        query = f"""
+            SELECT e.id, e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."episodeUrl"
+            FROM episodes e
+            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            WHERE {where_clause}
+            ORDER BY e."updatedAt" DESC
+        """
+        rows = await database.fetch_all(query)
+        items = [dict(r) for r in rows]
+
+        import httpx
+        import asyncio
+
+        limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+        sem = asyncio.Semaphore(100)
+        
+        async def diagnose(item, client):
+            async with sem:
+                url = item["episodeUrl"]
+                result = item.copy()
+                try:
+                    resp = await client.get(url, timeout=7.0)
+                    if resp.status_code == 200 and "#EXTM3U" in resp.text:
+                        result["healthy"] = True
+                        result["status"] = "Healthy"
+                    else:
+                        result["healthy"] = False
+                        result["status"] = f"HTTP {resp.status_code}" if resp.status_code != 200 else "Invalid M3U8"
+                except Exception as e:
+                    result["healthy"] = False
+                    result["status"] = "Unreachable"
+                
+                return result
+
+        async with httpx.AsyncClient(limits=limits, timeout=10.0, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as client:
+            tasks = [diagnose(item, client) for item in items]
+            results = await asyncio.gather(*tasks)
+
+        # Apply filter
+        if filter == "healthy":
+            results = [r for r in results if r["healthy"]]
+        elif filter == "error":
+            results = [r for r in results if not r["healthy"]]
+
+        return {"success": True, "data": results}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
 @router.get("/v2/admin/swarm-vault", dependencies=[Depends(verify_admin_key)])
 async def admin_get_swarm_vault(
     page: int = Query(1, ge=1), limit: int = Query(100, ge=1, le=500), search: str = Query(None)

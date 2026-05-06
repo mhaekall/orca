@@ -42,6 +42,11 @@ const TAB_META: Record<string, { label: string; desc: string; icon: string }> = 
     desc: "Browse, search, and diagnose anime & episode records.",
     icon: "M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4",
   },
+  tghealth: {
+    label: "TG Health",
+    desc: "Live health status of all Telegram Swarm HLS proxy links.",
+    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  },
   vault: {
     label: "Vault",
     desc: "Telegram Swarm HLS storage and export controls.",
@@ -238,7 +243,6 @@ function InsightsTab({
   setActiveTab: (t: string) => void;
 }) {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
-  const [showTgModal, setShowTgModal] = useState(false);
 
   const fire = async (endpoint: string, label: string) => {
     setActionLoading((p) => ({ ...p, [endpoint]: true }));
@@ -257,7 +261,7 @@ function InsightsTab({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Anime" value={stats?.total_anime} color="bg-gradient-to-r from-white to-zinc-400" />
         <StatCard label="Episodes" value={stats?.total_episodes} color="bg-gradient-to-r from-indigo-400 to-purple-500" />
-        <StatCard label="TG Swarm HLS" value={stats?.ingested_episodes} color="bg-gradient-to-r from-violet-400 to-fuchsia-500" onClick={() => setShowTgModal(true)} />
+        <StatCard label="TG Swarm HLS" value={stats?.ingested_episodes} color="bg-gradient-to-r from-violet-400 to-fuchsia-500" onClick={() => setActiveTab("tghealth")} />
         <StatCard label="Pending Queue" value={stats?.pending_episodes} color="bg-gradient-to-r from-orange-400 to-amber-500" />
       </div>
 
@@ -367,98 +371,70 @@ function InsightsTab({
         {/* Terminal feed */}
         <TerminalFeed api={api} headers={headers} initialLogs={logs} />
       </div>
-
-      {showTgModal && <TgHealthModal api={api} headers={headers} onClose={() => setShowTgModal(false)} />}
     </div>
   );
 }
 
-// ─── TG Swarm Health Modal ──────────────────────────────────────────────────
-function TgHealthModal({ api, headers, onClose }: { api: string; headers: HeadersInit; onClose: () => void }) {
-  const [links, setLinks] = useState<any[]>([]);
-  const [health, setHealth] = useState<Record<number, { status: string; healthy: boolean }>>({});
-  const [loading, setLoading] = useState(true);
+// ─── TG Swarm Health Tab (Dumb Frontend) ──────────────────────────────────────
+function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
+  const [filter, setFilter] = useState<"all" | "healthy" | "error">("error");
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await fetch(`${api}/api/v2/admin/swarm-vault?limit=50`, { headers });
-        const d = await res.json();
-        if (d.success && active) {
-          const items = d.data || [];
-          setLinks(items);
-          setLoading(false);
-
-          for (const item of items) {
-            if (!active) break;
-            fetch(`${api}/api/v2/admin/episode/diagnose`, {
-              method: "POST",
-              headers: { ...headers, "Content-Type": "application/json" },
-              body: JSON.stringify({ url: item.episodeUrl })
-            })
-              .then(r => r.json())
-              .then(diag => {
-                if (active) setHealth(p => ({ ...p, [item.id]: diag }));
-              })
-              .catch(() => {});
-          }
-        }
-      } catch {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [api, headers]);
+  const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
+    `${api}/api/v2/admin/swarm-health?filter=${filter}`,
+    headers,
+    [filter]
+  );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-center p-4 pt-10 pb-10">
-      <div className="bg-zinc-950 border border-white/10 rounded-[2rem] w-full max-w-3xl flex flex-col overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
-          <div>
-            <h3 className="text-xl font-black text-white">TG Swarm Health</h3>
-            <p className="text-xs text-zinc-500 mt-1">Live diagnostic of top 50 recent Telegram HLS segments</p>
-          </div>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {["all", "healthy", "error"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f as any)}
+            className={`px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider border transition-all ${
+              filter === f
+                ? "bg-violet-600 border-violet-500 text-white"
+                : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/15"
+            }`}
+          >
+            {f}
           </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide relative">
-          {loading ? (
-            <div className="text-center py-20 text-zinc-500 text-sm animate-pulse font-medium">Fetching secure vault links...</div>
-          ) : links.length === 0 ? (
-            <div className="text-center py-20 text-zinc-500 text-sm font-medium">Swarm idle — no secure vault links found.</div>
-          ) : (
-            links.map(link => {
-              const diag = health[link.id];
-              return (
-                <div key={link.id} className="bg-zinc-900 border border-white/5 p-4 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{link.title || "Unknown Title"}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-zinc-400 font-mono">ID {link.anilistId}</span>
-                      <span className="text-[10px] text-zinc-600 bg-black px-2 py-0.5 rounded uppercase font-black">Ep {link.episodeNumber}</span>
-                    </div>
-                    <p className="text-[9px] text-zinc-500 font-mono truncate mt-2 opacity-60" title={link.episodeUrl}>
-                      {link.episodeUrl}
-                    </p>
+        ))}
+      </div>
+
+      <div className="bg-zinc-900 border border-white/5 rounded-[2rem] overflow-hidden">
+        {loading ? (
+          <div className="text-center py-20 text-zinc-500 text-sm animate-pulse font-medium">Genius Backend is running diagnostics on all links...</div>
+        ) : error ? (
+          <div className="text-center py-20 text-red-500 text-sm font-medium">Failed to load: {error}</div>
+        ) : !data?.data || data.data.length === 0 ? (
+          <div className="text-center py-20 text-zinc-500 text-sm font-medium">No results found for filter "{filter}".</div>
+        ) : (
+          <div className="divide-y divide-white/5 max-h-[70vh] overflow-y-auto scrollbar-hide">
+            {data.data.map((link) => (
+              <div key={link.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-white/5 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{link.title || "Unknown Title"}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-zinc-400 font-mono">ID {link.anilistId}</span>
+                    <span className="text-[10px] text-zinc-600 bg-black px-2 py-0.5 rounded uppercase font-black">Ep {link.episodeNumber}</span>
                   </div>
-                  <div className="shrink-0 flex items-center w-28 justify-end">
-                    {!diag ? (
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase animate-pulse">Diagnosing...</span>
-                    ) : diag.healthy ? (
-                      <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider">✅ Healthy</span>
-                    ) : (
-                      <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate" title={diag.status}>❌ Error</span>
-                    )}
-                  </div>
+                  <p className="text-[9px] text-zinc-500 font-mono truncate mt-2 opacity-60" title={link.episodeUrl}>
+                    {link.episodeUrl}
+                  </p>
                 </div>
-              );
-            })
-          )}
-        </div>
+                <div className="shrink-0 flex items-center justify-start sm:justify-end">
+                  {link.healthy ? (
+                    <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider">✅ Healthy</span>
+                  ) : (
+                    <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate max-w-[150px]" title={link.status}>❌ {link.status}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -802,7 +778,7 @@ function Sidebar({ activeTab, setActiveTab, onLogout }: { activeTab: string; set
 
 // ─── Mobile Dock ──────────────────────────────────────────────────────────────
 function MobileDock({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (t: string) => void }) {
-  const DOCK_TABS = ["insights", "database", "vault", "cache", "users", "monetization", "ecosystem"];
+  const DOCK_TABS = ["insights", "database", "tghealth", "vault", "cache", "users", "monetization", "ecosystem"];
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-2xl border-t border-white/8"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
@@ -1018,6 +994,7 @@ function MainApp() {
                 />
               )}
               {activeTab === "database" && <DatabaseTab api={API} headers={headers} />}
+              {activeTab === "tghealth" && <TgHealthTab api={API} headers={headers} />}
               {activeTab === "vault" && (
                 <PlaceholderTab emoji="🗄️" title="Swarm Vault" desc="Telegram HLS segment storage browser with CSV export." cta="Load Vault" />
               )}

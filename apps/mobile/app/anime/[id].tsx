@@ -14,7 +14,7 @@ import { Alert } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
 const paddingTopSafe = Platform.OS === "android" ? 30 : 50;
-import { API_URL } from "../../lib/config";
+import { API_URL, HF_API_URL } from "../../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function formatSynopsis(text: string) {
@@ -75,12 +75,12 @@ export default function AnimeDetailScreen() {
   );
 
   const { data: collectionResponse, mutate: mutateCollection } = useSWR(
-    userId ? `${API_URL}/api/v2/collection?user_id=${userId}` : null,
+    userId ? `${HF_API_URL}/api/v2/collection?user_id=${userId}` : null,
     fetcher
   );
 
   const { data: progressData } = useSWR(
-    userId ? `${API_URL}/api/v2/social/progress?user_id=${userId}` : null,
+    userId ? `${HF_API_URL}/api/v2/social/progress?user_id=${userId}` : null,
     fetcher
   );
 
@@ -115,7 +115,7 @@ export default function AnimeDetailScreen() {
     try {
       let res;
       if (isSaved) {
-        res = await fetch(`${API_URL}/api/v2/collection?user_id=${userId}&anilistId=${id}`, { method: "DELETE" });
+        res = await fetch(`${HF_API_URL}/api/v2/collection?user_id=${userId}&anilistId=${id}`, { method: "DELETE" });
       } else {
         const payload = {
           user_id: userId,
@@ -123,7 +123,7 @@ export default function AnimeDetailScreen() {
           status: "plan_to_watch",
           progress: 0
         };
-        res = await fetch(`${API_URL}/api/v2/collection`, {
+        res = await fetch(`${HF_API_URL}/api/v2/collection`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

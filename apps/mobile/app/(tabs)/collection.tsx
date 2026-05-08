@@ -8,7 +8,7 @@ import { useAuth } from "../../lib/auth";
 import { AnimeCard } from "../../components/AnimeCard";
 import { Skeleton } from "../../components/Skeleton";
 
-import { API_URL } from "../../lib/config";
+import { HF_API_URL } from "../../lib/config";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -244,13 +244,13 @@ export default function CollectionScreen() {
   }, [tab]);
 
   const { data: collectionRes, isLoading: colLoading, error: colError, mutate: mutateCol } = useSWR(
-    userId ? `${API_URL}/api/v2/collection?user_id=${userId}` : null,
+    userId ? `${HF_API_URL}/api/v2/collection?user_id=${userId}` : null,
     fetcher,
     { revalidateOnFocus: true }
   );
 
   const { data: historyRes, isLoading: hisLoading, error: hisError, mutate: mutateHis } = useSWR(
-    userId ? `${API_URL}/api/v2/social/progress?user_id=${userId}` : null,
+    userId ? `${HF_API_URL}/api/v2/social/progress?user_id=${userId}` : null,
     fetcher,
     { revalidateOnFocus: true }
   );

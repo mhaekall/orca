@@ -10,7 +10,7 @@ import { useAuth } from "../../lib/auth";
 
 import { ChevronRight } from "lucide-react-native";
 
-import { API_URL } from "../../lib/config";
+import { HF_API_URL } from "../../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
@@ -63,7 +63,7 @@ const ScheduleCard = memo(({ item, idx, isToday, isPast }: { item: any, idx: num
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/v2/collection`, {
+      const res = await fetch(`${HF_API_URL}/api/v2/collection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,7 +165,7 @@ export default function ScheduleScreen() {
   const [weekDates, setWeekDates] = useState<any[]>([]);
 
   const { data: swrData, isLoading } = useSWR(
-    `${API_URL}/api/v2/schedule?v=2`,
+    `${HF_API_URL}/api/v2/schedule?v=2`,
     fetcher,
     { revalidateOnFocus: false }
   );

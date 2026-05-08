@@ -4,7 +4,7 @@ import useSWR, { mutate as globalMutate } from 'swr';
 import { X, Heart, MessageSquare, Send } from 'lucide-react-native';
 import { Image } from 'expo-image';
 
-import { API_URL } from "../lib/config";
+import { HF_API_URL } from "../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface CommentProps {
@@ -41,7 +41,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
   }, []);
 
   const { data: allComments = [], isLoading, mutate } = useSWR(
-    visible ? `${API_URL}/api/v2/comments?anilistId=${anilistId}&episodeNumber=${episode}&sort_by=${sortBy}${user ? `&user_id=${user.id}` : ''}` : null,
+    visible ? `${HF_API_URL}/api/v2/comments?anilistId=${anilistId}&episodeNumber=${episode}&sort_by=${sortBy}${user ? `&user_id=${user.id}` : ''}` : null,
     fetcher
   );
 
@@ -51,7 +51,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
     if (!user || !text.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/api/v2/comments`, {
+      const res = await fetch(`${HF_API_URL}/api/v2/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,7 +98,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
     );
 
     try {
-      const res = await fetch(`${API_URL}/api/v2/comments/reaction`, {
+      const res = await fetch(`${HF_API_URL}/api/v2/comments/reaction`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

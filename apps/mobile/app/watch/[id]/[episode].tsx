@@ -11,7 +11,7 @@ import { Skeleton } from '../../../components/Skeleton';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 
 const { width: W } = Dimensions.get('window');
-import { API_URL } from "../../../lib/config";
+import { API_URL, HF_API_URL } from "../../../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function WatchScreen() {
@@ -34,12 +34,12 @@ export default function WatchScreen() {
 
   // Social Stats (Likes for episode)
   const { data: statsData, mutate: mutateStats } = useSWR(
-    user ? `${API_URL}/api/v2/social/episode/${id}/${episode}/stats?user_id=${user.id}` : `${API_URL}/api/v2/social/episode/${id}/${episode}/stats`,
+    user ? `${HF_API_URL}/api/v2/social/episode/${id}/${episode}/stats?user_id=${user.id}` : `${HF_API_URL}/api/v2/social/episode/${id}/${episode}/stats`,
     fetcher
   );
 
   // Social Stats (Anime-level, for views)
-  const { data: animeStatsData } = useSWR(`${API_URL}/api/v2/social/anime/${id}/stats`, fetcher);
+  const { data: animeStatsData } = useSWR(`${HF_API_URL}/api/v2/social/anime/${id}/stats`, fetcher);
   
   const likesCount = statsData?.likes || 0;
   const isLiked = statsData?.user_liked || false;
@@ -58,7 +58,7 @@ export default function WatchScreen() {
     );
 
     try {
-      await fetch(`${API_URL}/api/v2/social/episode/like`, {
+      await fetch(`${HF_API_URL}/api/v2/social/episode/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -82,7 +82,7 @@ export default function WatchScreen() {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/v2/collection`, {
+      const res = await fetch(`${HF_API_URL}/api/v2/collection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -117,7 +117,7 @@ export default function WatchScreen() {
   }
 
   const { data: watchSessionData } = useSWR(
-    user ? `${API_URL}/api/v2/social/watch-session/${id}/${episode}?user_id=${user.id}` : null,
+    user ? `${HF_API_URL}/api/v2/social/watch-session/${id}/${episode}?user_id=${user.id}` : null,
     fetcher
   );
 
@@ -134,7 +134,7 @@ export default function WatchScreen() {
         const durationT = currentVideoDuration.current;
         if (currentT > 1) {
           // Update granular watch session
-          fetch(`${API_URL}/api/v2/social/watch-session`, {
+          fetch(`${HF_API_URL}/api/v2/social/watch-session`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -150,7 +150,7 @@ export default function WatchScreen() {
 
           // Update main watch history for Collection/Home timeline
           const isComp = durationT > 0 && (currentT / durationT) > 0.9;
-          fetch(`${API_URL}/api/v2/social/progress`, {
+          fetch(`${HF_API_URL}/api/v2/social/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -208,7 +208,7 @@ export default function WatchScreen() {
 
     const sendReport = async (issue: string) => {
       try {
-        await fetch(`${API_URL}/api/v2/social/report`, {
+        await fetch(`${HF_API_URL}/api/v2/social/report`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

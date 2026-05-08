@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         LIMIT $${limitIndex} OFFSET $${offsetIndex}
     `;
 
-    const result = await sql.query(query, values);
+    const result: any = await sql.query(query, values);
     const rows = result.rows || result;
 
     // Format output just like the old JSON

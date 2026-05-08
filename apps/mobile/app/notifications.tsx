@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useSWR from "swr";
 import { useAuth } from "../lib/auth";
 
-const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+import { API_URL } from "../lib/config";
+const API = API_URL;
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const BG = "#0a0812";
 const SURFACE = "#1f1c29";

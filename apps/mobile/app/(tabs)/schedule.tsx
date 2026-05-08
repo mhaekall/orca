@@ -10,7 +10,7 @@ import { useAuth } from "../../lib/auth";
 
 import { ChevronRight } from "lucide-react-native";
 
-const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+const API_URL = "https://orcanime.pages.dev";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
@@ -171,7 +171,11 @@ export default function ScheduleScreen() {
   );
 
   useEffect(() => {
-    const today = new Date();
+    // Safe method to calculate WIB in React Native (Hermes without full ICU)
+    const realNow = new Date();
+    const utc = realNow.getTime() + (realNow.getTimezoneOffset() * 60000);
+    const today = new Date(utc + (7 * 3600000)); // Shift +7 hours for WIB
+    
     const currentDay = today.getDay(); // 0 = Sunday
     const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
     
@@ -191,7 +195,7 @@ export default function ScheduleScreen() {
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      const isToday = d.toDateString() === today.toDateString();
+      const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth();
       if (isToday) {
         initialActive = daysArr[i];
       }

@@ -9,7 +9,8 @@ interface Props {
 
 export function AiringSchedule({ schedule }: Props) {
   const [activeDay, setActiveDay] = useState<string>(() => {
-    const todayIndex = new Date().getDay() - 1;
+    const nowWibStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" });
+    const todayIndex = new Date(nowWibStr).getDay() - 1;
     const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const today = days[todayIndex < 0 ? 6 : todayIndex];
     return schedule[today] ? today : Object.keys(schedule)[0] || "Senin";

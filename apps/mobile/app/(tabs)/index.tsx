@@ -22,7 +22,8 @@ import { LatestGrid } from "../../components/LatestGrid";
 import { useAuth } from "../../lib/auth";
 
 const { width: W, height: H } = Dimensions.get("window");
-const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+import { API_URL } from "../../lib/config";
+const API = API_URL;
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const BG = "#0a0812";
@@ -131,23 +132,38 @@ function HeroCard({ item }: { item: any }) {
         <View style={s.heroBottom}>
           {/* Premium Abstract Calligraphy Badge (Edge & Larger) */}
           <View style={{ alignSelf: 'flex-start', marginBottom: 12, marginLeft: -20, position: 'relative' }}>
-            {/* Background shape (smaller and separated from text) */}
+            {/* Background shape */}
             <View style={{
               position: 'absolute',
-              top: 16, bottom: 4, left: 0, right: 20, // Mengecilkan bg dari atas dan kanan (seperti sapuan highlighter)
-              backgroundColor: '#FF2D55', 
-              transform: [{ rotate: '-3deg' }, { skewX: '-12deg' }],
-              borderTopRightRadius: 4, borderBottomRightRadius: 16,
-              shadowColor: '#FF2D55', shadowOpacity: 0.8, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
-            }} />
+              top: 0, bottom: 0, left: 0, right: 0,
+              transform: [{ rotate: '-3deg' }, { skewX: '-18deg' }],
+              shadowColor: '#FF2D55', shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6,
+            }}>
+              <View style={{ 
+                flex: 1, 
+                backgroundColor: '#FF2D55',
+                borderTopRightRadius: 4, borderBottomRightRadius: 12,
+                overflow: 'hidden'
+              }}>
+                {/* Abstract Batik/Lines Pattern */}
+                <View style={{ position: 'absolute', width: 2, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', transform: [{rotate: '45deg'}], left: 10, top: -10 }} />
+                <View style={{ position: 'absolute', width: 4, height: 60, backgroundColor: 'rgba(255,255,255,0.15)', transform: [{rotate: '45deg'}], left: 30, top: -10 }} />
+                <View style={{ position: 'absolute', width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.3)', transform: [{rotate: '45deg'}], left: 50, top: -10 }} />
+                <View style={{ position: 'absolute', width: 6, height: 80, backgroundColor: 'rgba(0,0,0,0.1)', transform: [{rotate: '-30deg'}], left: 70, top: -20 }} />
+                <View style={{ position: 'absolute', width: 2, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', transform: [{rotate: '45deg'}], left: 100, top: -10 }} />
+                <View style={{ position: 'absolute', width: 3, height: 60, backgroundColor: 'rgba(0,0,0,0.15)', transform: [{rotate: '45deg'}], left: 120, top: 0 }} />
+                <View style={{ position: 'absolute', width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.25)', transform: [{rotate: '-45deg'}], left: 140, top: -10 }} />
+              </View>
+            </View>
             
             {/* Text on top */}
             <Text style={{
               color: '#fff', fontSize: 24, 
-              paddingHorizontal: 22, paddingVertical: 8,
+              paddingHorizontal: 16, paddingVertical: 2,
               fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
               fontWeight: 'bold', fontStyle: 'italic',
               textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
+              transform: [{ rotate: '-4deg' }]
             }}>
               Tayang Terbaru
             </Text>
@@ -715,7 +731,7 @@ const s = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#32D74B" },
   heroBadgeText: { color: "#fff", fontSize: 9, fontWeight: FONT_BOLD, letterSpacing: 0.5 },
   heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 40 },
-  heroTitle: { color: "#fff", fontSize: 22, fontWeight: FONT_BOLD, letterSpacing: -0.5, marginBottom: 8, lineHeight: 28, paddingRight: 60 },
+  heroTitle: { color: "#fff", fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginBottom: 8, lineHeight: 28, paddingRight: 60 },
   heroPlayBtn: {
     position: "absolute", bottom: 16, right: 16,
     width: 36, height: 36, borderRadius: 18,

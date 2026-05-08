@@ -31,9 +31,12 @@ Menentukan skalabilitas jangka panjang untuk fitur sosial. Struktur tab harus di
 > **Aturan:** Slot notifikasi dan explore harus ada dari hari pertama agar tidak perlu re-architect saat fitur sosial masuk.
 
 ### Layer 4 — Video Player
-Pakai `expo-video` bukan `react-native-video` (officially supported). 
-- Setup sekali dengan benar: landscape lock, gesture controls, auto-next. 
-- Ini adalah *core experience* Orca.
+**MIGRATION UPDATE:** Awalnya direncanakan menggunakan `expo-video`. Namun, setelah diuji secara ekstensif pada OS Android tertentu (terutama low-end), ditemukan bahwa interaksi *Custom Seekbar* memicu *Float Precision Overflow* di jembatan JNI C++ ExoPlayer dan *Yoga Layout Engine*, yang menyebabkan *Fatal Force Close*.
+
+**Solusi Final:** 
+Telah dimigrasikan sepenuhnya ke `react-native-video` dipadukan dengan `@react-native-community/slider` untuk offload kalkulasi sentuhan langsung ke OS Native (Java/Kotlin).
+- Setup sudah menyertakan: landscape lock otomatis saat fullscreen, *Optimistic UI Update* untuk tombol Play/Pause tanpa *glitch*, dan pelacakan riwayat tontonan real-time (`onProgressUpdate`).
+- Ini adalah *core experience* Orca yang kini setara dengan kestabilan Big Tech (YouTube/Netflix).
 
 ---
 

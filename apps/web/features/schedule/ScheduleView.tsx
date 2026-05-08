@@ -86,7 +86,8 @@ export function ScheduleView({ initialSchedule }: Props) {
 
   // Set default day to today once mounted
   useEffect(() => {
-    const todayIndex = new Date().getDay() - 1;
+    const nowWibStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" });
+    const todayIndex = new Date(nowWibStr).getDay() - 1;
     const daysArr = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
     const today = daysArr[todayIndex < 0 ? 6 : todayIndex];
     if (schedData[today]) {

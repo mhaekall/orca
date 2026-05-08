@@ -3,15 +3,15 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import useSWR from 'swr';
 import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign, MessageSquare, ChevronDown } from 'lucide-react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { Image } from 'expo-image';
 import { useAuth } from '../../../lib/auth';
 import { AnimeCard } from '../../../components/AnimeCard';
 import { CommentSection } from '../../../components/CommentSection';
 import { Skeleton } from '../../../components/Skeleton';
+import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 
 const { width: W } = Dimensions.get('window');
-const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+const API_URL = "https://orcanime.pages.dev";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function WatchScreen() {
@@ -21,6 +21,10 @@ export default function WatchScreen() {
   const [showAllEpisodes, setShowAllEpisodes] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [playerError, setPlayerError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  const currentVideoTime = useRef(0);
+  const currentVideoDuration = useRef(0);
   
   const { data: animeData } = useSWR(`${API_URL}/api/v2/anime/${id}`, fetcher);
   const { data: streamData, isLoading: streamLoading } = useSWR(
@@ -108,13 +112,8 @@ export default function WatchScreen() {
   let sourceType = bestSource?.type || 'hls';
   const customHeaders = streamData?.headers || { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' };
 
-  // Override type for telegram proxies (they return M3U8 playlists in our ingestion pipeline).
   if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
-    // Force sourceType to 'hls' because even if the API database says it's 'mp4',
-    // the CF Worker proxy ALWAYS generates an #EXTM3U playlist on the fly from Telegram sliced chunks.
     sourceType = 'hls';
-    
-    // Proxy handles Range caching correctly, no need for cache buster hack here.
   }
 
   const { data: watchSessionData } = useSWR(
@@ -122,48 +121,17 @@ export default function WatchScreen() {
     fetcher
   );
 
-  // player init dengan null dulu — akan di-update via useEffect saat videoUrl ready
-  const player = useVideoPlayer(null, player => {
-    player.loop = false;
-    player.keepScreenOnWhilePlaying = false; // Bypass uncaught promise rejection on APK without expo-keep-awake module
-  });
-
   const [hasRestoredTime, setHasRestoredTime] = useState(false);
-
-  useEffect(() => {
-    if (!player) return;
-    const sub = player.addListener('statusChange', (status: any) => {
-      console.log('[Player Status]', JSON.stringify(status));
-      if (status.error) {
-        setPlayerError(status.error.message);
-        console.error('[Player Error]', status.error.message);
-      } else {
-        setPlayerError(null);
-      }
-
-      // Resume from last watched time if ready to play
-      if (status.status === 'readyToPlay' && !hasRestoredTime && watchSessionData?.data?.watch_duration_sec > 0) {
-         // Don't resume if they finished it (completion_rate > 0.9)
-         if (watchSessionData.data.completion_rate < 0.9) {
-            console.log(`[Player] Resuming from ${watchSessionData.data.watch_duration_sec}s`);
-            player.currentTime = watchSessionData.data.watch_duration_sec;
-         }
-         setHasRestoredTime(true);
-      }
-    });
-    return () => sub.remove();
-  }, [player, hasRestoredTime, watchSessionData]);
 
   const userId = user?.id || user?.email;
 
   useEffect(() => {
-    if (!player || !userId) return;
+    if (!userId || !videoUrl) return;
 
     const saveProgress = () => {
       try {
-        if (!player) return;
-        const currentT = player.currentTime || 0;
-        const durationT = player.duration || 0;
+        const currentT = currentVideoTime.current;
+        const durationT = currentVideoDuration.current;
         if (currentT > 1) {
           // Update granular watch session
           fetch(`${API_URL}/api/v2/social/watch-session`, {
@@ -196,13 +164,12 @@ export default function WatchScreen() {
           }).catch(() => {});
         }
       } catch (e) {
-        // Ignore native player destroyed errors during unmount
       }
     };
 
     const interval = setInterval(() => {
       try {
-        if (player && player.playing) saveProgress();
+        saveProgress();
       } catch (e) {}
     }, 15000);
 
@@ -210,46 +177,9 @@ export default function WatchScreen() {
       clearInterval(interval);
       saveProgress();
     };
-  }, [player, userId, id, episode]);
+  }, [userId, id, episode, videoUrl]);
 
   const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
-
-  // Update player saat videoUrl tersedia — termasuk hint HLS untuk ExoPlayer
-  useEffect(() => {
-    if (!player || !videoUrl) return;
-    const source = {
-      uri: videoUrl,
-      metadata: { title: displayTitle || '' },
-      headers: customHeaders,
-      ...(sourceType === 'hls' ? { contentType: 'hls' as const } : {}),
-    };
-    console.log('[Player] Loading source:', videoUrl, 'type:', sourceType);
-    player.replaceAsync(source)
-      .then(() => { player.play(); console.log('[Player] Playing'); })
-      .catch((e: any) => console.error('[Player] Error:', e?.message));
-  }, [videoUrl]);
-
-  const lastTapLeft = useRef(0);
-  const handleDoubleTapLeft = () => {
-    const now = Date.now();
-    if (now - lastTapLeft.current < 300) {
-      if (player) player.seekBy(-10);
-      lastTapLeft.current = 0;
-    } else {
-      lastTapLeft.current = now;
-    }
-  };
-
-  const lastTapRight = useRef(0);
-  const handleDoubleTapRight = () => {
-    const now = Date.now();
-    if (now - lastTapRight.current < 300) {
-      if (player) player.seekBy(10);
-      lastTapRight.current = 0;
-    } else {
-      lastTapRight.current = now;
-    }
-  };
 
   const handleShare = async () => {
     if (!anime) return;
@@ -326,6 +256,11 @@ export default function WatchScreen() {
     const numB = parseInt(getEpNumStr(b)) || 0;
     return numA - numB;
   });
+  
+  const currentIndex = sortedEpisodes.findIndex((ep: any) => String(getEpNumStr(ep)) === String(episode));
+  const nextEp = currentIndex > -1 && currentIndex < sortedEpisodes.length - 1 ? sortedEpisodes[currentIndex + 1] : null;
+  const prevEp = currentIndex > 0 ? sortedEpisodes[currentIndex - 1] : null;
+  
   const poster = anime?.poster || anime?.img || anime?.coverImage;
 
   return (
@@ -333,15 +268,17 @@ export default function WatchScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       
       {/* Video Player Container */}
-      <View style={styles.videoContainer}>
-        <View style={styles.backButtonWrapper}>
-          <Pressable 
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <ArrowLeft color="white" size={20} />
-          </Pressable>
-        </View>
+      <View style={isFullscreen ? styles.fullscreenVideoContainer : styles.videoContainer}>
+        {!isFullscreen && (
+          <View style={styles.backButtonWrapper}>
+            <Pressable 
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <ArrowLeft color="white" size={20} />
+            </Pressable>
+          </View>
+        )}
 
         {streamLoading ? (
           <View style={styles.loadingContainer}>
@@ -350,34 +287,31 @@ export default function WatchScreen() {
           </View>
         ) : videoUrl ? (
           <>
-            <VideoView 
-              style={StyleSheet.absoluteFill} 
-              player={player} 
-              allowsFullscreen 
-              fullscreenOptions={{
-                enable: true,
-                orientation: 'landscape'
+            <CustomVideoPlayer 
+              videoUrl={videoUrl}
+              title={`${displayTitle} - Eps ${episode}`}
+              onNext={nextEp ? () => handleEpisodeChange(String(getEpNumStr(nextEp))) : undefined}
+              onPrevious={prevEp ? () => handleEpisodeChange(String(getEpNumStr(prevEp))) : undefined}
+              isLoading={streamLoading}
+              onFullscreenChange={setIsFullscreen}
+              views={realViews}
+              likes={likesCount}
+              isLiked={isLiked}
+              onLike={handleToggleLike}
+              onShowComments={() => setShowComments(true)}
+              onProgressUpdate={(time, dur) => {
+                currentVideoTime.current = time;
+                currentVideoDuration.current = dur;
               }}
-              allowsPictureInPicture
-              showsTimecodes
-              contentFit="contain"
+              onEnd={() => {
+                if (nextEp) handleEpisodeChange(String(getEpNumStr(nextEp)));
+              }}
             />
             {playerError && (
-              <View style={{ position: 'absolute', top: 60, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 8, zIndex: 100 }}>
+              <View style={{ position: 'absolute', top: 60, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 8, zIndex: 100 }} pointerEvents="none">
                 <Text style={{color:'red', fontWeight: 'bold'}}>Player Error: {playerError}</Text>
               </View>
             )}
-            {/* Double Tap Seek Overlays */}
-            <View style={[StyleSheet.absoluteFill, styles.seekOverlay]} pointerEvents="box-none">
-              <Pressable 
-                onPress={handleDoubleTapLeft}
-                style={styles.seekArea} 
-              />
-              <Pressable 
-                onPress={handleDoubleTapRight}
-                style={styles.seekArea} 
-              />
-            </View>
           </>
         ) : (
           <View style={styles.unavailableContainer}>
@@ -387,7 +321,8 @@ export default function WatchScreen() {
       </View>
 
       {/* Konten Halaman */}
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      {!isFullscreen && (
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {anime ? (
           <>
             {/* Judul & Detail Singkat */}
@@ -457,31 +392,6 @@ export default function WatchScreen() {
               </ScrollView>
             </View>
 
-            {/* Comments Preview Box */}
-            <View style={styles.commentsPreviewSection}>
-              <Pressable 
-                onPress={() => setShowComments(true)}
-                style={({pressed}) => [styles.commentsBox, pressed && styles.commentsBoxPressed]}
-              >
-                <View style={styles.commentsHeader}>
-                  <Text style={styles.commentsTitle}>Komentar </Text>
-                  <ChevronDown color="#8e8e93" size={18} />
-                </View>
-                <View style={styles.commentsInputRow}>
-                  <View style={styles.userAvatarContainer}>
-                    {user?.picture ? (
-                      <Image source={{ uri: user.picture }} style={styles.userAvatarImage} />
-                    ) : (
-                      <Text style={styles.userAvatarText}>{user?.name ? user.name.charAt(0) : "U"}</Text>
-                    )}
-                  </View>
-                  <Text style={styles.commentsPlaceholderText} numberOfLines={1}>
-                    Bagikan pendapatmu tentang episode ini...
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-
             {/* List Episode */}
             <View style={styles.episodesSection}>
               <View style={styles.episodesHeader}>
@@ -543,6 +453,31 @@ export default function WatchScreen() {
               )}
             </View>
 
+            {/* Comments Preview Box */}
+            <View style={styles.commentsPreviewSection}>
+              <Pressable 
+                onPress={() => setShowComments(true)}
+                style={({pressed}) => [styles.commentsBox, pressed && styles.commentsBoxPressed]}
+              >
+                <View style={styles.commentsHeader}>
+                  <Text style={styles.commentsTitle}>Komentar </Text>
+                  <ChevronDown color="#8e8e93" size={18} />
+                </View>
+                <View style={styles.commentsInputRow}>
+                  <View style={styles.userAvatarContainer}>
+                    {user?.picture ? (
+                      <Image source={{ uri: user.picture }} style={styles.userAvatarImage} />
+                    ) : (
+                      <Text style={styles.userAvatarText}>{user?.name ? user.name.charAt(0) : "U"}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.commentsPlaceholderText} numberOfLines={1}>
+                    Bagikan pendapatmu tentang episode ini...
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+
             {/* Recommendations */}
             {recommendations && recommendations.length > 0 && (
               <View style={styles.recommendationsSection}>
@@ -586,6 +521,7 @@ export default function WatchScreen() {
           </View>
         )}
       </ScrollView>
+      )}
       
       {anime && (
         <CommentSection 
@@ -594,6 +530,7 @@ export default function WatchScreen() {
           user={user} 
           visible={showComments} 
           onClose={() => setShowComments(false)} 
+          isFullscreen={isFullscreen}
         />
       )}
     </View>
@@ -603,7 +540,16 @@ export default function WatchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#13111a',
+    backgroundColor: '#0a0812',
+  },
+  fullscreenVideoContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    backgroundColor: 'black',
   },
   videoContainer: {
     width: '100%',
@@ -640,16 +586,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginTop: 12,
-  },
-  seekOverlay: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 40,
-  },
-  seekArea: {
-    width: '30%',
-    height: '60%',
-    marginTop: '10%',
   },
   unavailableContainer: {
     flex: 1,

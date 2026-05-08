@@ -8,7 +8,7 @@ import { useAuth } from "../../lib/auth";
 import { AnimeCard } from "../../components/AnimeCard";
 import { Skeleton } from "../../components/Skeleton";
 
-const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+import { API_URL } from "../../lib/config";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -21,10 +21,17 @@ const TABS = [
 
 function formatHistoryDate(dateStr: string) {
   try {
-    const d = new Date(dateStr);
-    const date = d.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' });
-    const time = d.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' });
-    return `${date} • ${time}`;
+    const safeStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+    const realD = new Date(safeStr);
+    if (isNaN(realD.getTime())) return "Waktu tidak diketahui";
+    const wibTime = new Date(realD.getTime() + (7 * 3600000));
+    const day = wibTime.getUTCDate();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+    const month = months[wibTime.getUTCMonth()];
+    const year = wibTime.getUTCFullYear();
+    const hh = String(wibTime.getUTCHours()).padStart(2, '0');
+    const mm = String(wibTime.getUTCMinutes()).padStart(2, '0');
+    return `${day} ${month} ${year} • ${hh}:${mm} WIB`;
   } catch (e) {
     return "Waktu tidak diketahui";
   }

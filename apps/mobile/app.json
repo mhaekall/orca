@@ -5,12 +5,12 @@
     "scheme": "orca",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/orca-logo.jpg",
     "userInterfaceStyle": "dark",
     "newArchEnabled": false,
     "jsEngine": "hermes",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/orca-logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#13111a"
     },
@@ -19,9 +19,11 @@
     },
     "android": {
       "package": "com.animescraperpro.app",
+      "versionCode": 2,
+      "targetSdkVersion": 34,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/orca-logo.jpg",
         "backgroundColor": "#13111a"
       },
       "edgeToEdgeEnabled": true,
@@ -34,8 +36,8 @@
       "expo-web-browser",
       "expo-secure-store",
       "expo-router",
-      "expo-asset",
-      "expo-video",
+      "expo-notifications",
+      "expo-updates",
       [
         "@react-native-google-signin/google-signin",
         {
@@ -49,6 +51,12 @@
         "projectId": "1aade253-1517-4cfa-ab26-6781fc66cbb0"
       }
     },
-    "owner": "mhaekal"
+    "owner": "mhaekal",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1aade253-1517-4cfa-ab26-6781fc66cbb0"
+    }
   }
 }

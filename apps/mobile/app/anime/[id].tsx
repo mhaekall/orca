@@ -14,7 +14,7 @@ import { Alert } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
 const paddingTopSafe = Platform.OS === "android" ? 30 : 50;
-const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+const API_URL = "https://orcanime.pages.dev";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function formatSynopsis(text: string) {

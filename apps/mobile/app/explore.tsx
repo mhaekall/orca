@@ -20,7 +20,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimeCard } from "../components/AnimeCard";
 
 const { width: W } = Dimensions.get("window");
-const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+import { API_URL } from "../lib/config";
+const API = API_URL;
 const BG = "#0a0812";
 const SURFACE = "#13111a";
 const SURFACE2 = "#1f1c29";

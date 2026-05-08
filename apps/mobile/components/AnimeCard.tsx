@@ -6,7 +6,7 @@ import { Play, Check, Star, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mutate } from 'swr';
 
-const API_URL = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+const API_URL = "https://orcanime.pages.dev";
 
 interface Props {
   id: string;

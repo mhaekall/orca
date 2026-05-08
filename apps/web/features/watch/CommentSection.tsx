@@ -261,7 +261,7 @@ const CommentItem = ({ comment: c, onReply, onLike, onSeek, hideActions, userId 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className={`text-white font-bold text-[13px] truncate ${isMe ? 'text-[#0a84ff]' : ''}`}>@{c.username.toLowerCase()}</span>
-          <span className="text-[#8e8e93] text-[10px] shrink-0">{new Date(c.created_at).toLocaleDateString()}</span>
+          <span className="text-[#8e8e93] text-[10px] shrink-0">{new Date(c.created_at).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric' })}</span>
           {c.timestamp_sec != null && (
             <button onClick={() => onSeek(c.timestamp_sec)} className="text-[#0a84ff] text-[10px] font-black bg-[#0a84ff]/10 px-1.5 rounded shrink-0">
               {Math.floor(c.timestamp_sec / 60)}:{(c.timestamp_sec % 60).toString().padStart(2, "0")}

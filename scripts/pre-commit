@@ -54,6 +54,22 @@ for PATTERN in "${PATTERNS[@]}"; do
   fi
 done
 
+# Check for timezone safety
+TS_FILES=$(echo "$FILES" | grep -E "\.(ts|tsx|js|jsx)$")
+if [ ! -z "$TS_FILES" ]; then
+  # Find lines added containing toLocaleDateString or toLocaleTimeString
+  BAD_DATES=$(git diff --cached --color=never $against -- $TS_FILES | grep -E "^\+" | grep -E "toLocaleDateString|toLocaleTimeString" | grep -v "Asia/Jakarta")
+  
+  if [ ! -z "$BAD_DATES" ]; then
+    echo "❌ ERROR: Unsafe Date formatting detected!"
+    echo "You used toLocaleDateString or toLocaleTimeString without specifying the 'Asia/Jakarta' timezone."
+    echo "Matches:"
+    echo "$BAD_DATES"
+    echo "Please add { timeZone: 'Asia/Jakarta' } to your format options to prevent UTC offset bugs."
+    exit 1
+  fi
+fi
+
 # Run Ruff on apps/api if Python files changed
 PYTHON_FILES=$(echo "$FILES" | grep -E "\.py$")
 if [ ! -z "$PYTHON_FILES" ] && [ -d "apps/api" ]; then

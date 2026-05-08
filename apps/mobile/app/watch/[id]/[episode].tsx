@@ -11,7 +11,7 @@ import { Skeleton } from '../../../components/Skeleton';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 
 const { width: W } = Dimensions.get('window');
-const API_URL = "https://orcanime.pages.dev";
+import { API_URL } from "../../../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function WatchScreen() {

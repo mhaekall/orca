@@ -10,7 +10,7 @@ import { useAuth } from "../../lib/auth";
 
 import { ChevronRight } from "lucide-react-native";
 
-const API_URL = "https://orcanime.pages.dev";
+import { API_URL } from "../../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");

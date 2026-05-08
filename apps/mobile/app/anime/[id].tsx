@@ -14,7 +14,7 @@ import { Alert } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
 const paddingTopSafe = Platform.OS === "android" ? 30 : 50;
-const API_URL = "https://orcanime.pages.dev";
+import { API_URL } from "../../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function formatSynopsis(text: string) {

@@ -6,7 +6,7 @@ import { Play, Check, Star, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mutate } from 'swr';
 
-const API_URL = "https://orcanime.pages.dev";
+import { API_URL } from "../lib/config";
 
 interface Props {
   id: string;

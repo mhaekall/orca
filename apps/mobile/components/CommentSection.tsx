@@ -4,7 +4,7 @@ import useSWR, { mutate as globalMutate } from 'swr';
 import { X, Heart, MessageSquare, Send } from 'lucide-react-native';
 import { Image } from 'expo-image';
 
-const API_URL = "https://orcanime.pages.dev";
+import { API_URL } from "../lib/config";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface CommentProps {

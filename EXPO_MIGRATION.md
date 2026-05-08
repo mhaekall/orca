@@ -19,16 +19,19 @@ Backend tetap sama (FastAPI). Yang perlu dipastikan:
 - Semua hooks `use-watch-history`, `use-collection`, `use-fetch-video` — mayoritas bisa dimigrasikan dengan perubahan minimal karena logicnya tidak bergantung pada DOM.
 
 ### Layer 3 — Navigation Architecture (Expo Router)
-Menentukan skalabilitas jangka panjang untuk fitur sosial. Struktur tab harus dipikirkan dari awal:
+Menentukan skalabilitas jangka panjang untuk fitur sosial. Struktur tab saat ini:
 ```text
-(tabs)/
-  beranda/
-  jadwal/
-  explore/        ← penting untuk discovery sosial
-  notifikasi/     ← siapkan dari awal meski belum ada konten
-  profil/
+apps/mobile/app/(tabs)/
+  index.tsx       ← Beranda / Home Feed
+  schedule.tsx    ← Jadwal Rilis
+  collection.tsx  ← Riwayat & Koleksi
+  profile.tsx     ← Profil User
+apps/mobile/app/
+  explore.tsx         ← Stack screen: Discovery sosial (cari anime/user)
+  notifications.tsx   ← Stack screen: Notifikasi sosial (belum ada konten)
+  trending.tsx        ← Stack screen: Trending
 ```
-> **Aturan:** Slot notifikasi dan explore harus ada dari hari pertama agar tidak perlu re-architect saat fitur sosial masuk.
+> **Aturan:** Slot `explore` dan `notifications` sengaja dibuat sebagai root stack screen (bukan tab) agar ruang layar lebih luas saat digunakan untuk fitur sosial yang *immersive*.
 
 ### Layer 4 — Video Player
 **MIGRATION UPDATE:** Awalnya direncanakan menggunakan `expo-video`. Namun, setelah diuji secara ekstensif pada OS Android tertentu (terutama low-end), ditemukan bahwa interaksi *Custom Seekbar* memicu *Float Precision Overflow* di jembatan JNI C++ ExoPlayer dan *Yoga Layout Engine*, yang menyebabkan *Fatal Force Close*.

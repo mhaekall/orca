@@ -22,7 +22,7 @@ import { LatestGrid } from "../../components/LatestGrid";
 import { useAuth } from "../../lib/auth";
 
 const { width: W, height: H } = Dimensions.get("window");
-import { API_URL } from "../../lib/config";
+import { API_URL, HF_API_URL } from "../../lib/config";
 const API = API_URL;
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -544,7 +544,7 @@ export default function HomeScreen() {
   });
 
   const { data: historyRes, mutate: mutateHistory } = useSWR(
-    userId ? `${API}/api/v2/social/progress?user_id=${userId}` : null,
+    userId ? `${HF_API_URL}/api/v2/social/progress?user_id=${userId}` : null,
     fetcher,
     { revalidateOnFocus: true }
   );

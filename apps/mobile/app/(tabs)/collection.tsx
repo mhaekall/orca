@@ -232,14 +232,8 @@ export default function CollectionScreen() {
   useEffect(() => {
     if (tab === "history") {
        setActiveTab("history");
-       setTimeout(() => {
-         flatListRef.current?.scrollToIndex({ index: 1, animated: false });
-       }, 100);
     } else {
        setActiveTab("all");
-       setTimeout(() => {
-         flatListRef.current?.scrollToIndex({ index: 0, animated: false });
-       }, 100);
     }
   }, [tab]);
 

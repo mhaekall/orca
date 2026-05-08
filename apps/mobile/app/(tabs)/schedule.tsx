@@ -222,6 +222,7 @@ export default function ScheduleScreen() {
       const sorted = [...items].sort((a, b) => {
         const timeA = a?.airingTime ? String(a.airingTime) : "";
         const timeB = b?.airingTime ? String(b.airingTime) : "";
+        if (!timeA && !timeB) return 0;
         if (!timeA) return 1;
         if (!timeB) return -1;
         return timeA.localeCompare(timeB);

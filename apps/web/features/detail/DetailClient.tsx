@@ -76,14 +76,15 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
   const desc = formatSynopsis(d.synopsis || "");
   const eps = d.episodes || [];
   const recs = d.recommendations || [];
+  const rels = d.relations || [];
   const realViews = d.views || 0;
 
   // Determine airing day
   let scheduleDay = d.airSchedule;
   if (!scheduleDay && d.nextAiringEpisode?.airingAt) {
     const dt = new Date(d.nextAiringEpisode.airingAt * 1000);
-    const daysArr = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-    scheduleDay = daysArr[dt.getDay()];
+    const dateStr = dt.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long' });
+    scheduleDay = dateStr;
   }
 
   const firstEp = eps.length > 0 ? (eps[0].number || eps[0].url?.split("episode=").pop() || "1") : null;
@@ -212,6 +213,28 @@ export default function DetailClient({ detail, id }: { detail: any; id: string }
             <h3 className="text-white font-bold text-base mb-4">Episode</h3>
             <EpisodeList episodes={eps} animeId={id} cover={d.poster} />
           </div>
+
+          {/* Relations */}
+          {rels.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-white font-bold text-base mb-4">Anime Terkait</h3>
+              <div className="flex flex-col gap-3">
+                {rels.map((r: any, i: number) => (
+                  <Link key={i} href={`/anime/${r.id}`} className="flex gap-4 p-3 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
+                    <div className="w-16 h-20 md:w-20 md:h-28 shrink-0 rounded-lg overflow-hidden relative">
+                      <img src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <span className="text-[#0A84FF] text-[11px] font-bold uppercase tracking-wider mb-1">
+                        {r.relationType ? r.relationType.replace(/_/g, " ") : "RELATED"}
+                      </span>
+                      <h4 className="text-white font-bold text-[14px] line-clamp-2">{r.title}</h4>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Recommendations */}
           {recs.length > 0 && (

@@ -32,6 +32,10 @@ GET_ANIME_DETAILS = """
         seasonYear
         description(asHtml: false)
         genres
+        tags {
+          name
+          rank
+        }
         studios {
           nodes {
             name
@@ -44,6 +48,17 @@ GET_ANIME_DETAILS = """
               id
               title { romaji english }
               coverImage { large }
+            }
+          }
+        }
+        relations {
+          edges {
+            relationType
+            node {
+              id
+              title { romaji english }
+              coverImage { large }
+              type
             }
           }
         }
@@ -86,6 +101,10 @@ GET_ANIME_BY_ID = """
       seasonYear
       description(asHtml: false)
       genres
+      tags {
+        name
+        rank
+      }
       studios {
         nodes {
           name
@@ -98,6 +117,17 @@ GET_ANIME_BY_ID = """
             id
             title { romaji english }
             coverImage { large }
+          }
+        }
+      }
+      relations {
+        edges {
+          relationType
+          node {
+            id
+            title { romaji english }
+            coverImage { large }
+            type
           }
         }
       }
@@ -150,6 +180,33 @@ async def fetch_anilist_info_by_id(anilist_id: int):
                             }
                         )
 
+            relations = []
+            if media.get("relations") and media["relations"].get("edges"):
+                for edge in media["relations"]["edges"]:
+                    rel_media = edge.get("node")
+                    if rel_media and rel_media.get("type") == "ANIME":
+                        relations.append(
+                            {
+                                "id": rel_media.get("id"),
+                                "relationType": edge.get("relationType"),
+                                "title": rel_media.get("title", {}).get("english")
+                                or rel_media.get("title", {}).get("romaji"),
+                                "cover": rel_media.get("coverImage", {}).get("large"),
+                            }
+                        )
+
+            genres = media.get("genres") or []
+            tags = media.get("tags") or []
+            
+            # Enrich genres with high-ranking tags (>= 60%)
+            for tag in tags:
+                tag_name = tag.get("name")
+                tag_rank = tag.get("rank", 0)
+                if tag_name and tag_rank >= 60 and tag_name not in genres:
+                    # Optional: filter out overly generic or spoiler tags if necessary
+                    # but for metadata richness, we append them here.
+                    genres.append(tag_name)
+
             result = {
                 "anilistId": media["id"],
                 "mal_id": media.get("idMal"),
@@ -165,13 +222,14 @@ async def fetch_anilist_info_by_id(anilist_id: int):
                 "popularity": media.get("popularity", 0),
                 "trending": media.get("trending", 0),
                 "description": media.get("description"),
-                "genres": media.get("genres", []),
+                "genres": genres,
                 "episodes": media.get("episodes"),
                 "status": media.get("status"),
                 "season": media.get("season"),
                 "seasonYear": media.get("seasonYear"),
                 "studios": studios,
                 "recommendations": recs,
+                "relations": relations,
                 "nextAiringEpisode": media.get("nextAiringEpisode"),
             }
             anilist_cache[cache_key] = result
@@ -304,6 +362,31 @@ async def fetch_anilist_info(title: str):
                             }
                         )
 
+            relations = []
+            if media.get("relations") and media["relations"].get("edges"):
+                for edge in media["relations"]["edges"]:
+                    rel_media = edge.get("node")
+                    if rel_media and rel_media.get("type") == "ANIME":
+                        relations.append(
+                            {
+                                "id": rel_media.get("id"),
+                                "relationType": edge.get("relationType"),
+                                "title": rel_media.get("title", {}).get("english")
+                                or rel_media.get("title", {}).get("romaji"),
+                                "cover": rel_media.get("coverImage", {}).get("large"),
+                            }
+                        )
+
+            genres = media.get("genres") or []
+            tags = media.get("tags") or []
+            
+            # Enrich genres with high-ranking tags (>= 60%)
+            for tag in tags:
+                tag_name = tag.get("name")
+                tag_rank = tag.get("rank", 0)
+                if tag_name and tag_rank >= 60 and tag_name not in genres:
+                    genres.append(tag_name)
+
             result = {
                 "anilistId": media["id"],
                 "mal_id": media.get("idMal"),
@@ -318,13 +401,14 @@ async def fetch_anilist_info(title: str):
                 "popularity": media.get("popularity", 0),
                 "trending": media.get("trending", 0),
                 "description": media.get("description"),
-                "genres": media.get("genres", []),
+                "genres": genres,
                 "episodes": media.get("episodes"),
                 "status": media.get("status"),
                 "season": media.get("season"),
                 "seasonYear": media.get("seasonYear"),
                 "studios": studios,
                 "recommendations": recs,
+                "relations": relations,
                 "nextAiringEpisode": media.get("nextAiringEpisode"),
             }
             anilist_cache[cache_key] = result

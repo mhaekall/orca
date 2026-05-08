@@ -36,6 +36,7 @@ anime_metadata = Table(
     Column("studios", JSONB),
     Column("genres", JSONB),
     Column("recommendations", JSONB),
+    Column("relations", JSONB),
     Column("nextAiringEpisode", JSONB),
     Column("popularity", Integer, default=0),
     Column("trending", Integer, default=0),
@@ -378,4 +379,140 @@ provider_health = Table(
     Column("is_reachable", Boolean, default=False),
     Column("avg_response_ms", Float, default=0.0),
     Column("success_rate_7d", Float, default=0.0),
+)
+
+# ── NEW: Domain 4 Content Graph (Normalized & Deep) ─────────────────────────
+
+genres = Table(
+    "genres",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("name", String, nullable=False, unique=True),
+)
+
+anime_genres = Table(
+    "anime_genres",
+    metadata,
+    Column("anilistId", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), primary_key=True),
+    Column("genre_id", Integer, ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True),
+)
+
+studios = Table(
+    "studios",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("name", String, nullable=False, unique=True),
+)
+
+anime_studios = Table(
+    "anime_studios",
+    metadata,
+    Column("anilistId", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), primary_key=True),
+    Column("studio_id", Integer, ForeignKey("studios.id", ondelete="CASCADE"), primary_key=True),
+)
+
+anime_relations = Table(
+    "anime_relations",
+    metadata,
+    Column("source_id", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), primary_key=True),
+    Column("target_id", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), primary_key=True),
+    Column("relation_type", String, nullable=False),  # e.g., "PREQUEL", "SEQUEL", "ALTERNATIVE"
+)
+
+characters = Table(
+    "characters",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("name", String, nullable=False),
+    Column("image", Text),
+)
+
+anime_characters = Table(
+    "anime_characters",
+    metadata,
+    Column("anilistId", Integer, ForeignKey("anime_metadata.anilistId", ondelete="CASCADE"), primary_key=True),
+    Column("character_id", Integer, ForeignKey("characters.id", ondelete="CASCADE"), primary_key=True),
+    Column("role", String, nullable=False),  # e.g., "MAIN", "SUPPORTING"
+)
+
+# ── NEW: Domain 5 Gamification Engine (Event-Sourced) ────────────────────────
+
+titles = Table(
+    "titles",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("name", String, nullable=False, unique=True),
+    Column("description", Text),
+    Column("condition_type", String, nullable=False),
+    Column("condition_value", Integer, nullable=False),
+)
+
+user_progression = Table(
+    "user_progression",
+    metadata,
+    Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    Column("level", Integer, default=1),
+    Column("total_exp", Integer, default=0),
+    Column("current_title_id", Integer, ForeignKey("titles.id", ondelete="SET NULL"), nullable=True),
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
+)
+
+exp_events = Table(
+    "exp_events",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
+    Column("event_type", String, nullable=False),  # e.g., "WATCH_EPISODE", "DAILY_LOGIN", "COMMENT"
+    Column("exp_gained", Integer, nullable=False),
+    Column("metadata", JSONB, nullable=True),
+    Column("created_at", DateTime, nullable=False, server_default=func.now()),
+    Index("idx_exp_events_user", "user_id"),
+)
+
+achievements = Table(
+    "achievements",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("name", String, nullable=False, unique=True),
+    Column("description", Text),
+    Column("icon_url", Text),
+    Column("points", Integer, default=0),
+)
+
+user_achievements = Table(
+    "user_achievements",
+    metadata,
+    Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    Column("achievement_id", Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key=True),
+    Column("unlocked_at", DateTime, nullable=False, server_default=func.now()),
+)
+
+user_reputation = Table(
+    "user_reputation",
+    metadata,
+    Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    Column("score", Integer, default=0),
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
+)
+
+# ── NEW: Domain 6 Advanced Analytics & Affinity ─────────────────────────────
+
+user_genre_affinity = Table(
+    "user_genre_affinity",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
+    Column("genre_id", Integer, ForeignKey("genres.id", ondelete="CASCADE"), nullable=False),
+    Column("watch_count", Integer, default=0),
+    Column("total_watch_time_sec", Integer, default=0),
+    UniqueConstraint("user_id", "genre_id", name="uq_user_genre_affinity"),
+)
+
+daily_platform_metrics = Table(
+    "daily_platform_metrics",
+    metadata,
+    Column("date", Date, primary_key=True),
+    Column("total_watch_time_sec", Integer, default=0),
+    Column("active_users_count", Integer, default=0),
+    Column("new_users_count", Integer, default=0),
 )

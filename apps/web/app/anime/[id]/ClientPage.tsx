@@ -70,6 +70,7 @@ export default function AnimeClientPage() {
     season: data.season,
     seasonYear: data.year,
     recommendations: data.recommendations ?? [],
+    relations: data.relations ?? [],
     nextAiringEpisode: data.nextAiringEpisode,
     episodes: (data.episodes ?? []).map((e: any) => ({
       title: `Episode ${e.episodeNumber}`,

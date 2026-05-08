@@ -61,3 +61,19 @@ export const watchHistory = pgTable("watch_history", {
   userSlugEpisodeIdx: index("wh_user_slug_ep_idx").on(table.userId, table.animeSlug, table.episode),
   userCompletedIdx: index("wh_user_completed_idx").on(table.userId, table.completed, table.updatedAt),
 }));
+
+// ── Gamification (Edge Synced) ──
+
+export const userProgression = pgTable("user_progression", {
+	userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+	level: integer("level").default(1),
+	totalExp: integer("total_exp").default(0),
+	currentTitleId: integer("current_title_id"), // Reference to titles table on backend
+	updatedAt: timestamp("updatedAt").notNull()
+});
+
+export const userReputation = pgTable("user_reputation", {
+	userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+	score: integer("score").default(0),
+	updatedAt: timestamp("updatedAt").notNull()
+});

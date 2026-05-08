@@ -642,7 +642,7 @@ async def get_anime_detail(anilist_id: int) -> dict | None:
     # Parse JSON columns since they might be returned as strings
     import json
 
-    for col in ["genres", "studios", "recommendations", "nextAiringEpisode"]:
+    for col in ["genres", "studios", "recommendations", "relations", "nextAiringEpisode"]:
         if col in meta_dict and isinstance(meta_dict[col], str):
             try:
                 meta_dict[col] = json.loads(meta_dict[col])

@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Dimensions, Platform, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import useSWR from 'swr';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Play, Bookmark, Share as ShareIcon, Star, ArrowLeft, Eye, Clock, Calendar, Check, Info, Search, Bell, Forward } from 'lucide-react-native';
 import { AnimeCard } from '../../components/AnimeCard';
 import { Skeleton } from '../../components/Skeleton';
@@ -44,6 +45,17 @@ export default function AnimeDetailScreen() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [epChunkIndex, setEpChunkIndex] = useState(0);
   const [isToggling, setIsToggling] = useState(false);
+  const [epsStyle, setEpsStyle] = useState<'list' | 'scroll'>('list');
+  const [epsSort, setEpsSort] = useState<'desc' | 'asc'>('desc');
+
+  useEffect(() => {
+    AsyncStorage.getItem('animeDetailEpsStyle').then(val => {
+      if (val === 'list' || val === 'scroll') setEpsStyle(val);
+    });
+    AsyncStorage.getItem('animeDetailEpsSort').then(val => {
+      if (val === 'desc' || val === 'asc') setEpsSort(val);
+    });
+  }, []);
 
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const headerBg = scrollY.interpolate({
@@ -67,10 +79,31 @@ export default function AnimeDetailScreen() {
     fetcher
   );
 
+  const { data: progressData } = useSWR(
+    userId ? `${API_URL}/api/v2/social/progress?user_id=${userId}` : null,
+    fetcher
+  );
+
   const rawItems = Array.isArray(collectionResponse) ? collectionResponse : (collectionResponse?.data || []);
   const isSaved = rawItems.some((h: any) => String(h.animeSlug || h.anilistId) === String(id));
 
+  const watchHistoryRaw = Array.isArray(progressData) ? progressData : (progressData?.data || []);
+  const animeHistory = watchHistoryRaw.filter((h: any) => String(h.animeSlug) === String(id));
+
   const d = data?.data;
+
+  const apiEps = Array.isArray(epsData) ? epsData : (epsData?.data || []);
+  const rawEps = apiEps.length > 0 ? apiEps : (d?.episodes || []);
+  
+  const eps = useMemo(() => {
+    const sorted = [...rawEps];
+    sorted.sort((a: any, b: any) => {
+      const numA = parseFloat(a.episodeNumber ?? a.number ?? a.url?.split("episode=").pop() ?? "0");
+      const numB = parseFloat(b.episodeNumber ?? b.number ?? b.url?.split("episode=").pop() ?? "0");
+      return epsSort === 'asc' ? numA - numB : numB - numA;
+    });
+    return sorted;
+  }, [rawEps, epsSort]);
 
   const toggleCollection = async () => {
     if (!user) {
@@ -80,8 +113,9 @@ export default function AnimeDetailScreen() {
     
     setIsToggling(true);
     try {
+      let res;
       if (isSaved) {
-        await fetch(`${API_URL}/api/v2/collection?user_id=${userId}&anilistId=${id}`, { method: "DELETE" });
+        res = await fetch(`${API_URL}/api/v2/collection?user_id=${userId}&anilistId=${id}`, { method: "DELETE" });
       } else {
         const payload = {
           user_id: userId,
@@ -89,15 +123,21 @@ export default function AnimeDetailScreen() {
           status: "plan_to_watch",
           progress: 0
         };
-        await fetch(`${API_URL}/api/v2/collection`, {
+        res = await fetch(`${API_URL}/api/v2/collection`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       }
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`API Error: ${res.status} - ${errorText}`);
+      }
+      
       await mutateCollection();
-    } catch (e) {
-      Alert.alert("Gagal", "Terjadi kesalahan saat menyimpan koleksi.");
+    } catch (e: any) {
+      Alert.alert("Gagal", `Terjadi kesalahan saat menyimpan koleksi: ${e.message || 'Unknown error'}`);
       console.error(e);
     } finally {
       setIsToggling(false);
@@ -106,11 +146,12 @@ export default function AnimeDetailScreen() {
 
   const handleShare = async () => {
     if (!d) return;
+    const shareTitle = d.cleanTitle || d.nativeTitle || d.title?.english || d.title?.romaji || d.title || 'Anime';
     try {
       await Share.share({
-        message: `Nonton ${d.title?.english || d.title?.romaji || d.title} di Orca Anime!`,
+        message: `Nonton ${shareTitle} di Orca Anime!`,
         url: `https://orca-anime.com/anime/${id}`,
-        title: d.title?.english || d.title?.romaji || d.title,
+        title: shareTitle,
       });
     } catch (error) {
       console.error(error);
@@ -159,13 +200,13 @@ export default function AnimeDetailScreen() {
   }
 
   const desc = formatSynopsis(d.synopsis || "");
-  const apiEps = Array.isArray(epsData) ? epsData : (epsData?.data || []);
-  const eps = apiEps.length > 0 ? apiEps : (d.episodes || []);
+
   const realViews = d.views || d.popularity || 0;
   
   let scheduleDay = d.airSchedule;
   if (!scheduleDay && d.nextAiringEpisode?.airingAt) {
-    const dt = new Date(d.nextAiringEpisode.airingAt * 1000);
+    const utc = (d.nextAiringEpisode.airingAt * 1000) + (new Date().getTimezoneOffset() * 60000);
+    const dt = new Date(utc + (7 * 3600000));
     const daysArr = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     scheduleDay = daysArr[dt.getDay()];
   }
@@ -224,25 +265,39 @@ export default function AnimeDetailScreen() {
                     {/* Background shape */}
                     <View style={{
                       position: 'absolute',
-                      top: 16, bottom: 4, left: 0, right: 20,
-                      backgroundColor: isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF', 
-                      transform: [{ rotate: '-3deg' }, { skewX: '-12deg' }],
-                      borderTopRightRadius: 4, borderBottomRightRadius: 16,
-                      shadowColor: isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF', shadowOpacity: 0.8, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
-                    }} />
+                      top: 0, bottom: 0, left: 0, right: 0,
+                      transform: [{ rotate: '-3deg' }, { skewX: '-18deg' }],
+                      shadowColor: isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF', shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6,
+                    }}>
+                      <View style={{ 
+                        flex: 1, 
+                        backgroundColor: isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF',
+                        borderTopRightRadius: 4, borderBottomRightRadius: 12,
+                        overflow: 'hidden'
+                      }}>
+                        {/* Abstract Batik/Lines Pattern */}
+                        <View style={{ position: 'absolute', width: 2, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', transform: [{rotate: '45deg'}], left: 10, top: -10 }} />
+                        <View style={{ position: 'absolute', width: 4, height: 60, backgroundColor: 'rgba(255,255,255,0.15)', transform: [{rotate: '45deg'}], left: 30, top: -10 }} />
+                        <View style={{ position: 'absolute', width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.3)', transform: [{rotate: '45deg'}], left: 50, top: -10 }} />
+                        <View style={{ position: 'absolute', width: 6, height: 80, backgroundColor: 'rgba(0,0,0,0.1)', transform: [{rotate: '-30deg'}], left: 70, top: -20 }} />
+                        <View style={{ position: 'absolute', width: 2, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', transform: [{rotate: '45deg'}], left: 100, top: -10 }} />
+                        <View style={{ position: 'absolute', width: 3, height: 60, backgroundColor: 'rgba(0,0,0,0.15)', transform: [{rotate: '45deg'}], left: 120, top: 0 }} />
+                        <View style={{ position: 'absolute', width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.25)', transform: [{rotate: '-45deg'}], left: 140, top: -10 }} />
+                      </View>
+                    </View>
                     
                     {/* Text on top */}
                     <Text style={{
                       color: '#fff', fontSize: 24, 
-                      paddingHorizontal: 22, paddingVertical: 8,
+                      paddingHorizontal: 16, paddingVertical: 2,
                       fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
                       fontWeight: 'bold', fontStyle: 'italic',
                       textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
+                      transform: [{ rotate: '-4deg' }]
                     }}>
                       {isFinished ? 'Tamat' : scheduleDay ? `Tiap ${scheduleDay}` : 'Sedang Tayang'}
                     </Text>
                   </View>
-
                   <Text style={{ color: "#fff", fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginBottom: d.nativeTitle && d.nativeTitle !== d.cleanTitle ? 4 : 8, lineHeight: 28 }} numberOfLines={2}>
                     {d.cleanTitle || d.nativeTitle || d.title?.english || d.title?.romaji || d.title}
                   </Text>
@@ -252,17 +307,9 @@ export default function AnimeDetailScreen() {
                       {d.nativeTitle}
                     </Text>
                   )}
-                  
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
-                    <View style={{ backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: 'bold' }}>
-                        {isFinished ? 'TAMAT' : 'ONGOING'}
-                      </Text>
-                    </View>
-                  </View>
                </View>
 
-               <View style={{ gap: 12, alignItems: 'center', paddingBottom: 4 }}>
+               <View style={{ gap: 12, alignItems: 'center', paddingBottom: 24 }}>
                   <Pressable 
                      onPress={handleShare}
                      style={({pressed}) => [
@@ -322,15 +369,10 @@ export default function AnimeDetailScreen() {
                 </View>
               )}
               {d.trending > 0 && (
-                <View style={styles.metaPill}>
+                <Pressable onPress={() => router.push('/trending' as any)} style={styles.metaPill as any}>
                   <Text style={{ fontSize: 11, marginRight: 4 }}>🔥</Text>
-                  <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>Trending #{d.trending}</Text>
-                </View>
-              )}
-              {d.popularity > 0 && (
-                <View style={styles.metaPill}>
-                  <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>Top #{d.popularity}</Text>
-                </View>
+                  <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{d.trending}</Text>
+                </Pressable>
               )}
               <View style={styles.metaPill}>
                 <Info color="rgba(255,255,255,0.6)" size={12} />
@@ -352,9 +394,9 @@ export default function AnimeDetailScreen() {
             {d.genres?.length > 0 && (
               <View style={styles.genresContainer}>
                 {d.genres.map((g: string) => (
-                  <View key={g} style={styles.genreBadge}>
+                  <Pressable key={g} onPress={() => router.push(`/explore?genre=${encodeURIComponent(g)}` as any)} style={({pressed}) => [styles.genreBadge, pressed && {opacity: 0.7}] as any}>
                     <Text style={styles.genreText}>{g}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             )}
@@ -379,8 +421,32 @@ export default function AnimeDetailScreen() {
           {/* Episode List Redesigned */}
           <View style={styles.episodesSection}>
             <View style={styles.episodesHeader}>
-              <Text style={styles.sectionTitle}>Daftar Episode</Text>
-              <Text style={styles.episodesCountText}>{eps.length} Episode</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Daftar Episode</Text>
+                <Text style={styles.episodesCountText}>{eps.length} Eps</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable 
+                  onPress={() => {
+                    const nextSort = epsSort === 'asc' ? 'desc' : 'asc';
+                    setEpsSort(nextSort);
+                    AsyncStorage.setItem('animeDetailEpsSort', nextSort);
+                  }}
+                  style={({pressed}) => [styles.episodesToggleButton, pressed && styles.episodesToggleButtonPressed] as any}
+                >
+                  <Text style={styles.episodesToggleText}>{epsSort === 'asc' ? "A-Z" : "Z-A"}</Text>
+                </Pressable>
+                <Pressable 
+                  onPress={() => {
+                    const nextStyle = epsStyle === 'list' ? 'scroll' : 'list';
+                    setEpsStyle(nextStyle);
+                    AsyncStorage.setItem('animeDetailEpsStyle', nextStyle);
+                  }}
+                  style={({pressed}) => [styles.episodesToggleButton, pressed && styles.episodesToggleButtonPressed] as any}
+                >
+                  <Text style={styles.episodesToggleText}>{epsStyle === 'list' ? "Grid" : "List"}</Text>
+                </Pressable>
+              </View>
             </View>
             
             {eps.length === 0 ? (
@@ -389,18 +455,18 @@ export default function AnimeDetailScreen() {
               </View>
             ) : (
               <View>
-                {/* Chunk Filter (if more than 50 eps) */}
-                {eps.length > 50 && (
+                {/* Chunk Filter (if more than 6 eps) */}
+                {eps.length > 6 && (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chunkScroll} contentContainerStyle={styles.chunkScrollContent as any}>
-                      {Array.from({ length: Math.ceil(eps.length / 50) }).map((_, i) => {
-                        const chunk = eps.slice(i * 50, (i + 1) * 50);
+                      {Array.from({ length: Math.ceil(eps.length / 6) }).map((_, i) => {
+                        const chunk = eps.slice(i * 6, (i + 1) * 6);
                         if (chunk.length === 0) return null;
                         
                         const getNum = (e: any) => e.episodeNumber ?? e.number ?? e.url?.split("episode=").pop() ?? "?";
                         const firstNum = getNum(chunk[0]);
                         const lastNum = getNum(chunk[chunk.length - 1]);
                         
-                        const label = `Eps ${lastNum} - ${firstNum}`;
+                        const label = epsSort === 'asc' ? `Eps ${firstNum} - ${lastNum}` : `Eps ${lastNum} - ${firstNum}`;
                         const isActive = epChunkIndex === i;
 
                         return (
@@ -418,36 +484,146 @@ export default function AnimeDetailScreen() {
                   </ScrollView>
                 )}
                 
-                {/* Elegant History-like Episode List */}
-                <View style={styles.episodesList}>
-                  {eps.slice(epChunkIndex * 50, (epChunkIndex + 1) * 50).map((ep: any, index: number, arr: any[]) => {
-                    const epNum = ep.episodeNumber ?? ep.number ?? ep.url?.split("episode=").pop() ?? "?";
-                    const epTitle = ep.episodeTitle || `Episode ${epNum}`;
-                    const isLast = index === arr.length - 1;
-                    const img = ep.thumbnailUrl || (typeof d.coverImage === 'string' ? d.coverImage : (d.coverImage?.extraLarge || d.coverImage?.large || d.bannerImage || d.poster || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg"));
-                    return (
-                      <Pressable 
-                        key={index} 
-                        onPress={() => router.push(`/watch/${id}/${epNum}` as any)}
-                        style={[styles.historyItemRow, !isLast && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }] as any}
-                      >
-                        <Image source={{ uri: img }} style={styles.historyImg} contentFit="cover" />
-                        <View style={styles.historyDetails}>
-                          <Text style={styles.historyTitle} numberOfLines={2}>{epTitle}</Text>
-                          <Text style={styles.historyEp}>Episode {epNum}</Text>
-                        </View>
-                        <View style={{ justifyContent: 'center' }}>
-                          <View style={styles.episodePlayCircle}>
-                            <Play size={12} color="#fff" style={{ marginLeft: 2 }} />
+                {/* Episodes Rendering Based on Style */}
+                {epsStyle === 'list' ? (
+                  <View style={styles.episodesList}>
+                    {eps.slice(epChunkIndex * 6, (epChunkIndex + 1) * 6).map((ep: any, index: number, arr: any[]) => {
+                      const epNum = ep.episodeNumber ?? ep.number ?? ep.url?.split("episode=").pop() ?? "?";
+                      const epTitle = ep.episodeTitle || `Episode ${epNum}`;
+                      const isLast = index === arr.length - 1;
+                      
+                      const epHistory = animeHistory.find((h: any) => String(h.episode) === String(epNum));
+                      let progressPercent = 0;
+                      if (epHistory && epHistory.durationSec > 0) {
+                         progressPercent = Math.min(100, Math.max(0, (epHistory.timestampSec / epHistory.durationSec) * 100));
+                      }
+                      
+                      let formattedDate = "";
+                      if (epHistory?.updatedAt) {
+                         const safeStr = typeof epHistory.updatedAt === 'string' && !epHistory.updatedAt.endsWith('Z') 
+                           ? `${epHistory.updatedAt}Z` : epHistory.updatedAt;
+                         const d = new Date(safeStr);
+                         if (!isNaN(d.getTime())) {
+                           const wTime = new Date(d.getTime() + (7 * 3600000));
+                           const mName = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'][wTime.getUTCMonth()];
+                           const hh = String(wTime.getUTCHours()).padStart(2, '0');
+                           const mm = String(wTime.getUTCMinutes()).padStart(2, '0');
+                           formattedDate = `${wTime.getUTCDate()} ${mName} ${wTime.getUTCFullYear()} • ${hh}:${mm} WIB`;
+                         }
+                      }
+
+                      let addedDate = "";
+                      if (ep.updatedAt) {
+                         const safeStr = typeof ep.updatedAt === 'string' && !ep.updatedAt.endsWith('Z') 
+                           ? `${ep.updatedAt}Z` : ep.updatedAt;
+                         const d = new Date(safeStr);
+                         if (!isNaN(d.getTime())) {
+                           const wTime = new Date(d.getTime() + (7 * 3600000));
+                           const mName = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'][wTime.getUTCMonth()];
+                           addedDate = `${wTime.getUTCDate()} ${mName} ${wTime.getUTCFullYear()}`;
+                         }
+                      }
+
+                      return (
+                        <Pressable 
+                          key={index} 
+                          onPress={() => router.push(`/watch/${id}/${epNum}` as any)}
+                          style={[styles.historyItemRow, !isLast && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }] as any}
+                        >
+                          <View style={[styles.historyDetails, { marginLeft: 0 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={styles.historyTitle} numberOfLines={1}>Episode {epNum}</Text>
+                              {addedDate ? (
+                                <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: '500' }}>{addedDate}</Text>
+                              ) : null}
+                            </View>
+                            {epHistory && (
+                               <View style={{ marginTop: 6, paddingRight: 24 }}>
+                                 <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
+                                   <View style={{ height: '100%', backgroundColor: epHistory.completed ? '#30D158' : '#0A84FF', width: `${progressPercent}%` }} />
+                                 </View>
+                                 <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Ditonton {formattedDate}</Text>
+                               </View>
+                            )}
                           </View>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                          <View style={{ justifyContent: 'center', marginLeft: 12 }}>
+                            <View style={styles.episodePlayCircle}>
+                              <Play size={12} color="#fff" style={{ marginLeft: 2 }} />
+                            </View>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.episodesScroll} contentContainerStyle={styles.episodesScrollContent as any}>
+                      {eps.slice(epChunkIndex * 6, (epChunkIndex + 1) * 6).map((ep: any, index: number) => {
+                        const epNum = ep.episodeNumber ?? ep.number ?? ep.url?.split("episode=").pop() ?? "?";
+                        return (
+                          <Pressable 
+                            key={index}
+                            onPress={() => router.push(`/watch/${id}/${epNum}` as any)}
+                            style={({pressed}) => [
+                              styles.scrollEpisodeItem,
+                              styles.episodeItemInactive,
+                              pressed && styles.episodeItemPressed
+                            ] as any}
+                          >
+                            <Text style={[styles.scrollEpisodeText, styles.episodeTextInactive]}>
+                              {epNum}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                  </ScrollView>
+                )}
               </View>
             )}
           </View>
+
+          {/* Relations */}
+          {d.relations && d.relations.length > 0 && (
+            <View style={styles.recommendationsSection}>
+              <Text style={[styles.sectionTitle, {marginBottom: 16}]}>Anime Terkait</Text>
+              <View style={{ gap: 12 }}>
+                {d.relations.map((r: any, i: number) => {
+                  const recId = String(r.id || r.anilistId);
+                  if (!recId) return null;
+                  return (
+                    <Pressable 
+                      key={i} 
+                      onPress={() => router.push(`/anime/${recId}` as any)}
+                      style={({pressed}) => [{
+                        flexDirection: 'row', 
+                        gap: 16, 
+                        padding: 12, 
+                        borderRadius: 16, 
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.05)'
+                      }, pressed && { opacity: 0.8, backgroundColor: 'rgba(255,255,255,0.1)' }]}
+                    >
+                      <View style={{ width: 64, height: 90, borderRadius: 8, overflow: 'hidden' }}>
+                        <Image 
+                          source={{ uri: typeof r.cover === 'string' ? r.cover : (r.coverImage?.large || r.coverImage?.extraLarge || r.image || '') }} 
+                          style={{ width: '100%', height: '100%' }} 
+                          contentFit="cover" 
+                        />
+                      </View>
+                      <View style={{ flex: 1, justifyContent: 'center' }}>
+                        <Text style={{ color: '#0A84FF', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                          {r.relationType ? r.relationType.replace(/_/g, " ") : "RELATED"}
+                        </Text>
+                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold', lineHeight: 20 }} numberOfLines={2}>
+                          {r.title?.english || r.title?.romaji || r.title || ''}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           {/* Recommendations */}
           {d.recommendations && d.recommendations.length > 0 && (
@@ -559,8 +735,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: paddingTopSafe + 10, paddingBottom: 16,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 36, height: 36,
     alignItems: "center", justifyContent: "center",
   },
   bellBtn: {
@@ -607,7 +782,7 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     paddingHorizontal: 20,
-    marginTop: 16,
+    marginTop: 0, // Reduced from 16 to be closer to title
     position: 'relative',
     zIndex: 10,
   },
@@ -658,20 +833,20 @@ const styles = StyleSheet.create({
   metaStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6, // Reduced gap
     marginBottom: 16,
   },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 4, // Reduced gap
+    paddingHorizontal: 8, // Reduced padding
+    paddingVertical: 4, // Reduced padding
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 8,
+    borderRadius: 6, // Smaller border radius
   },
   metaPillText: {
-    fontSize: 12,
+    fontSize: 10, // Smaller text
     fontWeight: '600',
     color: 'white',
   },
@@ -869,12 +1044,58 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   episodePlayCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  episodesToggleButton: {
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  episodesToggleButtonPressed: {
+    backgroundColor: 'rgba(10, 132, 255, 0.2)',
+  },
+  episodesToggleText: {
+    color: '#0A84FF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  episodesScroll: {
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  episodesScrollContent: {
+    paddingRight: 40,
+    gap: 10,
+  },
+  scrollEpisodeItem: {
+    height: 48,
+    minWidth: 64,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  episodeItemInactive: {
+    backgroundColor: '#1f1c29',
+    borderColor: 'transparent',
+  },
+  episodeItemPressed: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  scrollEpisodeText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  episodeTextInactive: {
+    color: '#8e8e93',
   },
   recommendationsSection: {
     marginBottom: 32,

@@ -20,7 +20,6 @@ export async function GET(request: Request) {
   const search = searchParams.get('search') || '';
   const hideEmpty = searchParams.get('hide_empty') === 'true';
   const onlyTg = searchParams.get('only_tg') === 'true';
-  // provider filter omitted for brevity, add if needed
 
   const offset = (page - 1) * limit;
   const sql = neon(dbUrl);
@@ -31,12 +30,12 @@ export async function GET(request: Request) {
   let valueIndex = 1;
 
   if (search) {
-    if (/^\\d+$/.test(search)) {
-      whereClause += \` AND a."anilistId" = $\${valueIndex++}\`;
+    if (/^\d+$/.test(search)) {
+      whereClause += ` AND a."anilistId" = $${valueIndex++}`;
       values.push(parseInt(search));
     } else {
-      whereClause += \` AND a."cleanTitle" ILIKE $\${valueIndex++}\`;
-      values.push(\`%\${search}%\`);
+      whereClause += ` AND a."cleanTitle" ILIKE $${valueIndex++}`;
+      values.push(`%${search}%`);
     }
   }
 
@@ -45,33 +44,33 @@ export async function GET(request: Request) {
   }
 
   if (onlyTg) {
-    havingClause += \` AND SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) > 0\`;
+    havingClause += ` AND SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) > 0`;
   }
 
-  const countQuery = \`
+  const countQuery = `
     SELECT COUNT(*) as total FROM (
       SELECT a."anilistId"
       FROM anime_metadata a
       LEFT JOIN episodes e ON a."anilistId" = e."anilistId"
-      WHERE \${whereClause}
+      WHERE ${whereClause}
       GROUP BY a."anilistId"
-      HAVING \${havingClause}
+      HAVING ${havingClause}
     ) as subq
-  \`;
+  `;
 
-  const dataQuery = \`
+  const dataQuery = `
     SELECT a."anilistId", a."cleanTitle" as title, a.genres, a.status, a.year, a."coverImage" as cover,
            COUNT(e.id) as episode_count,
            SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) as tg_count,
            MAX(e."providerId") as "providerId"
     FROM anime_metadata a
     LEFT JOIN episodes e ON a."anilistId" = e."anilistId"
-    WHERE \${whereClause}
+    WHERE ${whereClause}
     GROUP BY a."anilistId", a."cleanTitle", a.genres, a.status, a.year, a."coverImage"
-    HAVING \${havingClause}
+    HAVING ${havingClause}
     ORDER BY a.year DESC NULLS LAST, a."cleanTitle" ASC
-    LIMIT $\${valueIndex++} OFFSET $\${valueIndex++}
-  \`;
+    LIMIT $${valueIndex++} OFFSET $${valueIndex++}
+  `;
 
   try {
     const countResult: any = await sql.query(countQuery, values);

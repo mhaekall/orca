@@ -32,10 +32,25 @@ import {
 const API = "https://orcanime.pages.dev";
 
 const TAB_META: Record<string, { label: string; desc: string; icon: string }> = {
+  ecosystem: {
+    label: "Ecosystem",
+    desc: "Full production stack overview and component count.",
+    icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
+  },
   database: {
     label: "Database",
     desc: "Browse, search, and diagnose anime & episode records.",
     icon: "M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4",
+  },
+  tghealth: {
+    label: "TG Health",
+    desc: "Live health status of all Telegram Swarm HLS proxy links.",
+    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  },
+  cache: {
+    label: "Edge Cache",
+    desc: "L0/L1/L2 cache layers and circuit breaker health.",
+    icon: "M13 10V3L4 14h7v7l9-11h-7z",
   },
 };
 
@@ -343,35 +358,12 @@ function InsightsTab({
 // ─── TG Swarm Health Tab (Dumb Frontend) ──────────────────────────────────────
 function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
   const [filter, setFilter] = useState<"all" | "healthy" | "error">("error");
-  const { addToast } = useToastContext();
 
-  const { data, loading, error, mutate } = useApi<{ success: boolean; data: any[] }>(
+  const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
     `${api}/api/v2/admin/swarm-health?filter=${filter}`,
     headers,
     [filter]
   );
-
-  const handleReingest = async (epId: number, epNum: number) => {
-    if (!confirm(`Tindakan ini akan menghapus episode ${epNum} dari database dan melakukan Re-Ingest ulang. Lanjutkan?`)) return;
-    try {
-      const res = await fetch(`${api}/api/v2/admin/episode/${epId}/reingest`, {
-        method: "POST",
-        headers,
-      });
-      const d = await res.json();
-      if (d.success) {
-        addToast(`Episode ${epNum} berhasil masuk antrean Re-Ingest!`, "success");
-        // Hapus sementara dari UI
-        if (data && data.data) {
-           mutate({ ...data, data: data.data.filter(ep => ep.id !== epId) });
-        }
-      } else {
-        addToast(d.error || "Gagal melakukan Re-Ingest", "error");
-      }
-    } catch (e) {
-      addToast("Network error", "error");
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -418,13 +410,6 @@ function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
                   ) : (
                     <>
                       <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate max-w-[150px]" title={link.status}>❌ {link.status}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleReingest(link.id, link.episodeNumber); }}
-                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 active:scale-95 border border-red-500/20 rounded-lg text-[10px] font-bold uppercase tracking-wider text-red-400 transition-all flex items-center gap-1.5"
-                      >
-                        <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        Re-Ingest
-                      </button>
                     </>
                   )}
                 </div>
@@ -1000,6 +985,9 @@ function MainApp() {
           <div className="flex-1 px-5 md:px-8 pb-32 md:pb-10">
             <TabErrorBoundary tab={activeTab} key={activeTab}>
               {activeTab === "database" && <DatabaseTab api={API} headers={headers} />}
+              {activeTab === "tghealth" && <TgHealthTab api={API} headers={headers} />}
+              {activeTab === "cache" && <CacheTab api={API} headers={headers} onLogout={logout} />}
+              {activeTab === "ecosystem" && <EcosystemTab />}
             </TabErrorBoundary>
           </div>
         </main>
@@ -1019,6 +1007,41 @@ function MainApp() {
         .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
       `}</style>
     </ToastCtx.Provider>
+  );
+}
+
+// ─── Ecosystem Tab ────────────────────────────────────────────────────────────
+function EcosystemTab() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          { label: "Next.js Pages", value: "11" },
+          { label: "React Components", value: "31" },
+          { label: "API Endpoints", value: "15+" },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-zinc-900 border border-white/5 rounded-3xl p-5">
+            <p className="text-2xl font-black text-white">{value}</p>
+            <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="bg-zinc-900 border border-white/5 rounded-[2rem] overflow-hidden">
+        {[
+          ["Frontend", "Next.js 15, Tailwind v4, React 19"],
+          ["Backend", "Cloudflare Pages (Serverless) + Hugging Face Spaces"],
+          ["Database", "Neon Postgres (serverless + connection pool)"],
+          ["Cache", "Upstash Redis + QStash background queue"],
+          ["Video Storage", "Telegram Swarm via Cloudflare Worker proxy"],
+          ["Providers", "Oploverz, Samehadaku, Kuronime, Otakudesu"],
+        ].map(([t, d]) => (
+          <div key={t} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 px-6 py-4 border-b border-white/5 last:border-0 hover:bg-white/2 transition-colors">
+            <p className="text-sm font-bold text-white w-36 shrink-0">{t}</p>
+            <p className="text-sm text-zinc-500">{d}</p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

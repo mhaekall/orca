@@ -791,7 +791,7 @@ function Sidebar({ activeTab, setActiveTab, onLogout }: { activeTab: string; set
 
 // ─── Mobile Dock ──────────────────────────────────────────────────────────────
 function MobileDock({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (t: string) => void }) {
-  const DOCK_TABS = ["insights", "database", "tghealth", "vault", "cache", "users", "monetization", "ecosystem"];
+  const DOCK_TABS = Object.keys(TAB_META);
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-950/95 backdrop-blur-2xl border-t border-white/8"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>

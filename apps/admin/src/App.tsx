@@ -29,48 +29,13 @@ import {
 } from "react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const API = "https://jonyyyyyyyu-anime-scraper-api.hf.space";
+const API = "https://orcanime.pages.dev";
 
 const TAB_META: Record<string, { label: string; desc: string; icon: string }> = {
-  insights: {
-    label: "Insights",
-    desc: "Live system telemetry and ingestion overview.",
-    icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-  },
   database: {
     label: "Database",
     desc: "Browse, search, and diagnose anime & episode records.",
     icon: "M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4",
-  },
-  tghealth: {
-    label: "TG Health",
-    desc: "Live health status of all Telegram Swarm HLS proxy links.",
-    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
-  },
-  vault: {
-    label: "Vault",
-    desc: "Telegram Swarm HLS storage and export controls.",
-    icon: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12a1 1 0 102 0 1 1 0 00-2 0",
-  },
-  cache: {
-    label: "Edge Cache",
-    desc: "L0/L1/L2 cache layers and circuit breaker health.",
-    icon: "M13 10V3L4 14h7v7l9-11h-7z",
-  },
-  users: {
-    label: "Users",
-    desc: "Registered accounts and subscription management.",
-    icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
-  },
-  monetization: {
-    label: "Revenue",
-    desc: "MRR, donations, and payment gateway setup.",
-    icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  },
-  ecosystem: {
-    label: "Ecosystem",
-    desc: "Full production stack overview and component count.",
-    icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
   },
 };
 
@@ -378,12 +343,35 @@ function InsightsTab({
 // ─── TG Swarm Health Tab (Dumb Frontend) ──────────────────────────────────────
 function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
   const [filter, setFilter] = useState<"all" | "healthy" | "error">("error");
+  const { addToast } = useToastContext();
 
-  const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
+  const { data, loading, error, mutate } = useApi<{ success: boolean; data: any[] }>(
     `${api}/api/v2/admin/swarm-health?filter=${filter}`,
     headers,
     [filter]
   );
+
+  const handleReingest = async (epId: number, epNum: number) => {
+    if (!confirm(`Tindakan ini akan menghapus episode ${epNum} dari database dan melakukan Re-Ingest ulang. Lanjutkan?`)) return;
+    try {
+      const res = await fetch(`${api}/api/v2/admin/episode/${epId}/reingest`, {
+        method: "POST",
+        headers,
+      });
+      const d = await res.json();
+      if (d.success) {
+        addToast(`Episode ${epNum} berhasil masuk antrean Re-Ingest!`, "success");
+        // Hapus sementara dari UI
+        if (data && data.data) {
+           mutate({ ...data, data: data.data.filter(ep => ep.id !== epId) });
+        }
+      } else {
+        addToast(d.error || "Gagal melakukan Re-Ingest", "error");
+      }
+    } catch (e) {
+      addToast("Network error", "error");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -424,11 +412,20 @@ function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
                     {link.episodeUrl}
                   </p>
                 </div>
-                <div className="shrink-0 flex items-center justify-start sm:justify-end">
+                <div className="shrink-0 flex items-center justify-start sm:justify-end gap-3">
                   {link.healthy ? (
                     <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider">✅ Healthy</span>
                   ) : (
-                    <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate max-w-[150px]" title={link.status}>❌ {link.status}</span>
+                    <>
+                      <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate max-w-[150px]" title={link.status}>❌ {link.status}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReingest(link.id, link.episodeNumber); }}
+                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 active:scale-95 border border-red-500/20 rounded-lg text-[10px] font-bold uppercase tracking-wider text-red-400 transition-all flex items-center gap-1.5"
+                      >
+                        <svg className="w-3 h-3 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Re-Ingest
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -594,19 +591,35 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
                       <div className="space-y-1.5 max-h-64 overflow-y-auto scrollbar-hide">
                         {episodes.map((ep) => (
                           <div key={ep.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl hover:bg-white/5 transition-colors">
-                            <span className="text-xs font-bold text-zinc-400 shrink-0">Ep {ep.episodeNumber}</span>
-                            <span className="flex-1 text-[10px] text-zinc-600 truncate font-mono">{ep.episodeUrl || "—"}</span>
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
-                              ep.episodeUrl?.includes("tg-proxy") || ep.episodeUrl?.includes("workers.dev")
-                                ? "bg-green-500/10 text-green-500"
-                                : ep.episodeUrl
-                                ? "bg-yellow-500/10 text-yellow-500"
-                                : "bg-zinc-800 text-zinc-600"
-                            }`}>
-                              {ep.episodeUrl?.includes("tg-proxy") || ep.episodeUrl?.includes("workers.dev")
-                                ? "HLS"
-                                : ep.episodeUrl ? "Direct" : "None"}
-                            </span>
+                            <div className="flex-1 flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-zinc-400 shrink-0">Ep {ep.episodeNumber}</span>
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                                  ep.episodeUrl?.includes("tg-proxy") || ep.episodeUrl?.includes("workers.dev")
+                                    ? "bg-green-500/10 text-green-500"
+                                    : ep.episodeUrl
+                                    ? "bg-yellow-500/10 text-yellow-500"
+                                    : "bg-zinc-800 text-zinc-600"
+                                }`}>
+                                  {ep.episodeUrl?.includes("tg-proxy") || ep.episodeUrl?.includes("workers.dev")
+                                    ? "HLS"
+                                    : ep.episodeUrl ? "Direct" : "None"}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-zinc-600 truncate font-mono mt-1 opacity-60">{ep.episodeUrl || "—"}</span>
+                            </div>
+                            <div className="shrink-0 flex items-center">
+                              {ep.episodeUrl && (
+                                <a
+                                  href={ep.episodeUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[9px] text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-widest font-bold"
+                                >
+                                  Test M3U8
+                                </a>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -835,7 +848,7 @@ function MainApp() {
   const [auth, setAuth] = useState(false);
   const [key, setKey] = useState("");
   const [inputKey, setInputKey] = useState("");
-  const [activeTab, setActiveTab] = useState("insights");
+  const [activeTab, setActiveTab] = useState("database");
 
   // Polling data (fast lane)
   const [stats, setStats] = useState<Stats | null>(null);
@@ -986,57 +999,7 @@ function MainApp() {
           {/* Content */}
           <div className="flex-1 px-5 md:px-8 pb-32 md:pb-10">
             <TabErrorBoundary tab={activeTab} key={activeTab}>
-              {activeTab === "insights" && (
-                <InsightsTab
-                  api={API} headers={headers}
-                  stats={stats} ingestTasks={ingestTasks} logs={logs}
-                  onAction={handleAction} setActiveTab={setActiveTab}
-                />
-              )}
               {activeTab === "database" && <DatabaseTab api={API} headers={headers} />}
-              {activeTab === "tghealth" && <TgHealthTab api={API} headers={headers} />}
-              {activeTab === "vault" && (
-                <PlaceholderTab emoji="🗄️" title="Swarm Vault" desc="Telegram HLS segment storage browser with CSV export." cta="Load Vault" />
-              )}
-              {activeTab === "cache" && <CacheTab api={API} headers={headers} onLogout={logout} />}
-              {activeTab === "users" && (
-                <PlaceholderTab emoji="👥" title="User Management" desc="Registered accounts, premium upgrades, and ban controls. Coming soon." />
-              )}
-              {activeTab === "monetization" && (
-                <PlaceholderTab emoji="💰" title="Revenue" desc="Connect Midtrans, Saweria, or Trakteer to track MRR and automate premium provisioning." cta="Setup Gateway" />
-              )}
-              {activeTab === "ecosystem" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {[
-                      { label: "Next.js Pages", value: "11" },
-                      { label: "React Components", value: "31" },
-                      { label: "API Endpoints", value: "15+" },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="bg-zinc-900 border border-white/5 rounded-3xl p-5">
-                        <p className="text-2xl font-black text-white">{value}</p>
-                        <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest font-bold">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="bg-zinc-900 border border-white/5 rounded-3xl overflow-hidden">
-                    {[
-                      ["Frontend", "Next.js 15, Tailwind v4, React 19"],
-                      ["Backend", "FastAPI (Python 3.10), Uvicorn, SQLAlchemy"],
-                      ["Database", "Neon Postgres (serverless + connection pool)"],
-                      ["Cache", "Upstash Redis + QStash background queue"],
-                      ["Deployment", "Cloudflare Pages + Hugging Face Spaces"],
-                      ["Video Storage", "Telegram Swarm via Cloudflare Worker proxy"],
-                      ["Providers", "Oploverz, Samehadaku, Kuronime, Otakudesu"],
-                    ].map(([t, d]) => (
-                      <div key={t} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 px-6 py-4 border-b border-white/5 last:border-0 hover:bg-white/2 transition-colors">
-                        <p className="text-sm font-bold text-white w-36 shrink-0">{t}</p>
-                        <p className="text-sm text-zinc-500">{d}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </TabErrorBoundary>
           </div>
         </main>

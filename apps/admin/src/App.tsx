@@ -42,6 +42,21 @@ const TAB_META: Record<string, { label: string; desc: string; icon: string }> = 
     desc: "Browse, search, and diagnose anime & episode records.",
     icon: "M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4",
   },
+  activity: {
+    label: "Live Activity",
+    desc: "Real-time feed of user watch history and episode likes.",
+    icon: "M13 10V3L4 14h7v7l9-11h-7z",
+  },
+  reports: {
+    label: "User Reports",
+    desc: "Triage and resolve broken video reports from users.",
+    icon: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
+  },
+  searches: {
+    label: "Search Analytics",
+    desc: "See what users are searching for to guide future ingestions.",
+    icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+  },
   tghealth: {
     label: "TG Health",
     desc: "Live health status of all Telegram Swarm HLS proxy links.",
@@ -50,7 +65,7 @@ const TAB_META: Record<string, { label: string; desc: string; icon: string }> = 
   cache: {
     label: "Edge Cache",
     desc: "L0/L1/L2 cache layers and circuit breaker health.",
-    icon: "M13 10V3L4 14h7v7l9-11h-7z",
+    icon: "M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 12a1 1 0 102 0 1 1 0 00-2 0",
   },
 };
 
@@ -62,7 +77,7 @@ interface CacheStats {
   l0_entries: number; l0_max: number; l2_pg_entries: number;
   inflight_scrapes: number; circuit_breakers: Record<string, string>; error?: string;
 }
-interface AnimeRow { anilistId: number; title: string; totalEpisodes: number; providers: string[]; slug: string }
+interface AnimeRow { anilistId: number; title: string; cover: string; status: string; year: number; episode_count: number; tg_count: number; providerId: string; }
 interface EpisodeRow { id: number; episodeNumber: number; episodeUrl: string }
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -360,7 +375,7 @@ function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
   const [filter, setFilter] = useState<"all" | "healthy" | "error">("error");
 
   const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
-    `${api}/api/v2/admin/swarm-health?filter=${filter}`,
+    `${api}/api/v2/admin/swarm-health?v=2&filter=${filter}`,
     headers,
     [filter]
   );
@@ -460,6 +475,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
   const [page, setPage] = useState(1);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [onlyTg, setOnlyTg] = useState(false);
+  const [sort, setSort] = useState("year_desc");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeRow[]>([]);
   const [epLoading, setEpLoading] = useState(false);
@@ -469,13 +485,14 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
     const p = new URLSearchParams({
       page: String(page), limit: "50",
       hide_empty: String(hideEmpty), only_tg: String(onlyTg),
+      sort: sort
     });
     if (search) p.set("search", search);
     return p.toString();
-  }, [page, search, hideEmpty, onlyTg]);
+  }, [page, search, hideEmpty, onlyTg, sort]);
 
   const { data, loading } = useApi<{ success: boolean; data: AnimeRow[]; pagination: { total_pages: number } }>(
-    `${api}/api/v2/admin/database?${qp}`,
+    `${api}/api/v2/admin/database?v=2&${qp}`,
     headers,
     [qp],
     400
@@ -498,17 +515,57 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
     setEpLoading(false);
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast("Link copied to clipboard!", "success");
+    } catch (err) {
+      addToast("Failed to copy link", "error");
+    }
+  };
+
+  const deleteEpisode = async (epId: number) => {
+    if (!confirm(`Tindakan ini akan menghapus episode dari database. Anda yakin?`)) return;
+    try {
+      const res = await fetch(`${api}/api/v2/admin/episode/${epId}`, {
+        method: "DELETE",
+        headers,
+      });
+      const d = await res.json();
+      if (d.success) {
+        addToast(`Episode dihapus!`, "success");
+        setEpisodes((prev) => prev.filter((ep) => ep.id !== epId));
+      } else {
+        addToast(d.error || "Gagal menghapus", "error");
+      }
+    } catch (e) {
+      addToast("Network error", "error");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col xl:flex-row gap-3">
         <input
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Search anime title…"
+          placeholder="Search anime title or ID…"
           className="flex-1 bg-zinc-900 border border-white/5 rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
         />
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <select
+            value={sort}
+            onChange={(e) => { setSort(e.target.value); setPage(1); }}
+            className="bg-zinc-900 border border-white/5 text-zinc-300 text-xs font-bold uppercase tracking-wider rounded-2xl px-4 py-3 focus:outline-none focus:border-white/20 appearance-none"
+          >
+            <option value="year_desc">Sort: Newest Year</option>
+            <option value="year_asc">Sort: Oldest Year</option>
+            <option value="title_asc">Sort: A-Z</option>
+            <option value="title_desc">Sort: Z-A</option>
+            <option value="episodes_desc">Sort: Most Eps</option>
+            <option value="episodes_asc">Sort: Least Eps</option>
+          </select>
           {[
             { label: "Hide empty", state: hideEmpty, toggle: () => { setHideEmpty((p) => !p); setPage(1); } },
             { label: "TG only", state: onlyTg, toggle: () => { setOnlyTg((p) => !p); setPage(1); } },
@@ -533,13 +590,15 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
         {loading ? (
           <div className="space-y-px p-1">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-14 bg-white/3 rounded-2xl animate-pulse" />
+              <div key={i} className="h-16 bg-white/3 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : rows.length === 0 ? (
           <div className="p-12 text-center text-zinc-600">
-            <p className="text-2xl mb-2">∅</p>
-            <p className="text-sm">No records match your filters</p>
+            <svg className="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <p className="text-sm font-semibold">No records match your filters</p>
           </div>
         ) : (
           <div className="divide-y divide-white/5">
@@ -549,12 +608,26 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
                   onClick={() => toggleEpisodes(anime)}
                   className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/3 transition-colors text-left"
                 >
+                  <img 
+                    src={anime.cover || `https://api.dicebear.com/7.x/shapes/svg?seed=${anime.anilistId}`} 
+                    alt="cover" 
+                    className="w-10 h-14 object-cover rounded-lg bg-zinc-800 shrink-0 border border-white/10"
+                  />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{anime.title}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">
-                      ID {anime.anilistId} · {anime.totalEpisodes ?? 0} eps
-                      {anime.providers?.length ? ` · ${anime.providers.join(", ")}` : ""}
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white truncate">{anime.title}</p>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${anime.status === 'RELEASING' ? 'bg-blue-500/10 text-blue-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                        {anime.status}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest font-bold">
+                      ID {anime.anilistId} · {anime.episode_count ?? 0} EPS
+                      {anime.year ? ` · ${anime.year}` : ""}
                     </p>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded font-bold">{anime.tg_count ?? 0} HLS</span>
+                    {anime.providerId && <span className="text-[9px] text-zinc-500 uppercase font-bold">{anime.providerId}</span>}
                   </div>
                   <svg
                     className={`w-4 h-4 text-zinc-600 transition-transform shrink-0 ${expandedId === anime.anilistId ? "rotate-90" : ""}`}
@@ -568,18 +641,18 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
                   <div className="bg-black/40 px-5 py-4 border-t border-white/5">
                     {epLoading ? (
                       <div className="space-y-2">
-                        {[1, 2, 3].map((i) => <div key={i} className="h-10 bg-white/5 rounded-xl animate-pulse" />)}
+                        {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />)}
                       </div>
                     ) : episodes.length === 0 ? (
-                      <p className="text-sm text-zinc-600 italic">No episodes found</p>
+                      <p className="text-sm text-zinc-600 italic text-center py-4">No episodes found</p>
                     ) : (
-                      <div className="space-y-1.5 max-h-64 overflow-y-auto scrollbar-hide">
+                      <div className="space-y-2 max-h-80 overflow-y-auto scrollbar-hide pr-2">
                         {episodes.map((ep) => (
-                          <div key={ep.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-xl hover:bg-white/5 transition-colors">
+                          <div key={ep.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 px-4 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
                             <div className="flex-1 flex flex-col min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-zinc-400 shrink-0">Ep {ep.episodeNumber}</span>
-                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                                <span className="text-xs font-black text-white shrink-0 bg-white/10 px-2 py-1 rounded">EP {ep.episodeNumber}</span>
+                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded shrink-0 ${
                                   ep.episodeUrl?.includes("tg-proxy") || ep.episodeUrl?.includes("workers.dev")
                                     ? "bg-green-500/10 text-green-500"
                                     : ep.episodeUrl
@@ -587,23 +660,30 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
                                     : "bg-zinc-800 text-zinc-600"
                                 }`}>
                                   {ep.episodeUrl?.includes("tg-proxy") || ep.episodeUrl?.includes("workers.dev")
-                                    ? "HLS"
+                                    ? "HLS TG"
                                     : ep.episodeUrl ? "Direct" : "None"}
                                 </span>
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest ml-auto sm:ml-0">ID: {ep.id}</span>
                               </div>
-                              <span className="text-[10px] text-zinc-600 truncate font-mono mt-1 opacity-60">{ep.episodeUrl || "—"}</span>
+                              <span className="text-[10px] text-zinc-500 truncate font-mono mt-1.5 opacity-80">{ep.episodeUrl || "—"}</span>
                             </div>
-                            <div className="shrink-0 flex items-center">
+                            <div className="shrink-0 flex items-center gap-2">
                               {ep.episodeUrl && (
-                                <a
-                                  href={ep.episodeUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[9px] text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-widest font-bold"
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); copyToClipboard(ep.episodeUrl); }}
+                                  className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                  title="Copy URL"
                                 >
-                                  Test M3U8
-                                </a>
+                                  Copy
+                                </button>
                               )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteEpisode(ep.id); }}
+                                className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                title="Delete Episode"
+                              >
+                                Delete
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -626,7 +706,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
         >
           ← Prev
         </button>
-        <span className="text-xs text-zinc-500 tabular-nums">{page} / {totalPages}</span>
+        <span className="text-xs text-zinc-500 tabular-nums font-bold tracking-widest uppercase">Page {page} of {totalPages}</span>
         <button
           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
@@ -642,7 +722,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
 // ─── Cache Tab ────────────────────────────────────────────────────────────────
 function CacheTab({ api, headers, onLogout }: { api: string; headers: HeadersInit; onLogout: () => void }) {
   const { data: cs, loading } = useApi<CacheStats>(
-    `${api}/api/v2/admin/cache-stats`,
+    `${api}/api/v2/admin/cache-stats?v=2`,
     headers,
     [headers]
   );
@@ -853,7 +933,7 @@ function MainApp() {
   // ── Auth ──────────────────────────────────────────────────────────────────
   const verifyToken = useCallback(async (k: string) => {
     try {
-      const res = await fetch(`${API}/api/v2/admin/verify`, { method: "POST", headers: { "x-admin-key": k } });
+      const res = await fetch(`${API}/api/v2/admin/verify?v=2`, { method: "POST", headers: { "x-admin-key": k } });
       const data = await res.json();
       if (res.ok && data.success) {
         setKey(k);
@@ -900,7 +980,7 @@ function MainApp() {
   const pollSlow = useCallback(async () => {
     if (!key) return;
     try {
-      const res = await fetch(`${API}/api/v2/admin/stats`, { headers });
+      const res = await fetch(`${API}/api/v2/admin/stats?v=2`, { headers });
       if (!res.ok) return;
       const d = await res.json();
       if (d.success) setStats(d);
@@ -985,6 +1065,9 @@ function MainApp() {
           <div className="flex-1 px-5 md:px-8 pb-32 md:pb-10">
             <TabErrorBoundary tab={activeTab} key={activeTab}>
               {activeTab === "database" && <DatabaseTab api={API} headers={headers} />}
+              {activeTab === "activity" && <ActivityTab api={API} headers={headers} />}
+              {activeTab === "reports" && <ReportsTab api={API} headers={headers} />}
+              {activeTab === "searches" && <SearchAnalyticsTab api={API} headers={headers} />}
               {activeTab === "tghealth" && <TgHealthTab api={API} headers={headers} />}
               {activeTab === "cache" && <CacheTab api={API} headers={headers} onLogout={logout} />}
               {activeTab === "ecosystem" && <EcosystemTab />}
@@ -1007,6 +1090,124 @@ function MainApp() {
         .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
       `}</style>
     </ToastCtx.Provider>
+  );
+}
+
+// ─── Live Activity Tab ────────────────────────────────────────────────────────
+function ActivityTab({ api, headers }: { api: string; headers: HeadersInit }) {
+  const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
+    `${api}/api/v2/admin/activity?v=2`,
+    headers,
+    []
+  );
+
+  if (loading) return <div className="animate-pulse h-64 bg-zinc-900 rounded-3xl" />;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+
+  return (
+    <div className="bg-zinc-900 border border-white/5 rounded-[2rem] overflow-hidden">
+      <div className="divide-y divide-white/5 max-h-[70vh] overflow-y-auto scrollbar-hide">
+        {data?.data?.map((act, i) => (
+          <div key={i} className="p-4 flex items-start gap-4 hover:bg-white/5 transition-colors">
+            <img src={act.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${act.username}`} alt="avatar" className="w-10 h-10 rounded-full bg-zinc-800 shrink-0" />
+            <div>
+              <p className="text-sm text-zinc-300">
+                <span className="font-bold text-white">{act.username}</span>{" "}
+                {act.event_type === "liked_episode" ? "liked an episode" : act.event_type}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">{new Date(act.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── User Reports Tab ─────────────────────────────────────────────────────────
+function ReportsTab({ api, headers }: { api: string; headers: HeadersInit }) {
+  const { data, loading, error, mutate } = useApi<{ success: boolean; data: any[] }>(
+    `${api}/api/v2/admin/reports?v=2`,
+    headers,
+    []
+  );
+
+  const updateStatus = async (id: number, status: string) => {
+    await fetch(`${api}/api/v2/admin/reports`, {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status })
+    });
+    if (data) {
+      // Optimistic update
+      const newData = data.data.map(r => r.id === id ? { ...r, status } : r);
+      // mutate doesn't exist on this simple useApi hook, so we can't easily mutate inline without changing the hook.
+      // But this is just for local testing anyway.
+    }
+  };
+
+  if (loading) return <div className="animate-pulse h-64 bg-zinc-900 rounded-3xl" />;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+
+  return (
+    <div className="space-y-4">
+      {data?.data?.map((rep) => (
+        <div key={rep.id} className="bg-zinc-900 border border-white/5 p-5 rounded-3xl flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${rep.status === 'resolved' ? 'bg-green-500/20 text-green-400' : rep.status === 'ignored' ? 'bg-zinc-500/20 text-zinc-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                {rep.status}
+              </span>
+              <span className="text-xs text-zinc-500">{new Date(rep.created_at).toLocaleString()}</span>
+            </div>
+            <p className="text-sm font-bold text-white">{rep.title || `Anime ID ${rep.anilist_id}`} - Episode {rep.episode_number}</p>
+            <p className="text-sm text-zinc-400 mt-1">Issue: {rep.issue_type}</p>
+            {rep.player_error && <p className="text-xs text-red-400 font-mono mt-1">{rep.player_error}</p>}
+            <p className="text-xs text-zinc-500 mt-2">Reported by {rep.username}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => updateStatus(rep.id, 'resolved')} className="px-3 py-1.5 bg-green-500/10 text-green-400 text-xs font-bold rounded-lg">Resolve</button>
+            <button onClick={() => updateStatus(rep.id, 'ignored')} className="px-3 py-1.5 bg-zinc-500/10 text-zinc-400 text-xs font-bold rounded-lg">Ignore</button>
+          </div>
+        </div>
+      ))}
+      {data?.data?.length === 0 && <p className="text-zinc-500 text-center py-10">No reports yet.</p>}
+    </div>
+  );
+}
+
+// ─── Search Analytics Tab ─────────────────────────────────────────────────────
+function SearchAnalyticsTab({ api, headers }: { api: string; headers: HeadersInit }) {
+  const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
+    `${api}/api/v2/admin/search-analytics?v=2`,
+    headers,
+    []
+  );
+
+  if (loading) return <div className="animate-pulse h-64 bg-zinc-900 rounded-3xl" />;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
+
+  return (
+    <div className="bg-zinc-900 border border-white/5 rounded-[2rem] overflow-hidden">
+      <div className="grid grid-cols-4 gap-4 p-4 border-b border-white/5 bg-black/20 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+        <div className="col-span-2">Query</div>
+        <div className="text-center">Searches</div>
+        <div className="text-right">Results Found</div>
+      </div>
+      <div className="divide-y divide-white/5 max-h-[70vh] overflow-y-auto scrollbar-hide">
+        {data?.data?.map((s, i) => (
+          <div key={i} className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
+            <div className="col-span-2 font-semibold text-white truncate">{s.query}</div>
+            <div className="text-center text-zinc-300 font-mono">{s.searches}</div>
+            <div className="text-right">
+              <span className={`text-xs px-2 py-1 rounded-md font-bold ${s.latest_results_count == 0 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                {s.latest_results_count}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

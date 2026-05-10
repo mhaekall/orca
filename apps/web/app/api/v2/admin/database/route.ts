@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const search = searchParams.get('search') || '';
   const hideEmpty = searchParams.get('hide_empty') === 'true';
   const onlyTg = searchParams.get('only_tg') === 'true';
+  const sort = searchParams.get('sort') || 'year_desc';
 
   const offset = (page - 1) * limit;
   const sql = neon(dbUrl);
@@ -47,6 +48,13 @@ export async function GET(request: Request) {
     havingClause += ` AND SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) > 0`;
   }
 
+  let orderClause = `a.year DESC NULLS LAST, a."cleanTitle" ASC`;
+  if (sort === 'year_asc') orderClause = `a.year ASC NULLS LAST, a."cleanTitle" ASC`;
+  if (sort === 'title_asc') orderClause = `a."cleanTitle" ASC`;
+  if (sort === 'title_desc') orderClause = `a."cleanTitle" DESC`;
+  if (sort === 'episodes_desc') orderClause = `episode_count DESC, a."cleanTitle" ASC`;
+  if (sort === 'episodes_asc') orderClause = `episode_count ASC, a."cleanTitle" ASC`;
+
   const countQuery = `
     SELECT COUNT(*) as total FROM (
       SELECT a."anilistId"
@@ -68,7 +76,7 @@ export async function GET(request: Request) {
     WHERE ${whereClause}
     GROUP BY a."anilistId", a."cleanTitle", a.genres, a.status, a.year, a."coverImage"
     HAVING ${havingClause}
-    ORDER BY a.year DESC NULLS LAST, a."cleanTitle" ASC
+    ORDER BY ${orderClause}
     LIMIT $${valueIndex++} OFFSET $${valueIndex++}
   `;
 

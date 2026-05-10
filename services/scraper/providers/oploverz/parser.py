@@ -60,11 +60,17 @@ class OploverzParser(BaseParser):
         return sources
 
     def parse_search_results(self, html: str) -> list[dict]:
-        soup = BeautifulSoup(html, 'lxml')
         results = []
-        for a in soup.select('a.anime-card, .anime-list a'):
-            title = a.get('title') or a.text.strip()
-            url = a.get('href')
-            if url and '/series/' in url:
-                results.append({'title': title, 'url': url})
+        # Attempt to parse from Nuxt payload using regex
+        matches = re.findall(r'series:\{id:\d+,seriesId:\d+,title:"([^"]+)",.*?slug:"([^"]+)"', html)
+        seen = set()
+        for title, slug in matches:
+            if slug not in seen:
+                seen.add(slug)
+                # Ensure the url starts with a slash or base url
+                # The provider prepends BASE if we just give the path
+                results.append({
+                    'title': title.replace('\\"', '"'),
+                    'url': f"https://vip.oploverz.ltd/series/{slug}"
+                })
         return results

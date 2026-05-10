@@ -56,8 +56,21 @@ def register_cron(endpoint, cron_expression, method="GET", extra_headers=None):
 if __name__ == "__main__":
     print("Setting up QStash background jobs...")
 
-    # 1. Keep-Alive Ping
+    # 1. Keep-Alive Ping for API Space
     register_cron("/healthz", "*/4 * * * *", "GET")
+
+    # 1b. Keep-Alive Ping for Worker Space
+    worker_url = "https://jonyyyyyyyu-anime-ingestion-worker.hf.space"
+    requests.post(
+        f"{QSTASH_URL}/{worker_url}/healthz", 
+        headers={
+            "Authorization": f"Bearer {QSTASH_TOKEN}",
+            "Content-Type": "application/json",
+            "Upstash-Cron": "*/4 * * * *",
+            "Upstash-Method": "GET"
+        }
+    )
+    print("Success! Cron job registered for worker space /healthz")
 
     if not ADMIN_API_KEY:
         print("Warning: ADMIN_API_KEY not set. Cannot register admin cron jobs.")

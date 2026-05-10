@@ -10,7 +10,7 @@ class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const isLocalNextRoute = path.startsWith("/api/anilist") || path.startsWith("/api/history");
+  const isLocalNextRoute = path.startsWith("/api/anilist") || path.startsWith("/api/history") || path.startsWith("/api/v2/home") || path.startsWith("/api/v2/browse") || /^\/api\/v2\/anime\/\d+/.test(path);
 
   let url = path;
   if (path.startsWith("http")) {

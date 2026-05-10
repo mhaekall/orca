@@ -4,7 +4,7 @@ from providers.base_provider import BaseProvider
 from providers.oploverz.parser import OploverzParser
 from providers.base_parser import AnimeDetail, EpisodeSource
 
-BASE = "https://o.oploverz.ltd"
+BASE = "https://vip.oploverz.ltd"
 
 class OploverzProvider(BaseProvider):
     def __init__(self, transport: ProviderTransport):

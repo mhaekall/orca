@@ -57,11 +57,6 @@ const TAB_META: Record<string, { label: string; desc: string; icon: string }> = 
     desc: "See what users are searching for to guide future ingestions.",
     icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
   },
-  tghealth: {
-    label: "TG Health",
-    desc: "Live health status of all Telegram Swarm HLS proxy links.",
-    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
-  },
   cache: {
     label: "Edge Cache",
     desc: "L0/L1/L2 cache layers and circuit breaker health.",
@@ -370,73 +365,6 @@ function InsightsTab({
   );
 }
 
-// ─── TG Swarm Health Tab (Dumb Frontend) ──────────────────────────────────────
-function TgHealthTab({ api, headers }: { api: string; headers: HeadersInit }) {
-  const [filter, setFilter] = useState<"all" | "healthy" | "error">("error");
-
-  const { data, loading, error } = useApi<{ success: boolean; data: any[] }>(
-    `${api}/api/v2/admin/swarm-health?v=2&filter=${filter}`,
-    headers,
-    [filter]
-  );
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        {["all", "healthy", "error"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f as any)}
-            className={`px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider border transition-all ${
-              filter === f
-                ? "bg-violet-600 border-violet-500 text-white"
-                : "bg-zinc-900 border-white/5 text-zinc-400 hover:border-white/15"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-zinc-900 border border-white/5 rounded-[2rem] overflow-hidden">
-        {loading ? (
-          <div className="text-center py-20 text-zinc-500 text-sm animate-pulse font-medium">Genius Backend is running diagnostics on all links...</div>
-        ) : error ? (
-          <div className="text-center py-20 text-red-500 text-sm font-medium">Failed to load: {error}</div>
-        ) : !data?.data || data.data.length === 0 ? (
-          <div className="text-center py-20 text-zinc-500 text-sm font-medium">No results found for filter "{filter}".</div>
-        ) : (
-          <div className="divide-y divide-white/5 max-h-[70vh] overflow-y-auto scrollbar-hide">
-            {data.data.map((link) => (
-              <div key={link.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-white/5 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{link.title || "Unknown Title"}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-zinc-400 font-mono">ID {link.anilistId}</span>
-                    <span className="text-[10px] text-zinc-600 bg-black px-2 py-0.5 rounded uppercase font-black">Ep {link.episodeNumber}</span>
-                  </div>
-                  <p className="text-[9px] text-zinc-500 font-mono truncate mt-2 opacity-60" title={link.episodeUrl}>
-                    {link.episodeUrl}
-                  </p>
-                </div>
-                <div className="shrink-0 flex items-center justify-start sm:justify-end gap-3">
-                  {link.healthy ? (
-                    <span className="text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider">✅ Healthy</span>
-                  ) : (
-                    <>
-                      <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg font-black uppercase tracking-wider truncate max-w-[150px]" title={link.status}>❌ {link.status}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Terminal Feed — Dumb Component ───────────────────────────────────────────
 function TerminalFeed({
   initialLogs,
@@ -475,6 +403,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
   const [page, setPage] = useState(1);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [onlyTg, setOnlyTg] = useState(false);
+  const [brokenOnly, setBrokenOnly] = useState(false);
   const [sort, setSort] = useState("year_desc");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeRow[]>([]);
@@ -485,11 +414,12 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
     const p = new URLSearchParams({
       page: String(page), limit: "50",
       hide_empty: String(hideEmpty), only_tg: String(onlyTg),
+      broken_only: String(brokenOnly),
       sort: sort
     });
     if (search) p.set("search", search);
     return p.toString();
-  }, [page, search, hideEmpty, onlyTg, sort]);
+  }, [page, search, hideEmpty, onlyTg, brokenOnly, sort]);
 
   const { data, loading } = useApi<{ success: boolean; data: AnimeRow[]; pagination: { total_pages: number } }>(
     `${api}/api/v2/admin/database?v=2&${qp}`,
@@ -569,6 +499,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
           {[
             { label: "Hide empty", state: hideEmpty, toggle: () => { setHideEmpty((p) => !p); setPage(1); } },
             { label: "TG only", state: onlyTg, toggle: () => { setOnlyTg((p) => !p); setPage(1); } },
+            { label: "Broken Links", state: brokenOnly, toggle: () => { setBrokenOnly((p) => !p); setPage(1); } },
           ].map(({ label, state, toggle }) => (
             <button
               key={label}
@@ -1068,7 +999,6 @@ function MainApp() {
               {activeTab === "activity" && <ActivityTab api={API} headers={headers} />}
               {activeTab === "reports" && <ReportsTab api={API} headers={headers} />}
               {activeTab === "searches" && <SearchAnalyticsTab api={API} headers={headers} />}
-              {activeTab === "tghealth" && <TgHealthTab api={API} headers={headers} />}
               {activeTab === "cache" && <CacheTab api={API} headers={headers} onLogout={logout} />}
               {activeTab === "ecosystem" && <EcosystemTab />}
             </TabErrorBoundary>

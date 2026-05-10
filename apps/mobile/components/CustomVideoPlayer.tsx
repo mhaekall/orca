@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import Slider from '@react-native-community/slider';
 import Video, { VideoRef, OnProgressData, OnLoadData } from 'react-native-video';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,6 +68,7 @@ export function CustomVideoPlayer({
   const progressBarPageX = useRef(0);
 
   const durationRef = useRef(duration);
+  const [sliderWidth, setSliderWidth] = useState(Dimensions.get('window').width - 32);
   
   useEffect(() => {
     durationRef.current = duration;
@@ -213,20 +215,33 @@ export function CustomVideoPlayer({
       {videoUrl ? (
         <Video
           ref={videoRef}
-          source={{ uri: videoUrl }}
+          source={{ 
+            uri: videoUrl,
+            type: (videoUrl.includes('proxy') || videoUrl.includes('workers.dev')) ? 'm3u8' : undefined
+          }}
           style={StyleSheet.absoluteFill}
           resizeMode="contain"
           paused={!isPlaying}
           onProgress={onProgress}
-          onLoad={onLoad}
-          onLoadStart={() => setIsBuffering(true)}
-          onBuffer={({ isBuffering }) => setIsBuffering(isBuffering)}
+          onLoad={(data) => {
+             console.log("[PLAYER] onLoad Triggered", data);
+             onLoad(data);
+          }}
+          onLoadStart={() => {
+             console.log("[PLAYER] onLoadStart Triggered");
+             setIsBuffering(true);
+          }}
+          onBuffer={({ isBuffering }) => {
+             console.log("[PLAYER] onBuffer Triggered: ", isBuffering);
+             setIsBuffering(isBuffering);
+          }}
           onEnd={() => {
+            console.log("[PLAYER] onEnd Triggered");
             if (onEnd) onEnd();
             else if (onNext) onNext();
           }}
           onError={(e) => {
-            console.error("Video Error:", e);
+            console.error("[PLAYER] Video Error:", e);
             setIsBuffering(false);
           }}
           progressUpdateInterval={250}
@@ -272,48 +287,68 @@ export function CustomVideoPlayer({
       </View>
 
       {/* Interaction Layer */}
-      <Pressable style={styles.interactionLayer} onPress={toggleControls} />
+      <Pressable 
+        style={styles.interactionLayer} 
+        onPress={() => {
+          console.log("[TOUCH] Base Interaction Layer Pressed");
+          toggleControls();
+        }} 
+      />
       
-      <Animated.View style={[styles.controlsContainer, { opacity: fadeAnim }]} pointerEvents={controlsVisible ? 'box-none' : 'none'}>
+      <View style={[StyleSheet.absoluteFillObject, { zIndex: 30, elevation: 30 }]} pointerEvents={controlsVisible ? 'box-none' : 'none'}>
+        <Animated.View style={[styles.controlsContainer, { opacity: fadeAnim }]} pointerEvents="box-none">
           
-          {/* Top Gradient & Title & Social (if Fullscreen) */}
-          <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topBar}>
-            <View style={styles.topBarContent}>
-              <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
-              
-              {isFullscreen && (
-                <View style={styles.socialBar}>
-                  <View style={styles.viewBadge}>
-                    <Eye color="#e5e5ea" size={14} />
-                    <Text style={styles.socialText}>
-                      {views >= 1000000 ? (views/1000000).toFixed(1) + 'M' : views >= 1000 ? (views/1000).toFixed(1) + 'K' : views}
-                    </Text>
-                  </View>
-                  <Pressable onPress={() => { if(onLike) onLike(); }} style={styles.iconButton}>
-                    <Heart color={isLiked ? "#ff2d55" : "#e5e5ea"} size={20} fill={isLiked ? "#ff2d55" : "none"} />
-                  </Pressable>
-                  <Pressable onPress={() => handleCommentsPress()} style={styles.iconButton}>
-                    <MessageSquare color="#e5e5ea" size={20} />
-                  </Pressable>
+          {/* Top Gradient Background */}
+          <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topGradient} pointerEvents="none" />
+          
+          {/* Bottom Gradient Background */}
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.bottomGradient} pointerEvents="none" />
+
+          {/* Top Bar Content */}
+          <View style={styles.topBarContentWrapper} pointerEvents="box-none">
+            <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
+            
+            {isFullscreen && (
+              <View style={styles.socialBar}>
+                <View style={styles.viewBadge}>
+                  <Eye color="#e5e5ea" size={14} />
+                  <Text style={styles.socialText}>
+                    {views && views >= 1000000 ? (views/1000000).toFixed(1) + 'M' : views && views >= 1000 ? (views/1000).toFixed(1) + 'K' : views || 0}
+                  </Text>
                 </View>
-              )}
-            </View>
-          </LinearGradient>
+                <Pressable onPress={() => { if(onLike) onLike(); }} style={styles.iconButton}>
+                  <Heart color={isLiked ? "#ff2d55" : "#e5e5ea"} size={20} fill={isLiked ? "#ff2d55" : "none"} />
+                </Pressable>
+                <Pressable onPress={() => { if(onShowComments) onShowComments(); }} style={styles.iconButton}>
+                  <MessageSquare color="#e5e5ea" size={20} />
+                </Pressable>
+              </View>
+            )}
+          </View>
 
           {/* Center Play/Pause & Skip Controls */}
           <View style={styles.centerControls} pointerEvents="box-none">
-            <View style={styles.centerRow}>
+            <View style={styles.centerRow} pointerEvents="box-none">
               {onPrevious ? (
-                <Pressable onPress={() => onPrevious()} style={styles.controlButton}>
+                <Pressable onPress={() => {
+                  console.log("[TOUCH] Previous Button Pressed");
+                  onPrevious();
+                }} style={styles.controlButton}>
                   <SkipBack color="white" size={28} fill="white" />
                 </Pressable>
               ) : <View style={{ width: 48 }} />}
               
-              <Pressable onPress={() => handleDoubleTapLeft()} style={styles.controlButton}>
+              <Pressable onPress={() => {
+                console.log("[TOUCH] Double Tap Left (Rotate) Pressed");
+                handleDoubleTapLeft();
+              }} style={styles.controlButton}>
                 <RotateCcw color="white" size={32} />
               </Pressable>
 
-              <Pressable onPress={() => handlePlayPause()} style={[styles.controlButton, styles.playButton]}>
+              <Pressable onPress={() => {
+                console.log("[TOUCH] Play/Pause Button Pressed. Currently playing:", isPlaying);
+                handlePlayPause();
+              }} style={[styles.controlButton, styles.playButton]}>
                 {isPlaying ? (
                   <Pause color="white" size={40} fill="white" />
                 ) : (
@@ -321,25 +356,34 @@ export function CustomVideoPlayer({
                 )}
               </Pressable>
 
-              <Pressable onPress={() => handleDoubleTapRight()} style={styles.controlButton}>
+              <Pressable onPress={() => {
+                 console.log("[TOUCH] Double Tap Right (Rotate) Pressed");
+                 handleDoubleTapRight();
+              }} style={styles.controlButton}>
                 <RotateCw color="white" size={32} />
               </Pressable>
 
               {onNext ? (
-                <Pressable onPress={() => onNext()} style={styles.controlButton}>
+                <Pressable onPress={() => {
+                  console.log("[TOUCH] Next Button Pressed");
+                  onNext();
+                }} style={styles.controlButton}>
                   <SkipForward color="white" size={28} fill="white" />
                 </Pressable>
               ) : <View style={{ width: 48 }} />}
             </View>
           </View>
 
-          {/* Bottom Gradient & Seekbar */}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.bottomBar}>
-            <View style={styles.timeRow}>
+          {/* Bottom Bar Content & Seekbar */}
+          <View style={styles.bottomBarContentWrapper} pointerEvents="box-none">
+            <View style={styles.timeRow} pointerEvents="box-none">
               <Text style={styles.timeText}>{formatTime(currentTime)} <Text style={{color: 'rgba(255,255,255,0.5)'}}>/ {formatTime(duration)}</Text></Text>
               
               <View style={styles.bottomRightControls}>
-                  <Pressable onPress={() => handleToggleFullscreen()} style={styles.iconButton}>
+                  <Pressable onPress={() => {
+                     console.log("[TOUCH] Fullscreen Toggle Pressed");
+                     handleToggleFullscreen();
+                  }} style={styles.iconButton}>
                     {isFullscreen ? <Minimize color="white" size={24} /> : <Maximize color="white" size={24} />}
                   </Pressable>
               </View>
@@ -352,80 +396,54 @@ export function CustomVideoPlayer({
               </View>
             )}
 
-            {/* Progress Bar with Pure JS Touch Events (Zero Bridge Overhead) */}
-            <View style={styles.progressContainer}>
-              <View 
-                style={styles.progressBarHitbox} 
-                onLayout={(e) => { 
-                  if (e.nativeEvent && e.nativeEvent.layout) {
-                    const w = e.nativeEvent.layout.width;
-                    if (w != null && isFinite(w)) progressBarWidth.current = w;
-                  }
-                }}
-                onTouchStart={(e) => {
+            {/* Native Slider for Zero Crash Guarantee */}
+            <View 
+              style={{ width: '100%', height: 40, justifyContent: 'center', zIndex: 10 }}
+              onLayout={(e) => {
+                console.log("[SLIDER] Container Layout:", e.nativeEvent.layout);
+                if (e.nativeEvent.layout.width > 0) {
+                  setSliderWidth(e.nativeEvent.layout.width);
+                }
+              }}
+            >
+              <Slider
+                style={{ width: sliderWidth, height: 40 }}
+                minimumValue={0}
+                maximumValue={duration > 0 ? duration : 1}
+                value={isFinite(currentTime) && duration > 0 ? Math.min(Math.max(0, currentTime), duration) : 0}
+                minimumTrackTintColor="#0A84FF"
+                maximumTrackTintColor="rgba(255,255,255,0.4)"
+                thumbTintColor="#FFFFFF"
+                onSlidingStart={() => {
+                  console.log("[TOUCH] Slider onSlidingStart");
                   isDragging.current = true;
                   if (hideTimeout.current) clearTimeout(hideTimeout.current);
-                  
-                  const locX = e.nativeEvent.locationX;
-                  const pageX = e.nativeEvent.pageX;
-                  
-                  if (typeof locX === 'number' && typeof pageX === 'number' && isFinite(locX) && isFinite(pageX)) {
-                    progressBarPageX.current = pageX - locX;
-                  }
-
-                  const curDur = durationRef.current;
-                  const w = progressBarWidth.current;
-                  if (w && curDur && typeof locX === 'number' && isFinite(locX)) {
-                    let localX = Math.max(0, Math.min(locX, w));
-                    const time = (localX / w) * curDur;
-                    if (isFinite(time)) {
-                      setPreviewTime(time);
-                      setCurrentTime(time);
-                    }
+                }}
+                onValueChange={(val) => {
+                  console.log("[TOUCH] Slider onValueChange", val);
+                  if (isFinite(val)) {
+                    setPreviewTime(val);
+                    setCurrentTime(val);
                   }
                 }}
-                onTouchMove={(e) => {
-                  if (!isDragging.current) return;
-                  const curDur = durationRef.current;
-                  const w = progressBarWidth.current;
-                  const pageX = e.nativeEvent.pageX;
-                  const offsetX = progressBarPageX.current;
-                  
-                  if (w && curDur && typeof pageX === 'number' && isFinite(pageX)) {
-                    let localX = pageX - offsetX;
-                    localX = Math.max(0, Math.min(localX, w));
-                    const time = (localX / w) * curDur;
-                    if (isFinite(time)) {
-                      setPreviewTime(time);
-                      setCurrentTime(time);
-                    }
-                  }
-                }}
-                onTouchEnd={() => {
-                  isDragging.current = false;
-                  if (previewTime !== null && isFinite(previewTime) && videoRef.current) {
-                    const safeTime = Number(previewTime.toFixed(3));
-                    setCurrentTime(safeTime);
-                    videoRef.current.seek(safeTime);
-                  }
-                  setPreviewTime(null);
-                  showControls();
-                }}
-                onTouchCancel={() => {
+                onSlidingComplete={(val) => {
+                  console.log("[TOUCH] Slider onSlidingComplete", val);
                   isDragging.current = false;
                   setPreviewTime(null);
+                  if (isFinite(val)) {
+                    setCurrentTime(val);
+                    if (videoRef.current && duration > 0) {
+                       videoRef.current.seek(Math.min(val, duration));
+                    }
+                  }
                   showControls();
                 }}
-              >
-                <View style={styles.progressBarTrack} pointerEvents="none">
-                  <View style={[styles.progressBarFill, { width: `${progressPct}%` }]} pointerEvents="none" />
-                  <View style={[styles.progressThumb, { left: `${progressPct}%`, transform: [{ scale: isDragging.current ? 1.3 : 1 }] }]} pointerEvents="none" />
-                </View>
-              </View>
+              />
             </View>
-          </LinearGradient>
+          </View>
 
         </Animated.View>
+      </View>
     </View>
   );
 }
@@ -476,15 +494,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 30,
   },
-  topBar: {
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+    zIndex: 0,
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+    zIndex: 0,
+  },
+  topBarContentWrapper: {
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 32,
-  },
-  topBarContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 2,
   },
   titleText: {
     color: 'white',
@@ -540,7 +573,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  bottomBar: {
+  bottomBarContentWrapper: {
     paddingTop: 32,
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -567,9 +600,11 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   progressContainer: {
-    height: 20,
+    height: 40,
+    width: '100%',
     justifyContent: 'center',
     position: 'relative',
+    zIndex: 10,
   },
   previewBubble: {
     position: 'absolute',

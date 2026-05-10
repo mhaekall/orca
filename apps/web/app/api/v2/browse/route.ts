@@ -69,6 +69,11 @@ export async function GET(request: Request) {
     const result: any = await sql.query(query, values);
     const rows = result.rows || result;
 
+    if (q && page === 1) {
+      // Log search analytics (fire and forget)
+      sql.query(`INSERT INTO search_analytics (query, results_count) VALUES ($1, $2)`, [q.toLowerCase(), rows.length]).catch(e => console.error('Search analytics error', e));
+    }
+
     // Format output just like the old JSON
     const data = rows.map((r: any) => ({
       ...r,

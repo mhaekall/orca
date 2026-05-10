@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const search = searchParams.get('search') || '';
   const hideEmpty = searchParams.get('hide_empty') === 'true';
   const onlyTg = searchParams.get('only_tg') === 'true';
+  const brokenOnly = searchParams.get('broken_only') === 'true';
   const sort = searchParams.get('sort') || 'year_desc';
 
   const offset = (page - 1) * limit;
@@ -46,6 +47,10 @@ export async function GET(request: Request) {
 
   if (onlyTg) {
     havingClause += ` AND SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) > 0`;
+  }
+
+  if (brokenOnly) {
+    havingClause += ` AND SUM(CASE WHEN e."episodeUrl" IS NULL OR e."episodeUrl" = '' OR (e."episodeUrl" NOT LIKE '%tg-proxy%' AND e."episodeUrl" NOT LIKE '%workers.dev%') THEN 1 ELSE 0 END) > 0`;
   }
 
   let orderClause = `a.year DESC NULLS LAST, a."cleanTitle" ASC`;

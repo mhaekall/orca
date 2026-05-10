@@ -93,7 +93,7 @@ class OtakudesuParser(BaseParser):
     def parse_search_results(self, html: str) -> list[dict]:
         soup = BeautifulSoup(html, 'lxml')
         results = []
-        for li in soup.select('ul.chbox li'):
+        for li in soup.select('ul.chbox li, ul.chivsrc li'):
             a = li.find('a')
             if a:
                 title = a.get_text(strip=True)

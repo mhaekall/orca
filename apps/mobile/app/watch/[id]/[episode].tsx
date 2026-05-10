@@ -307,7 +307,7 @@ export default function WatchScreen() {
                 if (nextEp) handleEpisodeChange(String(getEpNumStr(nextEp)));
               }}
             />
-            {playerError && (
+            {!!playerError && (
               <View style={{ position: 'absolute', top: 60, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 8, zIndex: 100 }} pointerEvents="none">
                 <Text style={{color:'red', fontWeight: 'bold'}}>Player Error: {playerError}</Text>
               </View>
@@ -550,6 +550,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 9999,
     backgroundColor: 'black',
+    elevation: 100, // Android z-index enforcement
   },
   videoContainer: {
     width: '100%',
@@ -558,6 +559,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     marginTop: 48, // Equivalent to mt-12. Adjust if iOS safe area needs different handling.
+    zIndex: 100, // Force this on top to prevent ScrollView touch stealing
   },
   backButtonWrapper: {
     position: 'absolute',

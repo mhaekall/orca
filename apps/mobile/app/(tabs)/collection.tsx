@@ -45,9 +45,9 @@ function formatDuration(sec: number) {
 
 const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }) => {
   const router = useRouter();
-  const id = String(item.animeSlug || item.anilistId);
-  const title = item.cleanTitle || item.nativeTitle || `Anime #${id}`;
-  const img = item.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
+  const id = String(item.id || item.animeSlug || item.anilistId);
+  const title = item.title || item.cleanTitle || item.nativeTitle || `Anime #${id}`;
+  const img = item.img || item.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
   const ep = item.episode || "?";
   const ts = item.timestampSec || 0;
   const dur = item.durationSec || 0;
@@ -261,10 +261,10 @@ export default function CollectionScreen() {
   const allItems = useMemo(() => {
     const raw = Array.isArray(collectionRes) ? collectionRes : (collectionRes?.data || []);
     return [...raw].map((h: any) => ({
-      id: String(h.animeSlug || h.anilistId),
-      title: h.cleanTitle || h.nativeTitle || h.animeTitle || `Anime #${h.animeSlug}`,
-      img: h.coverImage || h.animeCover,
-      totalEps: h.totalEpisodes || 0,
+      id: String(h.id || h.animeSlug || h.anilistId),
+      title: h.title || h.cleanTitle || h.nativeTitle || h.animeTitle || `Anime #${h.id || h.animeSlug}`,
+      img: h.img || h.coverImage || h.animeCover,
+      totalEps: h.totalEps || h.totalEpisodes || 0,
       status: String(h.status || "").toUpperCase(),
       progress: h.progress || 0,
       updatedAt: new Date(h.updatedAt).getTime()

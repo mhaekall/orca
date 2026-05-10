@@ -76,7 +76,7 @@ function AnimeCardInner({
             style={[StyleSheet.absoluteFillObject, styles.gradient]}
           />
 
-          {rank && (
+          {!!rank && (
             <View style={styles.rankBadge}>
               <Text style={styles.rankText}>{rank}</Text>
             </View>

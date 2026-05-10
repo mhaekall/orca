@@ -302,7 +302,7 @@ export default function AnimeDetailScreen() {
                     {d.cleanTitle || d.nativeTitle || d.title?.english || d.title?.romaji || d.title}
                   </Text>
                   
-                  {d.nativeTitle && d.nativeTitle !== d.cleanTitle && (
+                  {!!d.nativeTitle && d.nativeTitle !== d.cleanTitle && (
                     <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500', marginBottom: 8 }} numberOfLines={1}>
                       {d.nativeTitle}
                     </Text>
@@ -378,12 +378,12 @@ export default function AnimeDetailScreen() {
                 <Info color="rgba(255,255,255,0.6)" size={12} />
                 <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>Eps {d.totalEpisodes || eps.length || '?'}</Text>
               </View>
-              {d.season && d.seasonYear && (
+              {!!d.season && !!d.seasonYear && (
                 <View style={styles.metaPill}>
                   <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)', textTransform: 'capitalize' }]}>{d.season.toLowerCase()} {d.seasonYear}</Text>
                 </View>
               )}
-              {d.studios?.[0] && (
+              {!!d.studios?.[0] && (
                 <View style={styles.metaPill}>
                   <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{d.studios[0]}</Text>
                 </View>

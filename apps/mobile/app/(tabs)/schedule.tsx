@@ -99,7 +99,7 @@ const ScheduleCard = memo(({ item, idx, isToday, isPast }: { item: any, idx: num
           {title}
         </Text>
         <View style={styles.itemStats}>
-          {airingTime !== "" && (
+          {!!airingTime && (
             <View style={styles.statGroup}>
               <View style={styles.airingTimeBadge}>
                 <Text style={styles.airingTimeText}>{airingTime}</Text>
@@ -108,7 +108,7 @@ const ScheduleCard = memo(({ item, idx, isToday, isPast }: { item: any, idx: num
             </View>
           )}
           <Text style={[styles.epText, { color: statusColor }]}>{statusText}</Text>
-          {score > 0 ? (
+          {!!score && score > 0 ? (
             <View style={styles.statGroup}>
               <Text style={[styles.dotSeparator, {marginLeft: 4}]}>●</Text>
               <View style={[styles.statGroup, {gap: 4, marginLeft: 4}]}>
@@ -225,7 +225,9 @@ export default function ScheduleScreen() {
         if (!timeA && !timeB) return 0;
         if (!timeA) return 1;
         if (!timeB) return -1;
-        return timeA.localeCompare(timeB);
+        if (timeA < timeB) return -1;
+        if (timeA > timeB) return 1;
+        return 0;
       });
 
       return {
@@ -255,18 +257,7 @@ export default function ScheduleScreen() {
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
-  // Use an effect to scroll to the initial active day on first render
-  useEffect(() => {
-    if (weekDates.length > 0 && activeDay) {
-       const idx = weekDates.findIndex(d => d.fullDay === activeDay);
-       if (idx !== -1) {
-         // setTimeout to ensure flatlist is fully mounted before scrolling
-         setTimeout(() => {
-           flatListRef.current?.scrollToIndex({ index: idx, animated: false });
-         }, 100);
-       }
-    }
-  }, [weekDates]);
+  // Removed auto-scroll on mount as it causes fatal crashes on Android Hermes if the FlatList is not fully laid out yet.
 
   return (
     <View style={styles.container}>
@@ -296,7 +287,7 @@ export default function ScheduleScreen() {
                 <Text style={[styles.dateNumberText, isActive ? styles.dateNumberTextActive : styles.dateNumberTextInactive]}>
                   {dayObj.dateNum}
                 </Text>
-                {dayObj.isToday && (
+                {!!dayObj.isToday && (
                   <View style={[styles.todayIndicator, isActive ? styles.todayIndicatorActive : styles.todayIndicatorInactive]} />
                 )}
               </Pressable>
@@ -306,7 +297,7 @@ export default function ScheduleScreen() {
       </View>
 
       {/* List Jadwal Horizontal Pager */}
-      {isLoading && Object.keys(schedData).length === 0 ? (
+      {!!isLoading && Object.keys(schedData).length === 0 ? (
         <View style={styles.listContainer}>
           {Array.from({ length: 6 }).map((_, i) => (
             <View key={i} style={styles.skeletonRow}>
@@ -318,7 +309,8 @@ export default function ScheduleScreen() {
                   <Skeleton w="50%" h={12} r={4} />
                 </View>
             </View>
-          ))}        </View>
+          ))}
+        </View>
       ) : (
         <FlatList<any>
           ref={flatListRef}

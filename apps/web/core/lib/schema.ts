@@ -77,3 +77,34 @@ export const userReputation = pgTable("user_reputation", {
 	score: integer("score").default(0),
 	updatedAt: timestamp("updatedAt").notNull()
 });
+
+export const activityFeed = pgTable("activity_feed", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(), // 'liked_episode', 'completed_anime', 'earned_title', etc.
+  metadata: text("metadata"), // JSON string
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  userTimeIdx: index("af_user_time_idx").on(table.userId, table.createdAt),
+  timeIdx: index("af_time_idx").on(table.createdAt),
+}));
+
+export const userReports = pgTable("user_reports", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  anilistId: integer("anilist_id").notNull(),
+  episodeNumber: integer("episode_number").notNull(),
+  issueType: text("issue_type").notNull(),
+  playerError: text("player_error"),
+  videoUrl: text("video_url"),
+  status: text("status").notNull().default('pending'), // 'pending', 'resolved', 'ignored'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const searchAnalytics = pgTable("search_analytics", {
+  id: serial("id").primaryKey(),
+  query: text("query").notNull(),
+  resultsCount: integer("results_count").notNull(),
+  userId: text("user_id"), // Optional
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

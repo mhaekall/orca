@@ -50,10 +50,11 @@ async def ingest_pending(
               AND e."episodeUrl" NOT LIKE '%workers.dev%'
               AND e."episodeUrl" IS NOT NULL
               AND e."episodeUrl" != ''
+              AND m.status IN ('RELEASING', 'Releasing', 'ongoing', 'Ongoing', 'ONGOING')
               AND vc."expiresAt" > NOW()
               AND EXISTS (
                   SELECT 1 FROM jsonb_array_elements(vc."payload"->'sources') AS s
-                  WHERE s->>'quality' = '720p'
+                  WHERE s->>'quality' IN ('720p', '1080p', '480p', 'Auto', '360p', 'Unknown')
                     AND s->>'type' IN ('mp4', 'direct', 'hls', 'mp4 (direct)', 'hls (direct)')
               )
               AND NOT EXISTS (
@@ -110,19 +111,27 @@ async def ingest_pending(
                     and "sources" in sources_response
                     and len(sources_response["sources"]) > 0
                 ):
-                    # STRICTLY 720p only
+                    # Prioritize 720p, fallback to others
+                    quality_order = ["720p", "1080p", "480p", "Auto", "360p", "Unknown"]
+                    best_source = None
+                    best_rank = 999
+                    
                     for s in sources_response["sources"]:
-                        if s.get("quality") == "720p" and any(
-                            t in s.get("type", "") for t in ["mp4", "direct", "hls"]
-                        ):
-                            direct_url = s.get("raw_url") or s.get("url", "")
-                            provider_id = s.get("source", "unknown")
-                            quality_picked = "720p"
-                            break
+                        if any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
+                            q = s.get("quality", "Unknown")
+                            rank = quality_order.index(q) if q in quality_order else 999
+                            if rank < best_rank:
+                                best_rank = rank
+                                best_source = s
+
+                    if best_source:
+                        direct_url = best_source.get("raw_url") or best_source.get("url", "")
+                        provider_id = best_source.get("source", "unknown")
+                        quality_picked = best_source.get("quality", "Unknown")
 
                 if not direct_url:
                     logger.warning(
-                        f"Could not resolve 720p direct URL for {anilist_id} Ep {episode_num}. Skipping."
+                        f"Could not resolve any valid direct URL for {anilist_id} Ep {episode_num}. Skipping."
                     )
                     await upstash_del(lock_key)
                     continue

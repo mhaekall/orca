@@ -761,7 +761,7 @@ async def trigger_sync_v2(anilist_id: int, background_tasks: BackgroundTasks):
 async def browse_anime(
     response: Response,
     page: int = Query(1, ge=1),
-    sort: str = Query("score", pattern="^(score|popularity|trending|newest)$"),
+    sort: str = Query("score", pattern="^(score|popularity|trending|newest|a-z|z-a)$"),
     genre: str = Query(None),
     status: str = Query(None, pattern="^(RELEASING|FINISHED|NOT_YET_RELEASED)$"),
     limit: int = Query(24, le=50),
@@ -788,6 +788,8 @@ async def browse_anime(
         "popularity": "meta.popularity DESC NULLS LAST",
         "trending": "meta.trending DESC NULLS LAST",
         "newest": 'meta."seasonYear" DESC NULLS LAST',
+        "a-z": 'meta."cleanTitle" ASC NULLS LAST',
+        "z-a": 'meta."cleanTitle" DESC NULLS LAST',
     }
 
     where_clause = " AND ".join(conditions)

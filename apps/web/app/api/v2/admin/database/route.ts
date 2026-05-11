@@ -21,6 +21,7 @@ export async function GET(request: Request) {
   const hideEmpty = searchParams.get('hide_empty') === 'true';
   const onlyTg = searchParams.get('only_tg') === 'true';
   const brokenOnly = searchParams.get('broken_only') === 'true';
+  const releasing = searchParams.get('releasing') === 'true';
   const sort = searchParams.get('sort') || 'year_desc';
 
   const offset = (page - 1) * limit;
@@ -41,6 +42,10 @@ export async function GET(request: Request) {
     }
   }
 
+  if (releasing) {
+    whereClause += ` AND a.status IN ('RELEASING', 'Releasing', 'ongoing', 'Ongoing', 'ONGOING')`;
+  }
+
   if (hideEmpty) {
     havingClause += " AND COUNT(e.id) > 0";
   }
@@ -59,6 +64,7 @@ export async function GET(request: Request) {
   if (sort === 'title_desc') orderClause = `a."cleanTitle" DESC`;
   if (sort === 'episodes_desc') orderClause = `episode_count DESC, a."cleanTitle" ASC`;
   if (sort === 'episodes_asc') orderClause = `episode_count ASC, a."cleanTitle" ASC`;
+  if (sort === 'popularity') orderClause = `a.popularity DESC NULLS LAST, a."cleanTitle" ASC`;
 
   const countQuery = `
     SELECT COUNT(*) as total FROM (
@@ -72,20 +78,35 @@ export async function GET(request: Request) {
   `;
 
   const dataQuery = `
-    SELECT a."anilistId", a."cleanTitle" as title, a.genres, a.status, a.year, a."coverImage" as cover,
+    SELECT a."anilistId", a."cleanTitle" as title, a.genres, a.status, a.year, a.popularity, a."coverImage" as cover,
            COUNT(e.id) as episode_count,
            SUM(CASE WHEN e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) as tg_count,
            MAX(e."providerId") as "providerId"
     FROM anime_metadata a
     LEFT JOIN episodes e ON a."anilistId" = e."anilistId"
     WHERE ${whereClause}
-    GROUP BY a."anilistId", a."cleanTitle", a.genres, a.status, a.year, a."coverImage"
+    GROUP BY a."anilistId", a."cleanTitle", a.genres, a.status, a.year, a.popularity, a."coverImage"
     HAVING ${havingClause}
     ORDER BY ${orderClause}
     LIMIT $${valueIndex++} OFFSET $${valueIndex++}
   `;
 
   try {
+    let globalStats = null;
+    if (page === 1 && !search) {
+       const statsRes: any = await sql.query(`
+         SELECT 
+           COUNT(id) as total_episodes,
+           SUM(CASE WHEN "episodeUrl" LIKE '%tg-proxy%' OR "episodeUrl" LIKE '%workers.dev%' THEN 1 ELSE 0 END) as tg_episodes
+         FROM episodes
+       `);
+       const st = statsRes.rows ? statsRes.rows[0] : statsRes[0];
+       globalStats = {
+         total_episodes: parseInt(st.total_episodes || '0'),
+         tg_episodes: parseInt(st.tg_episodes || '0')
+       };
+    }
+
     const countResult: any = await sql.query(countQuery, values);
     const totalCount = parseInt(countResult.rows ? countResult.rows[0].total : countResult[0].total);
 
@@ -98,6 +119,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: rows,
+      stats: globalStats,
       pagination: {
         total: totalCount,
         page,

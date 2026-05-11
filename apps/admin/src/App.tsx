@@ -404,6 +404,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
   const [hideEmpty, setHideEmpty] = useState(false);
   const [onlyTg, setOnlyTg] = useState(false);
   const [brokenOnly, setBrokenOnly] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [sort, setSort] = useState("year_desc");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [episodes, setEpisodes] = useState<EpisodeRow[]>([]);
@@ -415,14 +416,15 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
       page: String(page), limit: "50",
       hide_empty: String(hideEmpty), only_tg: String(onlyTg),
       broken_only: String(brokenOnly),
+      releasing: String(releasing),
       sort: sort
     });
     if (search) p.set("search", search);
     return p.toString();
-  }, [page, search, hideEmpty, onlyTg, brokenOnly, sort]);
+  }, [page, search, hideEmpty, onlyTg, brokenOnly, releasing, sort]);
 
-  const { data, loading } = useApi<{ success: boolean; data: AnimeRow[]; pagination: { total_pages: number } }>(
-    `${api}/api/v2/admin/database?v=2&${qp}`,
+  const { data, loading } = useApi<{ success: boolean; data: AnimeRow[]; stats?: { total_episodes: number; tg_episodes: number }; pagination: { total_pages: number } }>(
+    `${api}/api/v2/admin/database?v=3&${qp}`,
     headers,
     [qp],
     400
@@ -475,6 +477,27 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
 
   return (
     <div className="space-y-4">
+      {/* Hero Insight */}
+      {data?.stats && (
+        <div className="bg-zinc-900 border border-white/5 rounded-3xl p-5 sm:p-6 mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Database Insight</h2>
+            <p className="text-sm text-zinc-400 mt-1">Overview of your scraped anime episodes and Telegram proxy status.</p>
+          </div>
+          <div className="flex gap-4 shrink-0">
+            <div className="flex flex-col items-end">
+              <span className="text-3xl font-black text-white">{data.stats.total_episodes.toLocaleString()}</span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Total Eps</span>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div className="flex flex-col items-start">
+              <span className="text-3xl font-black text-green-400">{data.stats.tg_episodes.toLocaleString()}</span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-green-500/70">Secured on TG</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col xl:flex-row gap-3">
         <input
@@ -491,6 +514,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
           >
             <option value="year_desc">Sort: Newest Year</option>
             <option value="year_asc">Sort: Oldest Year</option>
+            <option value="popularity">Sort: Popularity</option>
             <option value="title_asc">Sort: A-Z</option>
             <option value="title_desc">Sort: Z-A</option>
             <option value="episodes_desc">Sort: Most Eps</option>
@@ -500,6 +524,7 @@ function DatabaseTab({ api, headers }: { api: string; headers: HeadersInit }) {
             { label: "Hide empty", state: hideEmpty, toggle: () => { setHideEmpty((p) => !p); setPage(1); } },
             { label: "TG only", state: onlyTg, toggle: () => { setOnlyTg((p) => !p); setPage(1); } },
             { label: "Broken Links", state: brokenOnly, toggle: () => { setBrokenOnly((p) => !p); setPage(1); } },
+            { label: "Releasing", state: releasing, toggle: () => { setReleasing((p) => !p); setPage(1); } },
           ].map(({ label, state, toggle }) => (
             <button
               key={label}

@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm config set ignore-scripts false
-          cd apps/mobile && pnpm install --frozen-lockfile
+          cd apps/mobile && pnpm install --ignore-workspace --no-frozen-lockfile
 
       - name: Prebuild Android (Generate Native Code)
         working-directory: ./apps/mobile

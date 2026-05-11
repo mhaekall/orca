@@ -42,11 +42,11 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm config set ignore-scripts false
-          pnpm install --frozen-lockfile
+          cd apps/mobile && pnpm install --frozen-lockfile
 
       - name: Prebuild Android (Generate Native Code)
         working-directory: ./apps/mobile
-        run: pnpm exec expo prebuild --no-interactive --platform android --clean
+        run: npx expo prebuild --no-interactive --platform android --clean
 
       - name: Build APK (Assemble Debug)
         working-directory: ./apps/mobile/android

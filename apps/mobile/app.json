@@ -43,6 +43,13 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.475749423464-e2dq5kmtgdehbbb369f0nvr86f73gpl0"
         }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ]
     ],
     "extra": {

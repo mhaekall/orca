@@ -53,12 +53,29 @@ export function CustomVideoPlayer({
   onProgressUpdate,
   onEnd
 }: Props) {
-  // Bypass stale Cloudflare Edge Cache for proxy URLs
-  let finalUrl = videoUrl;
-  if (finalUrl && (finalUrl.includes('proxy') || finalUrl.includes('workers.dev'))) {
-    const separator = finalUrl.includes('?') ? '&' : '?';
-    finalUrl += `${separator}cb=${Date.now()}`;
-  }
+  // Bypass stale Cloudflare Edge Cache for proxy URLs & ensure it doesn't trigger re-renders
+  const finalUrl = React.useMemo(() => {
+    if (!videoUrl) return null;
+    let urlStr = videoUrl;
+    if (urlStr.includes('proxy') || urlStr.includes('workers.dev')) {
+      try {
+        // We use a dummy base if it's a relative URL, but these should be absolute
+        const u = new URL(urlStr);
+        // Force .m3u8 extension so expo-video (ExoPlayer) knows it's an HLS stream, 
+        // avoiding "None of the available extractors could read the stream" error.
+        if (!u.pathname.endsWith('.m3u8') && !u.pathname.endsWith('.mp4') && !u.pathname.endsWith('.ts')) {
+           u.pathname += '.m3u8';
+        }
+        // Cache buster
+        u.searchParams.set('cb', Date.now().toString());
+        urlStr = u.toString();
+      } catch (e) {
+        const separator = urlStr.includes('?') ? '&' : '?';
+        urlStr += `${separator}cb=${Date.now()}`;
+      }
+    }
+    return urlStr;
+  }, [videoUrl]);
 
   const player = useVideoPlayer(
     finalUrl ? { uri: finalUrl, headers: headers } : null,

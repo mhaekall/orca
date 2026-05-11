@@ -46,7 +46,7 @@ jobs:
 
       - name: Prebuild Android (Generate Native Code)
         working-directory: ./apps/mobile
-        run: pnpm expo prebuild --platform android --clean
+        run: npx --no-install expo prebuild --no-interactive --platform android --clean
 
       - name: Build APK (Assemble Debug)
         working-directory: ./apps/mobile/android

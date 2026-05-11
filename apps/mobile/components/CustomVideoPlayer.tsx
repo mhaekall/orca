@@ -70,6 +70,7 @@ export function CustomVideoPlayer({
         preferredForwardBufferDuration: 300,
         minBufferForPlayback: 2,
       };
+      player.timeUpdateEventInterval = 0.25;
       player.play();
     }
   );
@@ -97,7 +98,7 @@ export function CustomVideoPlayer({
     durationRef.current = duration;
   }, [duration]);
 
-  // Handle expo-video events
+  // Handle expo-video events natively without setInterval
   useEffect(() => {
     if (!player) return;
     const subPlaying = player.addListener('playingChange', (event) => {
@@ -113,21 +114,14 @@ export function CustomVideoPlayer({
         setIsBuffering(false);
       }
     });
-    return () => {
-      subPlaying.remove();
-      subStatus.remove();
-    };
-  }, [player]);
-
-  // Polling for progress update
-  useEffect(() => {
-    if (!player) return;
-    const interval = setInterval(() => {
+    const subSourceLoad = player.addListener('sourceLoad', (event) => {
+      setDuration(event.duration);
+    });
+    const subTimeUpdate = player.addListener('timeUpdate', (event) => {
       if (!isDragging.current) {
-        const cur = player.currentTime;
-        const dur = player.duration;
+        const cur = event.currentTime;
+        const dur = durationRef.current;
         setCurrentTime(cur);
-        setDuration(dur);
         
         if (onProgressUpdate) onProgressUpdate(cur, dur);
 
@@ -138,8 +132,13 @@ export function CustomVideoPlayer({
           onEnd();
         }
       }
-    }, 250);
-    return () => clearInterval(interval);
+    });
+    return () => {
+      subPlaying.remove();
+      subStatus.remove();
+      subSourceLoad.remove();
+      subTimeUpdate.remove();
+    };
   }, [player, onNext, onProgressUpdate, onEnd]);
 
   const panResponder = useRef(

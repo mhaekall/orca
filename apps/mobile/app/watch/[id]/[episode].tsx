@@ -104,7 +104,13 @@ export default function WatchScreen() {
   const anime = animeData?.data;
   const sources = streamData?.sources || [];
   const episodes = anime?.episodes || [];
-  const recommendations = anime?.recommendations || [];
+  const hasEps = (a: any) => {
+    if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
+    const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
+    if (eps !== undefined && eps !== null) return Number(eps) > 0;
+    return true;
+  };
+  const recommendations = (anime?.recommendations || []).filter(hasEps);
   
   // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
   const bestSource = sources.length > 0 ? sources[0] : null;
@@ -268,7 +274,10 @@ export default function WatchScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       
       {/* Video Player Container */}
-      <View style={isFullscreen ? styles.fullscreenVideoContainer : styles.videoContainer}>
+      <View style={[
+        isFullscreen ? styles.fullscreenVideoContainer : styles.videoContainer,
+        isFullscreen && showComments && { right: 320 }
+      ]}>
         {!isFullscreen && (
           <View style={styles.backButtonWrapper}>
             <Pressable 

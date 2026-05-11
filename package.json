@@ -1,0 +1,19 @@
+{
+  "name": "anime-scraper-pro-workspace",
+  "private": true,
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4"
+  },
+  "lint-staged": {
+    "*.py": [
+      "ruff check --fix"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "node scripts/remove_console_logs.js"
+    ]
+  }
+}

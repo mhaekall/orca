@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert } from 'react-native';
-import Slider from '@react-native-community/slider';
-import Video, { VideoRef, OnProgressData, OnLoadData } from 'react-native-video';
+import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -10,7 +9,9 @@ import { StatusBar } from 'expo-status-bar';
 
 interface Props {
   videoUrl: string | null;
+  sourceType?: string;
   title: string;
+  headers?: Record<string, string>;
   onNext?: () => void;
   onPrevious?: () => void;
   isLoading?: boolean;
@@ -37,7 +38,9 @@ function formatTime(seconds: number) {
 
 export function CustomVideoPlayer({ 
   videoUrl, 
+  sourceType,
   title, 
+  headers,
   onNext, 
   onPrevious, 
   isLoading = false,
@@ -50,7 +53,27 @@ export function CustomVideoPlayer({
   onProgressUpdate,
   onEnd
 }: Props) {
-  const videoRef = useRef<VideoRef>(null);
+  // Bypass stale Cloudflare Edge Cache for proxy URLs
+  let finalUrl = videoUrl;
+  if (finalUrl && (finalUrl.includes('proxy') || finalUrl.includes('workers.dev'))) {
+    const separator = finalUrl.includes('?') ? '&' : '?';
+    finalUrl += `${separator}cb=${Date.now()}`;
+  }
+
+  const player = useVideoPlayer(
+    finalUrl ? { uri: finalUrl, headers: headers } : null,
+    (player) => {
+      player.loop = false;
+      player.staysActiveInBackground = true; // Essential for background playback
+      // Menambah buffer hingga 5 menit untuk mencegah putus di detik 56
+      player.bufferOptions = {
+        preferredForwardBufferDuration: 300,
+        minBufferForPlayback: 2,
+      };
+      player.play();
+    }
+  );
+
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -62,17 +85,120 @@ export function CustomVideoPlayer({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const hideTimeout = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
+  const lastTapRef = useRef({ time: 0 });
   
   // Progress bar refs
   const progressBarWidth = useRef(0);
   const progressBarPageX = useRef(0);
 
   const durationRef = useRef(duration);
-  const [sliderWidth, setSliderWidth] = useState(Dimensions.get('window').width - 32);
   
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
+
+  // Handle expo-video events
+  useEffect(() => {
+    if (!player) return;
+    const subPlaying = player.addListener('playingChange', (event) => {
+      setIsPlaying(event.isPlaying);
+    });
+    const subStatus = player.addListener('statusChange', (event) => {
+      setIsBuffering(event.status === 'loading');
+      if (event.status === 'error') {
+        console.error("[PLAYER] Video Error", event);
+        setIsBuffering(false);
+      }
+      if (event.status === 'readyToPlay') {
+        setIsBuffering(false);
+      }
+    });
+    return () => {
+      subPlaying.remove();
+      subStatus.remove();
+    };
+  }, [player]);
+
+  // Polling for progress update
+  useEffect(() => {
+    if (!player) return;
+    const interval = setInterval(() => {
+      if (!isDragging.current) {
+        const cur = player.currentTime;
+        const dur = player.duration;
+        setCurrentTime(cur);
+        setDuration(dur);
+        
+        if (onProgressUpdate) onProgressUpdate(cur, dur);
+
+        // Auto-play Next Trigger
+        if (dur > 0 && dur - cur <= 1.5 && onNext) {
+          onNext();
+        } else if (dur > 0 && dur - cur <= 0.5 && onEnd) {
+          onEnd();
+        }
+      }
+    }, 250);
+    return () => clearInterval(interval);
+  }, [player, onNext, onProgressUpdate, onEnd]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => {
+        isDragging.current = true;
+        if (hideTimeout.current) clearTimeout(hideTimeout.current);
+        
+        // MATEMATIKA ABSOLUT: 
+        // Karena slider berada di tengah dengan padding kiri-kanan yang sama, 
+        // kita bisa mengetahui posisi asli ujung kirinya (pageX) secara absolut dan sinkron.
+        const screenWidth = Dimensions.get('window').width;
+        const barWidth = progressBarWidth.current || screenWidth;
+        const assumedPageX = (screenWidth - barWidth) / 2;
+        progressBarPageX.current = assumedPageX;
+        
+        const touchPageX = e.nativeEvent.pageX;
+        let pct = (touchPageX - assumedPageX) / barWidth;
+        pct = Math.max(0, Math.min(1, pct));
+        
+        if (durationRef.current > 0) {
+           const newTime = pct * durationRef.current;
+           setPreviewTime(newTime);
+           setCurrentTime(newTime);
+        }
+      },
+      onPanResponderMove: (e) => {
+        const touchPageX = e.nativeEvent.pageX;
+        const barWidth = progressBarWidth.current || 1;
+        let pct = (touchPageX - progressBarPageX.current) / barWidth;
+        pct = Math.max(0, Math.min(1, pct));
+        
+        if (durationRef.current > 0) {
+           const newTime = pct * durationRef.current;
+           setPreviewTime(newTime);
+           setCurrentTime(newTime);
+        }
+      },
+      onPanResponderRelease: (e) => {
+        isDragging.current = false;
+        const touchPageX = e.nativeEvent.pageX;
+        const barWidth = progressBarWidth.current || 1;
+        let pct = (touchPageX - progressBarPageX.current) / barWidth;
+        pct = Math.max(0, Math.min(1, pct));
+        
+        setPreviewTime(null);
+        if (durationRef.current > 0) {
+           const newTime = pct * durationRef.current;
+           setCurrentTime(newTime);
+           if (player) {
+             player.currentTime = newTime;
+           }
+        }
+        showControls();
+      },
+    })
+  ).current;
 
   const handleToggleFullscreen = async () => {
     try {
@@ -145,8 +271,12 @@ export function CustomVideoPlayer({
   }, [isPlaying, showControls]);
 
   const handlePlayPause = () => {
-    const willPlay = !isPlaying;
-    setIsPlaying(willPlay);
+    if (!player) return;
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
     showControls();
   };
 
@@ -154,12 +284,9 @@ export function CustomVideoPlayer({
   const [showSeekRight, setShowSeekRight] = useState(false);
 
   const handleDoubleTapLeft = () => {
-    if (videoRef.current) {
-      const newTime = Math.max(0, currentTime - 10);
-      if (isFinite(newTime)) {
-        videoRef.current.seek(newTime);
-        setCurrentTime(newTime);
-      }
+    if (player) {
+      player.seekBy(-10);
+      setCurrentTime(player.currentTime);
     }
     setShowSeekLeft(true);
     setTimeout(() => setShowSeekLeft(false), 500);
@@ -167,37 +294,13 @@ export function CustomVideoPlayer({
   };
 
   const handleDoubleTapRight = () => {
-    if (videoRef.current) {
-      const newTime = Math.min(duration, currentTime + 10);
-      if (isFinite(newTime)) {
-        videoRef.current.seek(newTime);
-        setCurrentTime(newTime);
-      }
+    if (player) {
+      player.seekBy(10);
+      setCurrentTime(player.currentTime);
     }
     setShowSeekRight(true);
     setTimeout(() => setShowSeekRight(false), 500);
     showControls();
-  };
-
-  const onProgress = (data: OnProgressData) => {
-    if (!isDragging.current) {
-      setCurrentTime(data.currentTime);
-      if (onProgressUpdate) {
-        onProgressUpdate(data.currentTime, duration);
-      }
-      
-      // Auto-play Next Trigger
-      if (duration > 0 && duration - data.currentTime <= 1.5) {
-         if (onNext) {
-            onNext();
-         }
-      }
-    }
-  };
-
-  const onLoad = (data: OnLoadData) => {
-    setDuration(data.duration);
-    setIsBuffering(false);
   };
 
   let progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -212,45 +315,13 @@ export function CustomVideoPlayer({
     <View style={styles.container}>
       <StatusBar hidden={isFullscreen} />
       
-      {videoUrl ? (
-        <Video
-          ref={videoRef}
-          source={{ 
-            uri: videoUrl,
-            type: (videoUrl.includes('proxy') || videoUrl.includes('workers.dev')) ? 'm3u8' : undefined
-          }}
+      {finalUrl && player ? (
+        <VideoView
+          player={player}
           style={StyleSheet.absoluteFill}
-          resizeMode="contain"
-          paused={!isPlaying}
-          onProgress={onProgress}
-          onLoad={(data) => {
-             console.log("[PLAYER] onLoad Triggered", data);
-             onLoad(data);
-          }}
-          onLoadStart={() => {
-             console.log("[PLAYER] onLoadStart Triggered");
-             setIsBuffering(true);
-          }}
-          onBuffer={({ isBuffering }) => {
-             console.log("[PLAYER] onBuffer Triggered: ", isBuffering);
-             setIsBuffering(isBuffering);
-          }}
-          onEnd={() => {
-            console.log("[PLAYER] onEnd Triggered");
-            if (onEnd) onEnd();
-            else if (onNext) onNext();
-          }}
-          onError={(e) => {
-            console.error("[PLAYER] Video Error:", e);
-            setIsBuffering(false);
-          }}
-          progressUpdateInterval={250}
-          bufferConfig={{
-            minBufferMs: 5000,
-            maxBufferMs: 50000,
-            bufferForPlaybackMs: 2500,
-            bufferForPlaybackAfterRebufferMs: 5000
-          }}
+          nativeControls={false}
+          contentFit="contain"
+          allowsPictureInPicture={true}
         />
       ) : (
         <View style={styles.loadingOverlay}>
@@ -289,9 +360,28 @@ export function CustomVideoPlayer({
       {/* Interaction Layer */}
       <Pressable 
         style={styles.interactionLayer} 
-        onPress={() => {
-          console.log("[TOUCH] Base Interaction Layer Pressed");
-          toggleControls();
+        onPress={(e) => {
+          const now = Date.now();
+          const DOUBLE_PRESS_DELAY = 300;
+          const { pageX } = e.nativeEvent;
+          const screenWidth = Dimensions.get('window').width;
+
+          if (now - lastTapRef.current.time < DOUBLE_PRESS_DELAY) {
+            // Double Tap Detected
+            if (pageX < screenWidth / 3) {
+              handleDoubleTapLeft();
+            } else if (pageX > (screenWidth * 2) / 3) {
+              handleDoubleTapRight();
+            } else {
+              // Middle double tap
+              handlePlayPause();
+            }
+            lastTapRef.current.time = 0; // reset
+          } else {
+            // Single Tap
+            lastTapRef.current.time = now;
+            toggleControls();
+          }
         }} 
       />
       
@@ -307,23 +397,6 @@ export function CustomVideoPlayer({
           {/* Top Bar Content */}
           <View style={styles.topBarContentWrapper} pointerEvents="box-none">
             <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
-            
-            {isFullscreen && (
-              <View style={styles.socialBar}>
-                <View style={styles.viewBadge}>
-                  <Eye color="#e5e5ea" size={14} />
-                  <Text style={styles.socialText}>
-                    {views && views >= 1000000 ? (views/1000000).toFixed(1) + 'M' : views && views >= 1000 ? (views/1000).toFixed(1) + 'K' : views || 0}
-                  </Text>
-                </View>
-                <Pressable onPress={() => { if(onLike) onLike(); }} style={styles.iconButton}>
-                  <Heart color={isLiked ? "#ff2d55" : "#e5e5ea"} size={20} fill={isLiked ? "#ff2d55" : "none"} />
-                </Pressable>
-                <Pressable onPress={() => { if(onShowComments) onShowComments(); }} style={styles.iconButton}>
-                  <MessageSquare color="#e5e5ea" size={20} />
-                </Pressable>
-              </View>
-            )}
           </View>
 
           {/* Center Play/Pause & Skip Controls */}
@@ -331,7 +404,6 @@ export function CustomVideoPlayer({
             <View style={styles.centerRow} pointerEvents="box-none">
               {onPrevious ? (
                 <Pressable onPress={() => {
-                  console.log("[TOUCH] Previous Button Pressed");
                   onPrevious();
                 }} style={styles.controlButton}>
                   <SkipBack color="white" size={28} fill="white" />
@@ -339,14 +411,12 @@ export function CustomVideoPlayer({
               ) : <View style={{ width: 48 }} />}
               
               <Pressable onPress={() => {
-                console.log("[TOUCH] Double Tap Left (Rotate) Pressed");
                 handleDoubleTapLeft();
               }} style={styles.controlButton}>
                 <RotateCcw color="white" size={32} />
               </Pressable>
 
               <Pressable onPress={() => {
-                console.log("[TOUCH] Play/Pause Button Pressed. Currently playing:", isPlaying);
                 handlePlayPause();
               }} style={[styles.controlButton, styles.playButton]}>
                 {isPlaying ? (
@@ -357,7 +427,6 @@ export function CustomVideoPlayer({
               </Pressable>
 
               <Pressable onPress={() => {
-                 console.log("[TOUCH] Double Tap Right (Rotate) Pressed");
                  handleDoubleTapRight();
               }} style={styles.controlButton}>
                 <RotateCw color="white" size={32} />
@@ -365,7 +434,6 @@ export function CustomVideoPlayer({
 
               {onNext ? (
                 <Pressable onPress={() => {
-                  console.log("[TOUCH] Next Button Pressed");
                   onNext();
                 }} style={styles.controlButton}>
                   <SkipForward color="white" size={28} fill="white" />
@@ -375,13 +443,12 @@ export function CustomVideoPlayer({
           </View>
 
           {/* Bottom Bar Content & Seekbar */}
-          <View style={styles.bottomBarContentWrapper} pointerEvents="box-none">
+          <View style={[styles.bottomBarContentWrapper, isFullscreen && { paddingHorizontal: 60 }]} pointerEvents="box-none">
             <View style={styles.timeRow} pointerEvents="box-none">
               <Text style={styles.timeText}>{formatTime(currentTime)} <Text style={{color: 'rgba(255,255,255,0.5)'}}>/ {formatTime(duration)}</Text></Text>
               
-              <View style={styles.bottomRightControls}>
+              <View style={styles.bottomRightControls} pointerEvents="auto">
                   <Pressable onPress={() => {
-                     console.log("[TOUCH] Fullscreen Toggle Pressed");
                      handleToggleFullscreen();
                   }} style={styles.iconButton}>
                     {isFullscreen ? <Minimize color="white" size={24} /> : <Maximize color="white" size={24} />}
@@ -396,50 +463,40 @@ export function CustomVideoPlayer({
               </View>
             )}
 
-            {/* Native Slider for Zero Crash Guarantee */}
+            {/* Custom Slider for Guaranteed Touch */}
             <View 
-              style={{ width: '100%', height: 40, justifyContent: 'center', zIndex: 10 }}
+              style={styles.progressContainer}
+              pointerEvents="auto"
               onLayout={(e) => {
-                console.log("[SLIDER] Container Layout:", e.nativeEvent.layout);
-                if (e.nativeEvent.layout.width > 0) {
-                  setSliderWidth(e.nativeEvent.layout.width);
-                }
+                progressBarWidth.current = e.nativeEvent.layout.width;
               }}
+              {...panResponder.panHandlers}
             >
-              <Slider
-                style={{ width: sliderWidth, height: 40 }}
-                minimumValue={0}
-                maximumValue={duration > 0 ? duration : 1}
-                value={isFinite(currentTime) && duration > 0 ? Math.min(Math.max(0, currentTime), duration) : 0}
-                minimumTrackTintColor="#0A84FF"
-                maximumTrackTintColor="rgba(255,255,255,0.4)"
-                thumbTintColor="#FFFFFF"
-                onSlidingStart={() => {
-                  console.log("[TOUCH] Slider onSlidingStart");
-                  isDragging.current = true;
-                  if (hideTimeout.current) clearTimeout(hideTimeout.current);
-                }}
-                onValueChange={(val) => {
-                  console.log("[TOUCH] Slider onValueChange", val);
-                  if (isFinite(val)) {
-                    setPreviewTime(val);
-                    setCurrentTime(val);
-                  }
-                }}
-                onSlidingComplete={(val) => {
-                  console.log("[TOUCH] Slider onSlidingComplete", val);
-                  isDragging.current = false;
-                  setPreviewTime(null);
-                  if (isFinite(val)) {
-                    setCurrentTime(val);
-                    if (videoRef.current && duration > 0) {
-                       videoRef.current.seek(Math.min(val, duration));
-                    }
-                  }
-                  showControls();
-                }}
-              />
+              <View style={styles.progressBarHitbox} pointerEvents="none">
+                <View style={styles.progressBarTrack}>
+                  <View style={[styles.progressBarFill, { width: `${progressPct}%` }]} />
+                  <View style={[styles.progressThumb, { left: `${progressPct}%` }]} />
+                </View>
+              </View>
             </View>
+
+            {/* Social Actions in Fullscreen */}
+            {isFullscreen && (
+              <View style={styles.fullscreenSocialBarBottom} pointerEvents="auto">
+                <View style={styles.viewBadge}>
+                  <Eye color="#e5e5ea" size={14} />
+                  <Text style={styles.socialText}>
+                    {views && views >= 1000000 ? (views/1000000).toFixed(1) + 'M' : views && views >= 1000 ? (views/1000).toFixed(1) + 'K' : views || 0}
+                  </Text>
+                </View>
+                <Pressable onPress={() => { if(onLike) onLike(); }} style={styles.iconButton}>
+                  <Heart color={isLiked ? "#ff2d55" : "#e5e5ea"} size={20} fill={isLiked ? "#ff2d55" : "none"} />
+                </Pressable>
+                <Pressable onPress={() => { if(onShowComments) onShowComments(); }} style={styles.iconButton}>
+                  <MessageSquare color="#e5e5ea" size={20} />
+                </Pressable>
+              </View>
+            )}
           </View>
 
         </Animated.View>
@@ -473,9 +530,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   seekIndicator: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 16,
-    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -548,6 +602,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  fullscreenSocialBarBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
   centerControls: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
@@ -575,15 +638,16 @@ const styles = StyleSheet.create({
   },
   bottomBarContentWrapper: {
     paddingTop: 32,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
     zIndex: 2,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
   },
   timeRow: {
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   timeText: {
     color: 'white',
@@ -600,9 +664,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   progressContainer: {
-    height: 40,
+    height: 24,
     width: '100%',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     position: 'relative',
     zIndex: 10,
   },
@@ -625,30 +689,31 @@ const styles = StyleSheet.create({
   },
   progressBarHitbox: {
     height: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 2, // Slight gap from absolute edge
   },
   progressBarTrack: {
-    height: 4,
+    height: 2,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 2,
+    borderRadius: 1,
     position: 'relative',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#0A84FF',
-    borderRadius: 2,
+    borderRadius: 1,
     position: 'absolute',
     left: 0,
     top: 0,
   },
   progressThumb: {
     position: 'absolute',
-    top: -6,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: 'white',
-    marginLeft: -8, // center the thumb
+    marginLeft: -5, // center the thumb
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,

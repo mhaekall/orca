@@ -333,7 +333,7 @@ async def get_sources_v2(
                             "quality": "1080p",
                             "url": ep_url,
                             "type": "hls"
-                            if ep_url.endswith(".m3u8") or "tg-proxy" in ep_url
+                            if ep_url.endswith(".m3u8") or "tg-proxy" in ep_url or "workers.dev" in ep_url or "tele-proxy" in ep_url
                             else "mp4",
                             "source": "telegram_swarm",
                         }

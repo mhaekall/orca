@@ -58,17 +58,21 @@ export function CustomVideoPlayer({
     if (!videoUrl) return null;
     let urlStr = videoUrl;
     if (urlStr.includes('proxy') || urlStr.includes('workers.dev')) {
-      try {
-        const u = new URL(urlStr);
-        if (!u.pathname.endsWith('.m3u8') && !u.pathname.endsWith('.mp4') && !u.pathname.endsWith('.ts')) {
-           u.pathname += '.m3u8';
-        }
-        u.searchParams.set('cb', Date.now().toString());
-        urlStr = u.toString();
-      } catch (e) {
-        const separator = urlStr.includes('?') ? '&' : '?';
-        urlStr += `${separator}cb=${Date.now()}`;
+      // Use pure string manipulation to avoid Hermes polyfill crashes
+      const parts = urlStr.split('?');
+      let baseUrl = parts[0];
+      let queryString = parts[1] || '';
+      
+      // Force .m3u8 extension if it's missing
+      if (!baseUrl.endsWith('.m3u8') && !baseUrl.endsWith('.mp4') && !baseUrl.endsWith('.ts')) {
+         baseUrl += '.m3u8';
       }
+      
+      // Cache buster
+      const separator = queryString ? '&' : '';
+      queryString += `${separator}cb=${Date.now()}`;
+      
+      urlStr = `${baseUrl}?${queryString}`;
     }
     return urlStr;
   }, [videoUrl]);

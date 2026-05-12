@@ -119,7 +119,11 @@ class NativeVideoPlayerView(
             .also { exo ->
                 exo.repeatMode    = Player.REPEAT_MODE_OFF
                 exo.playWhenReady = true
-                exo.setMediaItem(MediaItem.fromUri(url))
+                val mediaItem = MediaItem.Builder()
+                    .setUri(url)
+                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                    .build()
+                exo.setMediaItem(mediaItem)
                 exo.prepare()
                 exo.addListener(playerListener)
             }

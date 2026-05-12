@@ -59,9 +59,14 @@ export default {
          }
          // Append ?mime=ts to chunk URLs inside the playlist
          if (text.includes("tele-proxy")) {
+             // Force VOD type so ExoPlayer calculates duration instead of treating it as LIVE
+             if (text.includes("#EXTM3U") && !text.includes("#EXT-X-PLAYLIST-TYPE:VOD")) {
+                 text = text.replace("#EXTM3U", "#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD");
+             }
              const randCb = Math.random().toString(36).substring(7);
-             text = text.replace(/(https:\/\/tele-proxy[\w\.\/\-:]+\/[^\/\s\?]+)(?!\?.*mime=ts)/g, `$1?mime=ts&xcb=${randCb}`);
-             text = text.replace(/(mime=ts)(?!&xcb)/g, `$1&xcb=${randCb}`);
+             text = text.replace(/([?&])xcb=[^&\s]+/g, "");
+             text = text.replace(/(https:\/\/tele-proxy[\w\.\/\-:]+\/[^\/\s\?]+)(?!\S*mime=ts)/g, `$1?mime=ts`);
+             text = text.replace(/(mime=ts)/g, `$1&xcb=${randCb}`);
              textModified = true;
          }
          if (textModified) {
@@ -142,11 +147,15 @@ export default {
       }
       // Append ?mime=ts to chunk URLs inside the playlist
       if (text.includes("tele-proxy")) {
+          // Force VOD type so ExoPlayer calculates duration instead of treating it as LIVE
+          if (text.includes("#EXTM3U") && !text.includes("#EXT-X-PLAYLIST-TYPE:VOD")) {
+              text = text.replace("#EXTM3U", "#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD");
+          }
           // generate random string for cache busting OkHttp
           const randCb = Math.random().toString(36).substring(7);
-          text = text.replace(/(https:\/\/tele-proxy[\w\.\/\-:]+\/[^\/\s\?]+)(?!\?.*mime=ts)/g, `$1?mime=ts&xcb=${randCb}`);
-          // if it already has mime=ts, append xcb
-          text = text.replace(/(mime=ts)(?!&xcb)/g, `$1&xcb=${randCb}`);
+          text = text.replace(/([?&])xcb=[^&\s]+/g, "");
+          text = text.replace(/(https:\/\/tele-proxy[\w\.\/\-:]+\/[^\/\s\?]+)(?!\S*mime=ts)/g, `$1?mime=ts`);
+          text = text.replace(/(mime=ts)/g, `$1&xcb=${randCb}`);
           isModified = true;
       }
       if (isModified) {

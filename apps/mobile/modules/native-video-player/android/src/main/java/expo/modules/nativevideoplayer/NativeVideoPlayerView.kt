@@ -15,6 +15,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import expo.modules.kotlin.AppContext
+import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 
 private const val TAG                  = "NativeVideoPlayerView"
@@ -25,6 +26,9 @@ class NativeVideoPlayerView(
     context: Context,
     appContext: AppContext,
 ) : ExpoView(context, appContext) {
+
+    private val onPlaybackEnd by EventDispatcher()
+    private val onProgress by EventDispatcher()
 
     private val playerView: PlayerView = PlayerView(context).apply {
         useController = true

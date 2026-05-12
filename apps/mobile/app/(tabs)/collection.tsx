@@ -10,7 +10,7 @@ import { Skeleton } from "../../components/Skeleton";
 
 import { HF_API_URL } from "../../lib/config";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from "../../lib/fetcher";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 
@@ -261,8 +261,8 @@ export default function CollectionScreen() {
   const allItems = useMemo(() => {
     const raw = Array.isArray(collectionRes) ? collectionRes : (collectionRes?.data || []);
     return [...raw].map((h: any) => ({
-      id: String(h.id || h.animeSlug || h.anilistId),
-      title: h.title || h.cleanTitle || h.nativeTitle || h.animeTitle || `Anime #${h.id || h.animeSlug}`,
+      id: String(h.anilistId || h.animeSlug || h.id),
+      title: h.title || h.cleanTitle || h.nativeTitle || h.animeTitle || `Anime #${h.anilistId || h.animeSlug || h.id}`,
       img: h.img || h.coverImage || h.animeCover,
       totalEps: h.totalEps || h.totalEpisodes || 0,
       status: String(h.status || "").toUpperCase(),

@@ -17,7 +17,7 @@ import { useAuth } from "../lib/auth";
 
 import { API_URL } from "../lib/config";
 const API = API_URL;
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from "../lib/fetcher";
 const BG = "#0a0812";
 const SURFACE = "#1f1c29";
 

@@ -5,7 +5,7 @@ import { X, Heart, MessageSquare, Send } from 'lucide-react-native';
 import { Image } from 'expo-image';
 
 import { HF_API_URL } from "../lib/config";
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher, fetchWithAuth } from "../lib/fetcher";
 
 interface CommentProps {
   anilistId: string;
@@ -51,7 +51,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
     if (!user || !text.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${HF_API_URL}/api/v2/comments`, {
+      const res = await fetchWithAuth(`${HF_API_URL}/api/v2/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,7 +98,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
     );
 
     try {
-      const res = await fetch(`${HF_API_URL}/api/v2/comments/reaction`, {
+      const res = await fetchWithAuth(`${HF_API_URL}/api/v2/comments/reaction`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

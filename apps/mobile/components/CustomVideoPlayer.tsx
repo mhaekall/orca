@@ -232,13 +232,16 @@ export function CustomVideoPlayer({
         
         setPreviewTime(null);
         if (durationRef.current > 0) {
-           const newTime = pct * durationRef.current;
-           setCurrentTime(newTime);
-           if (playerRef.current) {
-             try {
-               playerRef.current.currentTime = newTime;
-             } catch (e) {
-               console.warn("Failed to seek player:", e);
+           let newTime = pct * durationRef.current;
+           if (isFinite(newTime)) {
+             newTime = Number(newTime.toFixed(3));
+             setCurrentTime(newTime);
+             if (playerRef.current) {
+               try {
+                 playerRef.current.currentTime = newTime;
+               } catch (e) {
+                 console.warn("Failed to seek player:", e);
+               }
              }
            }
         }

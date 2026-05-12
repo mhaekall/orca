@@ -2,8 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { SWRConfig } from 'swr';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SplashScreen from 'expo-splash-screen';
+import { fetcher } from './fetcher';
 
 const CACHE_KEY = '@app-swr-cache';
+const MAX_CACHE_KEYS = 30; // Limit cache keys to avoid JSON stringify bloat
 
 export function SWRProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProvider] = useState<any>(null);
@@ -12,13 +15,7 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     let appState = AppState.currentState;
     
     // Function to handle app state changes for background revalidation
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      /* 
-      We don't need to manually call mutate() for everything here if we let SWR handle it, 
-      but SWR's default focus doesn't track React Native AppState out of the box unless configured.
-      Since SWRConfig 'provider' is what we are configuring, we also configure 'isVisible' and 'initFocus'.
-      */
-    };
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {};
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
@@ -31,7 +28,9 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
         const saveCache = () => {
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
-            const data = JSON.stringify(Array.from(map.entries()));
+            // Convert to array, slice to keep latest, to avoid massive JSON limits
+            const entries = Array.from(map.entries()).slice(-MAX_CACHE_KEYS);
+            const data = JSON.stringify(entries);
             AsyncStorage.setItem(CACHE_KEY, data).catch(console.error);
           }, 1000);
         };
@@ -53,6 +52,8 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.error('Failed to init SWR cache', e);
         setProvider(() => new Map()); // Fallback to memory
+      } finally {
+        await SplashScreen.hideAsync().catch(() => {});
       }
     };
 
@@ -71,6 +72,7 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
     <SWRConfig
       value={{
         provider: () => provider,
+        fetcher, // Set global fetcher
         isVisible: () => {
           return AppState.currentState === 'active';
         },

@@ -24,7 +24,7 @@ import { useAuth } from "../../lib/auth";
 const { width: W, height: H } = Dimensions.get("window");
 import { API_URL, HF_API_URL } from "../../lib/config";
 const API = API_URL;
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { fetcher } from "../../lib/fetcher";
 
 const BG = "#0a0812";
 const SURFACE = "#13111a";

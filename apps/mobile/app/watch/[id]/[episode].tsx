@@ -12,7 +12,7 @@ import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 
 const { width: W } = Dimensions.get('window');
 import { API_URL, HF_API_URL } from "../../../lib/config";
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher, fetchWithAuth } from "../../../lib/fetcher";
 
 export default function WatchScreen() {
   const { id, episode } = useLocalSearchParams();
@@ -58,7 +58,7 @@ export default function WatchScreen() {
     );
 
     try {
-      await fetch(`${HF_API_URL}/api/v2/social/episode/like`, {
+      await fetchWithAuth(`${HF_API_URL}/api/v2/social/episode/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -82,7 +82,7 @@ export default function WatchScreen() {
       return;
     }
     try {
-      const res = await fetch(`${HF_API_URL}/api/v2/collection`, {
+      const res = await fetchWithAuth(`${HF_API_URL}/api/v2/collection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -140,7 +140,7 @@ export default function WatchScreen() {
         const durationT = currentVideoDuration.current;
         if (currentT > 1) {
           // Update granular watch session
-          fetch(`${HF_API_URL}/api/v2/social/watch-session`, {
+          fetchWithAuth(`${HF_API_URL}/api/v2/social/watch-session`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -156,7 +156,7 @@ export default function WatchScreen() {
 
           // Update main watch history for Collection/Home timeline
           const isComp = durationT > 0 && (currentT / durationT) > 0.9;
-          fetch(`${HF_API_URL}/api/v2/social/progress`, {
+          fetchWithAuth(`${HF_API_URL}/api/v2/social/progress`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -214,7 +214,7 @@ export default function WatchScreen() {
 
     const sendReport = async (issue: string) => {
       try {
-        await fetch(`${HF_API_URL}/api/v2/social/report`, {
+        await fetchWithAuth(`${HF_API_URL}/api/v2/social/report`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

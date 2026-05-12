@@ -15,6 +15,7 @@ import { AnimeCard } from "../components/AnimeCard";
 
 const { width: W } = Dimensions.get("window");
 import { API_URL } from "../lib/config";
+import { fetchWithAuth } from "../lib/fetcher";
 const API = API_URL;
 const BG = "#0a0812";
 const SURFACE = "#1f1c29";
@@ -31,7 +32,7 @@ export default function TrendingScreen() {
       setLoading(true);
       try {
         const url = `${API}/api/v2/browse?page=1&sort=trending&limit=30&_t=${Date.now()}`;
-        const res = await fetch(url, {
+        const res = await fetchWithAuth(url, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',

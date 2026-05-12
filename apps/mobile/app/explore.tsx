@@ -21,6 +21,7 @@ import { AnimeCard } from "../components/AnimeCard";
 
 const { width: W } = Dimensions.get("window");
 import { API_URL } from "../lib/config";
+import { fetchWithAuth } from "../lib/fetcher";
 const API = API_URL;
 const BG = "#0a0812";
 const SURFACE = "#13111a";
@@ -132,7 +133,7 @@ export default function ExploreScreen() {
         if (debouncedQuery) url += `&q=${encodeURIComponent(debouncedQuery)}`;
         if (genre) url += `&genre=${encodeURIComponent(genre)}`;
 
-        const res = await fetch(url);
+        const res = await fetchWithAuth(url);
         const data = await res.json();
 
         if (data?.success && data.data) {

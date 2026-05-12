@@ -4,8 +4,12 @@ import { SWRProvider } from "../lib/swr-provider";
 import { StatusBar } from "expo-status-bar";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { View, StyleSheet, LogBox } from "react-native";
+import * as SplashScreen from 'expo-splash-screen';
 
 LogBox.ignoreLogs(["Unable to activate keep awake", "Uncaught (in promise, id: "]);
+
+// Prevent splash screen from hiding automatically
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const customTheme = {
   ...DarkTheme,

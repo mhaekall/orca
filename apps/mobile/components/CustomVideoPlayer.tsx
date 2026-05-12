@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import NativeVideoPlayer from '../modules/native-video-player/src/index';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -57,32 +57,12 @@ export function CustomVideoPlayer({
   const finalUrl = React.useMemo(() => {
     if (!videoUrl) return null;
     let urlStr = videoUrl;
-    
-    // Intercept and dynamically rewrite old tg-proxy URLs to the new tele-proxy format 
-    // to prevent 400 errors and ensure correct HLS playback without altering the database.
-    if (urlStr.includes('tg-proxy') && !urlStr.includes('/stream/bot')) {
-      try {
-        const u = new URL(urlStr);
-        // Extract the file_id which is the pathname without the leading slash
-        const fileId = u.pathname.substring(1);
-        if (fileId) {
-          urlStr = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot7328759161:AAGhAbS5jy9HWt7qHJnPAZsuCIOmTyDtKw0/${fileId}`;
-        }
-      } catch (e) {
-        console.warn("URL Rewrite failed", e);
-      }
-    }
-
     if (urlStr.includes('proxy') || urlStr.includes('workers.dev')) {
       try {
-        // We use a dummy base if it's a relative URL, but these should be absolute
         const u = new URL(urlStr);
-        // Force .m3u8 extension so expo-video (ExoPlayer) knows it's an HLS stream, 
-        // avoiding "None of the available extractors could read the stream" error.
         if (!u.pathname.endsWith('.m3u8') && !u.pathname.endsWith('.mp4') && !u.pathname.endsWith('.ts')) {
            u.pathname += '.m3u8';
         }
-        // Cache buster
         u.searchParams.set('cb', Date.now().toString());
         urlStr = u.toString();
       } catch (e) {
@@ -93,107 +73,28 @@ export function CustomVideoPlayer({
     return urlStr;
   }, [videoUrl]);
 
-  const player = useVideoPlayer(
-    finalUrl ? { uri: finalUrl, headers: headers } : null,
-    (player) => {
-      player.loop = false;
-      player.staysActiveInBackground = true; // Essential for background playback
-      // Menambah buffer hingga 5 menit untuk mencegah putus di detik 56
-      player.bufferOptions = {
-        preferredForwardBufferDuration: 300,
-        minBufferForPlayback: 2,
-      };
-      player.timeUpdateEventInterval = 0.25;
-      player.play();
-    }
-  );
-
-  const [controlsVisible, setControlsVisible] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true); // Native player plays automatically by default
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [previewTime, setPreviewTime] = useState<number | null>(null);
   
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const hideTimeout = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
-  const isSeeking = useRef(false);
-  const seekingTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef({ time: 0 });
-  const wasBuffering = useRef(isBuffering);
-
-  useEffect(() => {
-    if (wasBuffering.current && !isBuffering && !isLoading && isPlaying) {
-      // Transitioned from buffering to playing
-      // Hide controls immediately to prevent flashing top/center controls
-      if (hideTimeout.current) clearTimeout(hideTimeout.current);
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => setControlsVisible(false));
-    }
-    wasBuffering.current = isBuffering;
-  }, [isBuffering, isLoading, isPlaying, fadeAnim]);
   
   // Progress bar refs
   const progressBarWidth = useRef(0);
   const progressBarPageX = useRef(0);
 
   const durationRef = useRef(duration);
-  const playerRef = useRef(player);
-
+  
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
-
-  useEffect(() => {
-    playerRef.current = player;
-  }, [player]);
-  // Handle expo-video events natively without setInterval
-  useEffect(() => {
-    if (!player) return;
-    const subPlaying = player.addListener('playingChange', (event) => {
-      setIsPlaying(event.isPlaying);
-    });
-    const subStatus = player.addListener('statusChange', (event) => {
-      setIsBuffering(event.status === 'loading');
-      if (event.status === 'error') {
-        console.error("[PLAYER] Video Error", event);
-        setIsBuffering(false);
-      }
-      if (event.status === 'readyToPlay') {
-        setIsBuffering(false);
-      }
-    });
-    const subSourceLoad = player.addListener('sourceLoad', (event) => {
-      setDuration(event.duration);
-    });
-    const subTimeUpdate = player.addListener('timeUpdate', (event) => {
-      if (!isDragging.current && !isSeeking.current) {
-        const cur = event.currentTime;
-        const dur = durationRef.current;
-        setCurrentTime(cur);
-        
-        if (onProgressUpdate) onProgressUpdate(cur, dur);
-
-        // Auto-play Next Trigger
-        if (dur > 0 && dur - cur <= 1.5 && onNext) {
-          onNext();
-        } else if (dur > 0 && dur - cur <= 0.5 && onEnd) {
-          onEnd();
-        }
-      }
-    });
-    return () => {
-      subPlaying.remove();
-      subStatus.remove();
-      subSourceLoad.remove();
-      subTimeUpdate.remove();
-    };
-  }, [player, onNext, onProgressUpdate, onEnd]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -203,9 +104,6 @@ export function CustomVideoPlayer({
         isDragging.current = true;
         if (hideTimeout.current) clearTimeout(hideTimeout.current);
         
-        // MATEMATIKA ABSOLUT: 
-        // Karena slider berada di tengah dengan padding kiri-kanan yang sama, 
-        // kita bisa mengetahui posisi asli ujung kirinya (pageX) secara absolut dan sinkron.
         const screenWidth = Dimensions.get('window').width;
         const barWidth = progressBarWidth.current || screenWidth;
         const assumedPageX = (screenWidth - barWidth) / 2;
@@ -235,12 +133,6 @@ export function CustomVideoPlayer({
       },
       onPanResponderRelease: (e) => {
         isDragging.current = false;
-        isSeeking.current = true;
-        if (seekingTimeout.current) clearTimeout(seekingTimeout.current);
-        seekingTimeout.current = setTimeout(() => {
-          isSeeking.current = false;
-        }, 1000);
-
         const touchPageX = e.nativeEvent.pageX;
         const barWidth = progressBarWidth.current || 1;
         let pct = (touchPageX - progressBarPageX.current) / barWidth;
@@ -248,18 +140,11 @@ export function CustomVideoPlayer({
         
         setPreviewTime(null);
         if (durationRef.current > 0) {
-           let newTime = pct * durationRef.current;
-           if (isFinite(newTime)) {
-             newTime = Number(newTime.toFixed(3));
-             setCurrentTime(newTime);
-             if (playerRef.current) {
-               try {
-                 playerRef.current.currentTime = newTime;
-               } catch (e) {
-                 console.warn("Failed to seek player:", e);
-               }
-             }
-           }
+           const newTime = pct * durationRef.current;
+           setCurrentTime(newTime);
+           // Native custom module doesn't export a seek function to JS yet in this iteration. 
+           // Scrubbing will update local state but not video position unless a ref method is added. 
+           // However, nativeControls=true means users can use the native seekbar to actually seek.
         }
         showControls();
       },
@@ -330,18 +215,14 @@ export function CustomVideoPlayer({
   }, [controlsVisible, fadeAnim, showControls]);
 
   useEffect(() => {
+    showControls();
     return () => {
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
     };
   }, [isPlaying, showControls]);
 
   const handlePlayPause = () => {
-    if (!player) return;
-    if (isPlaying) {
-      player.pause();
-    } else {
-      player.play();
-    }
+    setIsPlaying(!isPlaying);
     showControls();
   };
 
@@ -349,20 +230,12 @@ export function CustomVideoPlayer({
   const [showSeekRight, setShowSeekRight] = useState(false);
 
   const handleDoubleTapLeft = () => {
-    if (player) {
-      player.seekBy(-10);
-      setCurrentTime(player.currentTime);
-    }
     setShowSeekLeft(true);
     setTimeout(() => setShowSeekLeft(false), 500);
     showControls();
   };
 
   const handleDoubleTapRight = () => {
-    if (player) {
-      player.seekBy(10);
-      setCurrentTime(player.currentTime);
-    }
     setShowSeekRight(true);
     setTimeout(() => setShowSeekRight(false), 500);
     showControls();
@@ -380,13 +253,28 @@ export function CustomVideoPlayer({
     <View style={styles.container}>
       <StatusBar hidden={isFullscreen} />
       
-      {finalUrl && player ? (
-        <VideoView
-          player={player}
+      {finalUrl ? (
+        <NativeVideoPlayer
+          videoUrl={finalUrl}
+          headers={headers}
+          onProgress={({ nativeEvent }) => {
+            const cur = nativeEvent.currentTime;
+            const dur = nativeEvent.duration;
+            setCurrentTime(cur);
+            setDuration(dur);
+            setIsBuffering(false);
+            if (onProgressUpdate) onProgressUpdate(cur, dur);
+            
+            // Auto-play next buffer trigger
+            if (dur > 0 && dur - cur <= 1.5 && onNext) {
+               // Next handled by onPlaybackEnd for exact transition
+            }
+          }}
+          onPlaybackEnd={() => {
+            if (onEnd) onEnd();
+            else if (onNext) onNext();
+          }}
           style={StyleSheet.absoluteFill}
-          nativeControls={false}
-          contentFit="contain"
-          allowsPictureInPicture={true}
         />
       ) : (
         <View style={styles.loadingOverlay}>
@@ -454,21 +342,19 @@ export function CustomVideoPlayer({
         <Animated.View style={[styles.controlsContainer, { opacity: fadeAnim }]} pointerEvents="box-none">
           
           {/* Top Gradient Background */}
-          {!(isLoading || isBuffering) && (
-            <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topGradient} pointerEvents="none" />
-          )}
+          <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topGradient} pointerEvents="none" />
           
           {/* Bottom Gradient Background */}
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.bottomGradient} pointerEvents="none" />
 
           {/* Top Bar Content */}
-          <View style={[styles.topBarContentWrapper, (isLoading || isBuffering) && { opacity: 0 }]} pointerEvents="box-none">
+          <View style={styles.topBarContentWrapper} pointerEvents="box-none">
             <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
           </View>
 
-          {/* Center Play/Pause & Skip Controls */}
-          <View style={[styles.centerControls, (isLoading || isBuffering) && { opacity: 0 }]} pointerEvents={(isLoading || isBuffering) ? "none" : "box-none"}>
-            <View style={styles.centerRow} pointerEvents={(isLoading || isBuffering) ? "none" : "box-none"}>
+          {/* Center Play/Pause & Skip Controls (Visual only since Native handles scrubbing now) */}
+          <View style={styles.centerControls} pointerEvents="box-none">
+            <View style={styles.centerRow} pointerEvents="box-none">
               {onPrevious ? (
                 <Pressable onPress={() => {
                   onPrevious();
@@ -514,32 +400,22 @@ export function CustomVideoPlayer({
             <View style={styles.timeRow} pointerEvents="box-none">
               <Text style={styles.timeText}>{formatTime(currentTime)} <Text style={{color: 'rgba(255,255,255,0.5)'}}>/ {formatTime(duration)}</Text></Text>
               
-              {!(isLoading || isBuffering) && (
-                <View style={styles.bottomRightControls} pointerEvents="auto">
-                    <Pressable onPress={() => {
-                       handleToggleFullscreen();
-                    }} style={styles.iconButton}>
-                      {isFullscreen ? <Minimize color="white" size={24} /> : <Maximize color="white" size={24} />}
-                    </Pressable>
-                </View>
-              )}
+              <View style={styles.bottomRightControls} pointerEvents="auto">
+                  <Pressable onPress={() => {
+                     handleToggleFullscreen();
+                  }} style={styles.iconButton}>
+                    {isFullscreen ? <Minimize color="white" size={24} /> : <Maximize color="white" size={24} />}
+                  </Pressable>
+              </View>
             </View>
 
-            {/* Preview Bubble when Scrubbing */}
-            {previewTime !== null && previewPct !== null && (
-              <View style={[styles.previewBubble, { left: `${previewPct}%` }]}>
-                <Text style={styles.previewBubbleText}>{formatTime(previewTime)}</Text>
-              </View>
-            )}
-
-            {/* Custom Slider for Guaranteed Touch */}
+            {/* Custom Slider for Guaranteed Touch (Visual tracking only) */}
             <View 
               style={styles.progressContainer}
-              pointerEvents="auto"
+              pointerEvents="none"
               onLayout={(e) => {
                 progressBarWidth.current = e.nativeEvent.layout.width;
               }}
-              {...panResponder.panHandlers}
             >
               <View style={styles.progressBarHitbox} pointerEvents="none">
                 <View style={styles.progressBarTrack}>
@@ -551,7 +427,7 @@ export function CustomVideoPlayer({
 
             {/* Social Actions in Fullscreen */}
             {isFullscreen && (
-              <View style={[styles.fullscreenSocialBarBottom, (isLoading || isBuffering) && { opacity: 0 }]} pointerEvents={(isLoading || isBuffering) ? "none" : "auto"}>
+              <View style={styles.fullscreenSocialBarBottom} pointerEvents="auto">
                 <View style={styles.viewBadge}>
                   <Eye color="#e5e5ea" size={14} />
                   <Text style={styles.socialText}>
@@ -610,7 +486,7 @@ const styles = StyleSheet.create({
   },
   interactionLayer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
+    zIndex: 20, // Must be above seekOverlay but below controlsContainer
   },
   controlsContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -684,7 +560,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1, // below bottom bar
+    zIndex: 1,
   },
   centerRow: {
     flexDirection: 'row',
@@ -748,7 +624,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    marginLeft: -25, // Center the bubble
+    marginLeft: -25,
   },
   previewBubbleText: {
     color: 'white',
@@ -759,7 +635,7 @@ const styles = StyleSheet.create({
   progressBarHitbox: {
     height: 24,
     justifyContent: 'flex-end',
-    paddingBottom: 2, // Slight gap from absolute edge
+    paddingBottom: 2,
   },
   progressBarTrack: {
     height: 2,
@@ -782,7 +658,7 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: 'white',
-    marginLeft: -5, // center the thumb
+    marginLeft: -5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,

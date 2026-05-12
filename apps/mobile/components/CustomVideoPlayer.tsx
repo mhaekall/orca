@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder } from 'react-native';
-import NativeVideoPlayer from '../modules/native-video-player/src/index';
+import NativeVideoPlayer, { NativeVideoPlayerRef } from '../modules/native-video-player/src/index';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -73,8 +73,10 @@ export function CustomVideoPlayer({
     return urlStr;
   }, [videoUrl]);
 
+  const playerRef = useRef<NativeVideoPlayerRef>(null);
+
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true); // Native player plays automatically by default
+  const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -91,10 +93,12 @@ export function CustomVideoPlayer({
   const progressBarPageX = useRef(0);
 
   const durationRef = useRef(duration);
+  const currentTimeRef = useRef(currentTime);
   
   useEffect(() => {
     durationRef.current = duration;
-  }, [duration]);
+    currentTimeRef.current = currentTime;
+  }, [duration, currentTime]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -142,9 +146,9 @@ export function CustomVideoPlayer({
         if (durationRef.current > 0) {
            const newTime = pct * durationRef.current;
            setCurrentTime(newTime);
-           // Native custom module doesn't export a seek function to JS yet in this iteration. 
-           // Scrubbing will update local state but not video position unless a ref method is added. 
-           // However, nativeControls=true means users can use the native seekbar to actually seek.
+           if (playerRef.current) {
+             playerRef.current.seekTo(newTime);
+           }
         }
         showControls();
       },
@@ -230,12 +234,22 @@ export function CustomVideoPlayer({
   const [showSeekRight, setShowSeekRight] = useState(false);
 
   const handleDoubleTapLeft = () => {
+    const newTime = Math.max(0, currentTimeRef.current - 10);
+    if (playerRef.current) {
+      playerRef.current.seekTo(newTime);
+      setCurrentTime(newTime);
+    }
     setShowSeekLeft(true);
     setTimeout(() => setShowSeekLeft(false), 500);
     showControls();
   };
 
   const handleDoubleTapRight = () => {
+    const newTime = Math.min(durationRef.current, currentTimeRef.current + 10);
+    if (playerRef.current) {
+      playerRef.current.seekTo(newTime);
+      setCurrentTime(newTime);
+    }
     setShowSeekRight(true);
     setTimeout(() => setShowSeekRight(false), 500);
     showControls();
@@ -255,19 +269,18 @@ export function CustomVideoPlayer({
       
       {finalUrl ? (
         <NativeVideoPlayer
+          ref={playerRef}
           videoUrl={finalUrl}
           headers={headers}
+          isPlaying={isPlaying}
           onProgress={({ nativeEvent }) => {
-            const cur = nativeEvent.currentTime;
-            const dur = nativeEvent.duration;
-            setCurrentTime(cur);
-            setDuration(dur);
-            setIsBuffering(false);
-            if (onProgressUpdate) onProgressUpdate(cur, dur);
-            
-            // Auto-play next buffer trigger
-            if (dur > 0 && dur - cur <= 1.5 && onNext) {
-               // Next handled by onPlaybackEnd for exact transition
+            if (!isDragging.current) {
+              const cur = nativeEvent.currentTime;
+              const dur = nativeEvent.duration;
+              setCurrentTime(cur);
+              setDuration(dur);
+              setIsBuffering(false);
+              if (onProgressUpdate) onProgressUpdate(cur, dur);
             }
           }}
           onPlaybackEnd={() => {
@@ -352,7 +365,7 @@ export function CustomVideoPlayer({
             <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
           </View>
 
-          {/* Center Play/Pause & Skip Controls (Visual only since Native handles scrubbing now) */}
+          {/* Center Play/Pause & Skip Controls */}
           <View style={styles.centerControls} pointerEvents="box-none">
             <View style={styles.centerRow} pointerEvents="box-none">
               {onPrevious ? (
@@ -409,13 +422,14 @@ export function CustomVideoPlayer({
               </View>
             </View>
 
-            {/* Custom Slider for Guaranteed Touch (Visual tracking only) */}
+            {/* Custom Slider for Guaranteed Touch */}
             <View 
               style={styles.progressContainer}
-              pointerEvents="none"
+              pointerEvents="auto"
               onLayout={(e) => {
                 progressBarWidth.current = e.nativeEvent.layout.width;
               }}
+              {...panResponder.panHandlers}
             >
               <View style={styles.progressBarHitbox} pointerEvents="none">
                 <View style={styles.progressBarTrack}>

@@ -25,6 +25,14 @@ class NativeVideoPlayerModule : Module() {
             Prop("headers") { view: NativeVideoPlayerView, headers: Map<String, String>? ->
                 view.setHeaders(headers ?: emptyMap())
             }
+
+            Prop("isPlaying") { view: NativeVideoPlayerView, isPlaying: Boolean ->
+                view.setIsPlaying(isPlaying)
+            }
+
+            AsyncFunction("seekTo") { view: NativeVideoPlayerView, timeSeconds: Double ->
+                view.seekTo(timeSeconds)
+            }
         }
     }
 }

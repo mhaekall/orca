@@ -9,9 +9,14 @@ export interface VideoProgressEvent {
 export interface NativeVideoPlayerProps {
   videoUrl: string | null | undefined;
   headers?: Record<string, string>;
+  isPlaying?: boolean;
   onProgress?: (event: NativeSyntheticEvent<VideoProgressEvent>) => void;
   onPlaybackEnd?: (event: NativeSyntheticEvent<void>) => void;
   style?: StyleProp<ViewStyle>;
+}
+
+export interface NativeVideoPlayerRef {
+  seekTo: (timeSeconds: number) => Promise<void>;
 }
 
 const NativeVideoPlayer = requireNativeViewManager<NativeVideoPlayerProps>('NativeVideoPlayer');

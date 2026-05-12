@@ -31,7 +31,7 @@ class NativeVideoPlayerView(
     private val onProgress by EventDispatcher()
 
     private val playerView: PlayerView = PlayerView(context).apply {
-        useController = true
+        useController = false // DISABLED so React Native UI can take over
         keepScreenOn  = true
         layoutParams  = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         setFullscreenButtonClickListener(null)
@@ -58,6 +58,18 @@ class NativeVideoPlayerView(
         if (headers == currentHeaders) return
         currentHeaders = headers
         if (!currentUrl.isNullOrBlank()) rebuildPlayer()
+    }
+    
+    fun setIsPlaying(isPlaying: Boolean) {
+        if (isPlaying) {
+            player?.play()
+        } else {
+            player?.pause()
+        }
+    }
+    
+    fun seekTo(timeSeconds: Double) {
+        player?.seekTo((timeSeconds * 1000).toLong())
     }
 
     override fun onDetachedFromWindow() {

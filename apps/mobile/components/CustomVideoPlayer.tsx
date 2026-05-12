@@ -100,6 +100,10 @@ export function CustomVideoPlayer({
     currentTimeRef.current = currentTime;
   }, [duration, currentTime]);
 
+  useEffect(() => {
+    setIsBuffering(true);
+  }, [finalUrl]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -238,6 +242,7 @@ export function CustomVideoPlayer({
     if (playerRef.current) {
       playerRef.current.seekTo(newTime);
       setCurrentTime(newTime);
+      setIsBuffering(true);
     }
     setShowSeekLeft(true);
     setTimeout(() => setShowSeekLeft(false), 500);
@@ -249,6 +254,7 @@ export function CustomVideoPlayer({
     if (playerRef.current) {
       playerRef.current.seekTo(newTime);
       setCurrentTime(newTime);
+      setIsBuffering(true);
     }
     setShowSeekRight(true);
     setTimeout(() => setShowSeekRight(false), 500);
@@ -273,6 +279,9 @@ export function CustomVideoPlayer({
           videoUrl={finalUrl}
           headers={headers}
           isPlaying={isPlaying}
+          onBufferingChange={({ nativeEvent }) => {
+            setIsBuffering(nativeEvent.isBuffering);
+          }}
           onProgress={({ nativeEvent }) => {
             if (!isDragging.current) {
               const cur = nativeEvent.currentTime;
@@ -474,8 +483,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     zIndex: 10,
+    elevation: 10,
     pointerEvents: 'none',
   },
   seekOverlay: {

@@ -29,6 +29,7 @@ class NativeVideoPlayerView(
 
     private val onPlaybackEnd by EventDispatcher()
     private val onProgress by EventDispatcher()
+    private val onBufferingChange by EventDispatcher()
 
     private val playerView: PlayerView = PlayerView(context).apply {
         useController = false // DISABLED so React Native UI can take over
@@ -134,6 +135,10 @@ class NativeVideoPlayerView(
                 stopProgressPolling()
                 this@NativeVideoPlayerView.onPlaybackEnd(mapOf<String, Any>())
                 Log.d(TAG, "onPlaybackEnd dispatched.")
+            } else if (state == Player.STATE_BUFFERING) {
+                this@NativeVideoPlayerView.onBufferingChange(mapOf("isBuffering" to true))
+            } else if (state == Player.STATE_READY) {
+                this@NativeVideoPlayerView.onBufferingChange(mapOf("isBuffering" to false))
             }
         }
 

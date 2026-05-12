@@ -48,6 +48,11 @@ jobs:
         working-directory: ./apps/mobile
         run: npx expo prebuild --platform android --clean
 
+      - name: Inject Custom Debug Keystore
+        run: |
+          mkdir -p ~/.android
+          cp apps/mobile/debug.keystore ~/.android/debug.keystore
+
       - name: Build APK (Assemble Debug)
         working-directory: ./apps/mobile/android
         run: ./gradlew assembleDebug

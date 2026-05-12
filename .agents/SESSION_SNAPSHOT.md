@@ -1,14 +1,14 @@
 # Session Snapshot & Handover
 
 ## Last Active Topic
-Mobile Video Player Big Tech UX Overhaul & EAS OTA Stabilization
+Swarm Vault (Independent Proxy Storage) & Next.js Admin API Migrations
 
 ## Current State
-- `CustomVideoPlayer.tsx` in `apps/mobile` has been completely rewritten. It now uses `react-native-video` and `@react-native-community/slider` for zero-crash native touch scrubbing.
-- The app supports horizontal social actions (Views, Likes, Comments overlaying the video), 10s skip icons, and Optimistic UI state locks to prevent Play/Pause race conditions.
-- Global Timezone calculations (Schedule, Comments, Watch History) have been strictly forced to WIB (`Asia/Jakarta`) using proper Date manipulation offsets.
-- **EAS OTA Update Protocol** has been established and documented in `.agents/PROTOCOLS/EAS_OTA_UPDATE.md` to allow future agents to bypass Hermes bytecode constraints in Termux.
-- Repository is clean and all video player improvements have been committed and pushed.
+- Created a fully independent `swarm_vault` table in the database to act as a cold-storage backup for all Telegram HLS proxy links.
+- Rebuilt the **Swarm Vault** tab in the Admin Dashboard (`apps/admin`) with a grouped accordion UI identical to the Database tab. It includes "Sync Main DB to Vault", Export CSV, Export to Telegram, and full manual CRUD (Edit/Delete).
+- Added `DISTINCT ON` to the mass sync backend query (`apps/api/routes/catalog.py`) to flawlessly handle duplicate URLs.
+- Next.js (`apps/web`) has been empowered with its own native Edge API routes for the Admin Dashboard under `/api/v2/admin/swarm-vault/` that connect directly to the Neon Serverless Postgres via `@neondatabase/serverless` (bypassing the Python API entirely).
+- All fixes and backend architectures have been deployed successfully to Cloudflare Pages (Frontend) and Hugging Face (Backend API & Worker).
 
 ## Immediate Next Steps (For Frontend / Mobile Agent)
 1. **Refactor Data Fetching**: Implement a structured waterfall instead of parallel blind fetching. High-priority data (stats) first, low-priority/heavy data (analytics) deferred/lazy-loaded.

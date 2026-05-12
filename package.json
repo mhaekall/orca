@@ -2,6 +2,7 @@
   "name": "anime-scraper-pro-workspace",
   "private": true,
   "scripts": {
+    "vercel-build": "next build",
     "prepare": "husky"
   },
   "devDependencies": {

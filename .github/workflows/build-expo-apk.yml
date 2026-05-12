@@ -50,8 +50,10 @@ jobs:
 
       - name: Inject Custom Debug Keystore
         run: |
-          mkdir -p ~/.android
-          cp apps/mobile/debug.keystore ~/.android/debug.keystore
+          cp apps/mobile/expo.keystore apps/mobile/android/app/debug.keystore
+          sed -i "s/storePassword 'android'/storePassword '037ac57a7a0879745c1c2d570937d8be'/g" apps/mobile/android/app/build.gradle
+          sed -i "s/keyAlias 'androiddebugkey'/keyAlias '54febac3583337c2100b449c8b6e20ef'/g" apps/mobile/android/app/build.gradle
+          sed -i "s/keyPassword 'android'/keyPassword '16a19c0f2d377ca520cbb927360bc0bf'/g" apps/mobile/android/app/build.gradle
 
       - name: Build APK (Assemble Debug)
         working-directory: ./apps/mobile/android

@@ -165,6 +165,30 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
     const isHls = src.type === "hls" || src.url.includes("m3u8");
+    let safeUrl = src.url;
+    
+    // Intercept old tg-proxy URLs and rewrite them to the new tele-proxy format
+    if (safeUrl.includes('tg-proxy') && !safeUrl.includes('/stream/bot')) {
+      try {
+        const u = new URL(safeUrl);
+        const fileId = u.pathname.substring(1);
+        if (fileId) {
+          safeUrl = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot7328759161:AAGhAbS5jy9HWt7qHJnPAZsuCIOmTyDtKw0/${fileId}`;
+        }
+      } catch (e) {
+        console.warn("Rewrite failed", e);
+      }
+    }
+
+    if ((safeUrl.includes("proxy") || safeUrl.includes("workers.dev")) && !safeUrl.endsWith(".m3u8") && !safeUrl.endsWith(".mp4")) {
+      try {
+        const u = new URL(safeUrl);
+        u.pathname += ".m3u8";
+        safeUrl = u.toString();
+      } catch (e) {
+        safeUrl += ".m3u8";
+      }
+    }
 
     if (isHls) {
       try {
@@ -179,15 +203,13 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
             maxBufferSize: 60 * 1000 * 1000,
             enableWorker: true,
             lowLatencyMode: true,
-            // Agresif Fast-Load Options:
-            startFragPrefetch: true, // Langsung unduh fragmen pertama sebelum player siap
+            startFragPrefetch: true,
             appendErrorMaxRetry: 3,
-            maxBufferLength: 30, // Kurangi buffer awal yang dibutuhkan untuk mulai memutar
-            maxStarvationDelay: 1, // Berapa lama boleh lapar data sebelum buffering
-            progressive: true,
+            maxBufferLength: 30,
+            maxStarvationDelay: 1,
           });
           hlsRef.current = hls;
-          hls.loadSource(src.url);
+          hls.loadSource(safeUrl);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => { 
             setLoading(false); 
@@ -204,7 +226,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
             }
           });
         } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = src.url;
+          video.src = safeUrl;
           video.onloadedmetadata = () => { setLoading(false); if (seekTo != null) video.currentTime = seekTo; safePlay(video); };
         }
       } catch (e) {
@@ -212,7 +234,7 @@ function VideoPlayerInner({ anilistId, title, poster, sources, animeSlug, episod
         setLoading(false);
       }
     } else {
-      video.src = src.url;
+      video.src = safeUrl;
       video.oncanplay = () => { setLoading(false); if (seekTo != null) video.currentTime = seekTo; safePlay(video); };
       video.onerror = () => { setError("Gagal memuat file video."); setLoading(false); };
       video.load();

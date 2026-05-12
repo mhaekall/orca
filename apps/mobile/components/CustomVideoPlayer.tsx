@@ -57,6 +57,22 @@ export function CustomVideoPlayer({
   const finalUrl = React.useMemo(() => {
     if (!videoUrl) return null;
     let urlStr = videoUrl;
+    
+    // Intercept and dynamically rewrite old tg-proxy URLs to the new tele-proxy format 
+    // to prevent 400 errors and ensure correct HLS playback without altering the database.
+    if (urlStr.includes('tg-proxy') && !urlStr.includes('/stream/bot')) {
+      try {
+        const u = new URL(urlStr);
+        // Extract the file_id which is the pathname without the leading slash
+        const fileId = u.pathname.substring(1);
+        if (fileId) {
+          urlStr = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot7328759161:AAGhAbS5jy9HWt7qHJnPAZsuCIOmTyDtKw0/${fileId}`;
+        }
+      } catch (e) {
+        console.warn("URL Rewrite failed", e);
+      }
+    }
+
     if (urlStr.includes('proxy') || urlStr.includes('workers.dev')) {
       try {
         // We use a dummy base if it's a relative URL, but these should be absolute

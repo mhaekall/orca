@@ -42,6 +42,11 @@ const TAB_META: Record<string, { label: string; desc: string; icon: string }> = 
     desc: "Browse, search, and diagnose anime & episode records.",
     icon: "M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4",
   },
+  vault: {
+    label: "Swarm Vault",
+    desc: "Backup and monitor your Telegram HLS Proxy storage.",
+    icon: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4",
+  },
   activity: {
     label: "Live Activity",
     desc: "Real-time feed of user watch history and episode likes.",
@@ -1021,6 +1026,7 @@ function MainApp() {
           <div className="flex-1 px-5 md:px-8 pb-32 md:pb-10">
             <TabErrorBoundary tab={activeTab} key={activeTab}>
               {activeTab === "database" && <DatabaseTab api={API} headers={headers} />}
+              {activeTab === "vault" && <VaultTab api={API} headers={headers} />}
               {activeTab === "activity" && <ActivityTab api={API} headers={headers} />}
               {activeTab === "reports" && <ReportsTab api={API} headers={headers} />}
               {activeTab === "searches" && <SearchAnalyticsTab api={API} headers={headers} />}
@@ -1197,6 +1203,404 @@ function EcosystemTab() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── Vault Tab ─────────────────────────────────────────────────────────────
+function VaultTab({ api, headers }: { api: string; headers: HeadersInit }) {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const { addToast } = useToastContext();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isTgExporting, setIsTgExporting] = useState(false);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [episodes, setEpisodes] = useState<any[]>([]);
+  const [epLoading, setEpLoading] = useState(false);
+
+  // Edit Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({
+    anilistId: "", title: "", episodeNumber: "", providerId: "", episodeUrl: ""
+  });
+
+  const qp = useMemo(() => {
+    const p = new URLSearchParams({ page: String(page), limit: "50" });
+    if (search) p.set("search", search);
+    return p.toString();
+  }, [page, search]);
+
+  const { data, loading } = useApi<{ success: boolean; data: any[]; stats?: { total_episodes: number; tg_episodes: number }; pagination: { total_pages: number, total: number } }>(
+    `${api}/api/v2/admin/swarm-vault/anime?${qp}&_r=${refresh}`,
+    headers,
+    [qp, refresh],
+    400
+  );
+
+  const rows = data?.success ? data.data : [];
+  const totalPages = data?.pagination?.total_pages ?? 1;
+
+  const downloadCsv = async () => {
+    setIsExporting(true);
+    try {
+      const res = await fetch(`${api}/api/v2/admin/swarm-vault/export`, { headers });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `swarm_vault_backup_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      addToast("Backup downloaded successfully", "success");
+    } catch (e: any) {
+      addToast(e.message || "Failed to download backup", "error");
+    }
+    setIsExporting(false);
+  };
+
+  const sendToTelegram = async () => {
+    setIsTgExporting(true);
+    addToast("Sending backup to Telegram...", "info");
+    try {
+      const res = await fetch(`${api}/api/v2/admin/swarm-vault/export-tg`, { method: "POST", headers });
+      const d = await res.json();
+      if (d.success) addToast(d.message || "Backup sent to Telegram!", "success");
+      else addToast(d.error || "Failed to send to Telegram", "error");
+    } catch (e: any) {
+      addToast("Network error", "error");
+    }
+    setIsTgExporting(false);
+  };
+
+  const syncAll = async () => {
+    setIsSyncingAll(true);
+    addToast("Syncing all Telegram links to Vault...", "info");
+    try {
+      const res = await fetch(`${api}/api/v2/admin/swarm-vault/sync-all`, { method: "POST", headers });
+      const d = await res.json();
+      if (d.success) {
+        addToast(d.message || "Mass sync completed", "success");
+        setRefresh(r => r + 1);
+      } else {
+        addToast(d.error || "Mass sync failed", "error");
+      }
+    } catch {
+      addToast("Network error", "error");
+    }
+    setIsSyncingAll(false);
+  };
+
+  const toggleEpisodes = async (animeId: number) => {
+    if (expandedId === animeId) { setExpandedId(null); return; }
+    setExpandedId(animeId);
+    setEpisodes([]);
+    setEpLoading(true);
+    try {
+      const res = await fetch(`${api}/api/v2/admin/swarm-vault/anime/${animeId}/episodes`, { headers });
+      const d = await res.json();
+      if (d.success) setEpisodes(d.data);
+      else addToast(d.error ?? "Failed", "error");
+    } catch { addToast("Network error", "error"); }
+    setEpLoading(false);
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast("Link copied to clipboard!", "success");
+    } catch (err) {
+      addToast("Failed to copy link", "error");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this episode from the vault?")) return;
+    try {
+      const res = await fetch(`${api}/api/v2/admin/swarm-vault/${id}`, { method: "DELETE", headers });
+      const d = await res.json();
+      if (d.success) {
+        addToast("Episode deleted from vault", "success");
+        setEpisodes((prev) => prev.filter((ep) => ep.id !== id));
+        // We could also refresh the outer list if we wanted to update counts
+      } else {
+        addToast(d.error || "Delete failed", "error");
+      }
+    } catch {
+      addToast("Network error", "error");
+    }
+  };
+
+  const openEditModal = (row: any, anilistId: number, title: string) => {
+    setEditingId(row.id);
+    setFormData({
+      anilistId: String(anilistId),
+      title: title || "",
+      episodeNumber: String(row.episodeNumber),
+      providerId: row.providerId,
+      episodeUrl: row.episodeUrl
+    });
+    setModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        anilistId: parseInt(formData.anilistId),
+        title: formData.title,
+        episodeNumber: parseFloat(formData.episodeNumber),
+        providerId: formData.providerId,
+        episodeUrl: formData.episodeUrl
+      };
+      const res = await fetch(`${api}/api/v2/admin/swarm-vault/${editingId}`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const d = await res.json();
+      if (d.success) {
+        addToast("Vault entry updated", "success");
+        setModalOpen(false);
+        // Refresh local episodes list if expanded
+        if (expandedId === payload.anilistId) {
+            toggleEpisodes(payload.anilistId);
+            setExpandedId(null); // Will close it, user can click to reopen. Simple workaround.
+        }
+      } else {
+        addToast(d.error || "Failed to update", "error");
+      }
+    } catch {
+      addToast("Network error", "error");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Hero Insight */}
+      {data?.stats && (
+        <div className="bg-zinc-900 border border-white/5 rounded-3xl p-5 sm:p-6 mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Vault Analytics</h2>
+            <p className="text-sm text-zinc-400 mt-1">Independent storage separating backups from the main episodes table.</p>
+          </div>
+          <div className="flex gap-4 shrink-0">
+            <div className="flex flex-col items-end">
+              <span className="text-3xl font-black text-indigo-400">{data.stats.total_episodes.toLocaleString()}</span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-indigo-500/70">Secured Backups</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <ActionButton
+          onClick={syncAll}
+          title="Sync Main DB to Vault"
+          subtitle="Auto-duplicate all TG links"
+          icon="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          accent="bg-purple-600"
+          loading={isSyncingAll}
+        />
+        <ActionButton
+          onClick={downloadCsv}
+          title="Download CSV"
+          subtitle="Export all vault records"
+          icon="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+          accent="bg-blue-600"
+          loading={isExporting}
+        />
+        <ActionButton
+          onClick={sendToTelegram}
+          title="Send to TG Bot"
+          subtitle="Directly to @myorca5_bot"
+          icon="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+          accent="bg-sky-500"
+          loading={isTgExporting}
+        />
+      </div>
+
+      <div className="flex flex-col xl:flex-row gap-3 items-center justify-between">
+        <input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Search vault by anime title or ID…"
+          className="flex-1 w-full bg-zinc-900 border border-white/5 rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white/20 transition-colors"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="bg-zinc-900 border border-white/5 rounded-3xl overflow-hidden">
+        {loading ? (
+          <div className="space-y-px p-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-16 bg-white/3 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="p-12 text-center text-zinc-600">
+            <svg className="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <p className="text-sm font-semibold">No records in the vault</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {rows.map((anime) => (
+              <div key={anime.anilistId}>
+                <button
+                  onClick={() => toggleEpisodes(anime.anilistId)}
+                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/3 transition-colors text-left"
+                >
+                  <img 
+                    src={anime.cover || `https://api.dicebear.com/7.x/shapes/svg?seed=${anime.anilistId}`} 
+                    alt="cover" 
+                    className="w-10 h-14 object-cover rounded-lg bg-zinc-800 shrink-0 border border-white/10"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white truncate">{anime.title || `Anime ${anime.anilistId}`}</p>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest font-bold">
+                      ID {anime.anilistId}
+                    </p>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-bold">{anime.episode_count ?? 0} BACKUPS</span>
+                  </div>
+                  <svg
+                    className={`w-4 h-4 text-zinc-600 transition-transform shrink-0 ${expandedId === anime.anilistId ? "rotate-90" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                {expandedId === anime.anilistId && (
+                  <div className="bg-black/40 px-5 py-4 border-t border-white/5">
+                    {epLoading ? (
+                      <div className="space-y-2">
+                        {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />)}
+                      </div>
+                    ) : episodes.length === 0 ? (
+                      <p className="text-sm text-zinc-600 italic text-center py-4">No vault episodes found</p>
+                    ) : (
+                      <div className="space-y-2 max-h-80 overflow-y-auto scrollbar-hide pr-2">
+                        {episodes.map((ep) => (
+                          <div key={ep.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 px-4 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5 group">
+                            <div className="flex-1 flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-white shrink-0 bg-white/10 px-2 py-1 rounded">EP {ep.episodeNumber}</span>
+                                <span className="text-[9px] bg-indigo-500/10 text-indigo-500 font-black uppercase px-2 py-1 rounded shrink-0">
+                                  {ep.providerId}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-zinc-500 truncate font-mono mt-1.5 opacity-80">{ep.episodeUrl || "—"}</span>
+                            </div>
+                            <div className="shrink-0 flex items-center gap-2">
+                              {ep.episodeUrl && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); copyToClipboard(ep.episodeUrl); }}
+                                  className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                  title="Copy URL"
+                                >
+                                  Copy
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openEditModal(ep, anime.anilistId, anime.title); }}
+                                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors opacity-0 group-hover:opacity-100"
+                                title="Edit Vault Entry"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(ep.id); }}
+                                className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors"
+                                title="Delete from Vault"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="px-4 py-2.5 bg-zinc-900 border border-white/5 rounded-xl text-sm font-bold disabled:opacity-30 hover:bg-zinc-800 transition-colors"
+        >
+          ← Prev
+        </button>
+        <span className="text-xs text-zinc-500 tabular-nums font-bold tracking-widest uppercase">Page {page} of {totalPages}</span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className="px-4 py-2.5 bg-zinc-900 border border-white/5 rounded-xl text-sm font-bold disabled:opacity-30 hover:bg-zinc-800 transition-colors"
+        >
+          Next →
+        </button>
+      </div>
+
+      {/* Edit Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-white">Edit Vault Entry</h3>
+              <button onClick={() => setModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">✕</button>
+            </div>
+            <form onSubmit={handleSave} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-1.5">AniList ID</label>
+                  <input required type="number" value={formData.anilistId} onChange={e => setFormData({...formData, anilistId: e.target.value})} className="w-full bg-black/50 border border-white/5 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-colors opacity-50 cursor-not-allowed" readOnly />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-1.5">Episode No</label>
+                  <input required type="number" step="0.5" value={formData.episodeNumber} onChange={e => setFormData({...formData, episodeNumber: e.target.value})} className="w-full bg-black/50 border border-white/5 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-1.5">Anime Title</label>
+                <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-black/50 border border-white/5 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-1.5">Provider ID</label>
+                <input required type="text" value={formData.providerId} onChange={e => setFormData({...formData, providerId: e.target.value})} className="w-full bg-black/50 border border-white/5 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-1.5">Episode URL (TG Proxy)</label>
+                <input required type="url" value={formData.episodeUrl} onChange={e => setFormData({...formData, episodeUrl: e.target.value})} className="w-full bg-black/50 border border-white/5 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-white/20 transition-colors font-mono text-xs" />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3">
+                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                <button type="submit" className="px-5 py-2.5 bg-white text-black rounded-xl text-sm font-bold hover:bg-zinc-200 transition-colors">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

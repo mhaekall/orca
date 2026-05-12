@@ -1,5 +1,6 @@
 import asyncio
 import os
+
 import httpx
 from dotenv import load_dotenv
 
@@ -17,7 +18,7 @@ async def test_telegram():
         print("Missing credentials")
         return
 
-    message = f"🚨 <b>TESTING REPORT INTEGRATION</b> 🚨\n\nThis is a test message to verify the Lapor feature."
+    message = "🚨 <b>TESTING REPORT INTEGRATION</b> 🚨\n\nThis is a test message to verify the Lapor feature."
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}

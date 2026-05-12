@@ -6,10 +6,10 @@ from db.connection import database
 from db.models import activity_feed, anime_metadata, episode_likes, watch_history, watch_sessions
 from schemas.social import (
     EpisodeLikeCreate,
+    ReportCreate,
     WatchEventCreate,
     WatchProgressUpdate,
     WatchSessionUpdate,
-    ReportCreate,
 )
 
 router = APIRouter()
@@ -328,14 +328,14 @@ async def get_global_notifications():
     return {"success": True, "data": notifications}
 
 
-import os
-import httpx
 from fastapi import APIRouter
+
 from services.notifier import TelegramNotifier
+
 
 @router.post("/report")
 async def submit_report(report: ReportCreate):
-    message = f"🚨 <b>USER REPORT</b> 🚨\n\n"
+    message = "🚨 <b>USER REPORT</b> 🚨\n\n"
     message += f"<b>User:</b> <code>{report.user_id}</code>\n"
     message += f"<b>Anime ID:</b> {report.anilist_id} | <b>Ep:</b> {report.episode_number}\n"
     message += f"<b>Issue:</b> {report.issue_type}\n"
@@ -356,7 +356,7 @@ async def submit_report(report: ReportCreate):
     }
 
     success = await TelegramNotifier.send(topic="report", message=message, reply_markup=reply_markup)
-    
+
     if not success:
         return {"success": False, "message": "Failed to send report to Telegram via Notifier."}
 

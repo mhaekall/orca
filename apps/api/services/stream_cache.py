@@ -1026,8 +1026,9 @@ async def get_cached_stream(
                     embed_url = iframe_source.get("url")
                     if embed_url:
                         try:
-                            import httpx
                             import urllib.parse
+
+                            import httpx
 
                             cf_worker = "https://video-proxy.moehamadhkl.workers.dev"
                             encoded_url = urllib.parse.quote_plus(embed_url)

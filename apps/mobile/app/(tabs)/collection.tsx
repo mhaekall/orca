@@ -45,7 +45,7 @@ function formatDuration(sec: number) {
 
 const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }) => {
   const router = useRouter();
-  const id = String(item.id || item.animeSlug || item.anilistId);
+  const id = String(item.animeSlug || item.anilistId);
   const title = item.title || item.cleanTitle || item.nativeTitle || `Anime #${id}`;
   const img = item.img || item.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
   const ep = item.episode || "?";

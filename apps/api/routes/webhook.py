@@ -18,9 +18,9 @@ from services.cleanup import cleanup_expired_cache, vacuum_old_episodes
 
 # Import services
 from services.config import QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY
+from services.notifier import TelegramNotifier
 from services.pipeline import sync_anime_episodes
 from services.prefetch import smart_prefetch_episodes
-from services.notifier import TelegramNotifier
 
 # Inisialisasi Router (Hapus prefix ganda)
 router = APIRouter()
@@ -326,8 +326,8 @@ async def triage_webhook(request: Request):
                 ]
             ]
         }
-        
-        # Note: Notifier default parse_mode is HTML. Triage message uses Markdown. 
+
+        # Note: Notifier default parse_mode is HTML. Triage message uses Markdown.
         # We need to change the message formatting slightly for HTML.
         html_message = (
             f"🚨 <b>Auto-Triage Alert: {errors_found} Ingestion Errors</b> 🚨\n\n"
@@ -452,7 +452,7 @@ async def billing_webhook(request: Request):
             f"User: <code>{found_user_id or 'NOT FOUND'}</code>\n"
             f"Status: <code>{'PRO Activated' if found_user_id else 'Manual Check Needed'}</code>"
         )
-        
+
         await TelegramNotifier.send(topic="billing", message=html_msg)
 
         return Response(status_code=200, content="Payment Processed")
@@ -554,7 +554,7 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                             print(f"[Telegram Error] {res.status_code}: {res.text}")
                     except Exception as e:
                         await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
-                
+
                 elif text.startswith("/ingest"):
                     from services.queue import QStashPublisher
                     try:
@@ -567,7 +567,7 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                         await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": f"Error: {e}"})
 
                 elif text.startswith("/errors"):
-                    from services.cache import upstash_keys, upstash_get
+                    from services.cache import upstash_get, upstash_keys
                     error_keys = await upstash_keys("ingest_error:*")
                     if not error_keys:
                         msg = "✅ Tidak ada error ingestion saat ini."
@@ -585,7 +585,7 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                         print(f"[Telegram Error] {res.status_code}: {res.text}")
 
                 elif text.startswith("/clear_errors"):
-                    from services.cache import upstash_keys, upstash_del
+                    from services.cache import upstash_del, upstash_keys
                     error_keys = await upstash_keys("ingest_error:*")
                     for key in error_keys:
                         await upstash_del(key)
@@ -595,7 +595,7 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                         print(f"[Telegram Error] {res.status_code}: {res.text}")
 
                 elif text.startswith("/retry_errors"):
-                    from services.cache import upstash_keys, upstash_del
+                    from services.cache import upstash_del, upstash_keys
                     from services.queue import enqueue_sync
                     error_keys = await upstash_keys("ingest_error:*")
                     anilist_ids = set()
@@ -615,18 +615,18 @@ async def telegram_webhook(request: Request, topic: str = "default"):
                         print(f"[Telegram Error] {res.status_code}: {res.text}")
 
                 elif text.startswith("/status"):
-                    from services.cache import upstash_keys
                     from db.connection import database
+                    from services.cache import upstash_keys
                     await database.connect()
                     try:
                         q_eps = 'SELECT count(*) as c FROM episodes WHERE "episodeUrl" LIKE \'%tg-proxy%\' OR "episodeUrl" LIKE \'%workers.dev%\''
                         res_eps = await database.fetch_one(q_eps)
                         c_eps = res_eps["c"] if res_eps else 0
-                        
+
                         lock_keys = await upstash_keys("ingest:*")
                         # exclude ingest_error:* and ingest_progress:*
                         real_locks = [k for k in lock_keys if not k.startswith("ingest_error") and not k.startswith("ingest_progress")]
-                        
+
                         msg = (
                             f"📊 <b>System Status</b>\n\n"
                             f"📺 <b>Episodes Ingested:</b> {c_eps:,}\n"

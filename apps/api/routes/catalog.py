@@ -359,12 +359,13 @@ async def admin_swarm_health(filter: str = Query("all", pattern="^(all|healthy|e
         rows = await database.fetch_all(query)
         items = [dict(r) for r in rows]
 
-        import httpx
         import asyncio
+
+        import httpx
 
         limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
         sem = asyncio.Semaphore(100)
-        
+
         async def diagnose(item, client):
             async with sem:
                 url = item["episodeUrl"]
@@ -377,10 +378,10 @@ async def admin_swarm_health(filter: str = Query("all", pattern="^(all|healthy|e
                     else:
                         result["healthy"] = False
                         result["status"] = f"HTTP {resp.status_code}" if resp.status_code != 200 else "Invalid M3U8"
-                except Exception as e:
+                except Exception:
                     result["healthy"] = False
                     result["status"] = "Unreachable"
-                
+
                 return result
 
         async with httpx.AsyncClient(limits=limits, timeout=10.0, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as client:
@@ -406,27 +407,25 @@ async def admin_get_swarm_vault(
     """Return paginated list of all Telegram Proxy URLs (The Vault) for backup/restore purposes."""
     try:
         offset = (page - 1) * limit
-        where_clause = "(\"episodeUrl\" LIKE '%tg-proxy%' OR \"episodeUrl\" LIKE '%workers.dev%')"
+        where_clause = "1=1"
         values = {}
 
         if search:
-            where_clause += ' AND (a."cleanTitle" ILIKE :search_str OR CAST(e."anilistId" AS TEXT) ILIKE :search_str)'
+            where_clause += ' AND (title ILIKE :search_str OR CAST("anilistId" AS TEXT) ILIKE :search_str)'
             values["search_str"] = f"%{search}%"
 
         count_query = f"""
-            SELECT COUNT(e.id)
-            FROM episodes e
-            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            SELECT COUNT(id)
+            FROM swarm_vault
             WHERE {where_clause}
         """
         total_count = await database.fetch_val(count_query, values)
 
         query = f"""
-            SELECT e.id, e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."providerId", e."episodeUrl", e."updatedAt"
-            FROM episodes e
-            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            SELECT id, "anilistId", title, "episodeNumber", "providerId", "episodeUrl", "updatedAt"
+            FROM swarm_vault
             WHERE {where_clause}
-            ORDER BY e."updatedAt" DESC
+            ORDER BY "updatedAt" DESC
             LIMIT :limit OFFSET :offset
         """
 
@@ -436,7 +435,6 @@ async def admin_get_swarm_vault(
         rows = await database.fetch_all(query, values)
         data = [dict(row) for row in rows]
 
-        # Convert datetime to string for JSON serialization
         for r in data:
             if r.get("updatedAt"):
                 r["updatedAt"] = r["updatedAt"].isoformat()
@@ -455,22 +453,214 @@ async def admin_get_swarm_vault(
         }
     except Exception as e:
         import traceback
-
         traceback.print_exc()
         return {"success": False, "error": str(e)}
 
+from pydantic import BaseModel
+
+@router.get("/v2/admin/swarm-vault/anime", dependencies=[Depends(verify_admin_key)])
+async def admin_get_swarm_vault_anime(
+    page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=100), search: str = Query(None)
+):
+    """Return paginated list of anime that have episodes in the Swarm Vault."""
+    try:
+        offset = (page - 1) * limit
+        where_clause = "1=1"
+        values = {}
+
+        if search:
+            where_clause += ' AND (v.title ILIKE :search_str OR CAST(v."anilistId" AS TEXT) ILIKE :search_str)'
+            values["search_str"] = f"%{search}%"
+
+        count_query = f"""
+            SELECT COUNT(DISTINCT v."anilistId")
+            FROM swarm_vault v
+            WHERE {where_clause}
+        """
+        total_count = await database.fetch_val(count_query, values)
+
+        query = f"""
+            SELECT 
+                v."anilistId", 
+                MAX(v.title) as title,
+                COUNT(v.id) as episode_count,
+                MAX(a."coverImage") as cover,
+                MAX(a.status) as status,
+                MAX(a.year) as year,
+                COUNT(v.id) as tg_count
+            FROM swarm_vault v
+            LEFT JOIN anime_metadata a ON v."anilistId" = a."anilistId"
+            WHERE {where_clause}
+            GROUP BY v."anilistId"
+            ORDER BY MAX(v."updatedAt") DESC
+            LIMIT :limit OFFSET :offset
+        """
+
+        values["limit"] = limit
+        values["offset"] = offset
+
+        rows = await database.fetch_all(query, values)
+        data = [dict(row) for row in rows]
+        
+        # Get overall stats for Vault
+        stats_query = "SELECT COUNT(id) as total_episodes FROM swarm_vault"
+        stats_res = await database.fetch_one(stats_query)
+
+        total_pages = (total_count + limit - 1) // limit if total_count else 1
+
+        return {
+            "success": True,
+            "data": data,
+            "stats": {
+                "total_episodes": stats_res["total_episodes"] if stats_res else 0,
+                "tg_episodes": stats_res["total_episodes"] if stats_res else 0,
+            },
+            "pagination": {
+                "total": total_count,
+                "page": page,
+                "limit": limit,
+                "total_pages": total_pages,
+            },
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
+@router.get("/v2/admin/swarm-vault/anime/{anilist_id}/episodes", dependencies=[Depends(verify_admin_key)])
+async def admin_get_swarm_vault_episodes(anilist_id: int):
+    """Get all vault episodes for a specific anime."""
+    try:
+        query = """
+            SELECT id, "episodeNumber", "providerId", "episodeUrl", "updatedAt"
+            FROM swarm_vault
+            WHERE "anilistId" = :anilist_id
+            ORDER BY "episodeNumber" DESC
+        """
+        rows = await database.fetch_all(query, {"anilist_id": anilist_id})
+        data = [dict(r) for r in rows]
+        for r in data:
+            if r.get("updatedAt"):
+                r["updatedAt"] = r["updatedAt"].isoformat()
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/v2/admin/swarm-vault/sync-all", dependencies=[Depends(verify_admin_key)])
+async def admin_sync_all_swarm_vault():
+    """Fetch ALL tele-proxy episodes from the main DB and sync them to the vault."""
+    try:
+        query = """
+            INSERT INTO swarm_vault ("anilistId", title, "episodeNumber", "providerId", "episodeUrl")
+            SELECT DISTINCT ON (e."episodeUrl")
+                   e."anilistId", a."cleanTitle", e."episodeNumber", e."providerId", e."episodeUrl"
+            FROM episodes e
+            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            WHERE (e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%')
+            ON CONFLICT ("episodeUrl") DO UPDATE 
+            SET "anilistId" = EXCLUDED."anilistId", title = EXCLUDED.title, 
+                "episodeNumber" = EXCLUDED."episodeNumber", "providerId" = EXCLUDED."providerId", 
+                "updatedAt" = now();
+        """
+        await database.execute(query)
+        return {"success": True, "message": "Successfully synchronized all Telegram links to the Vault."}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
+
+class SwarmVaultCreate(BaseModel):
+    anilistId: int
+    title: str = None
+    episodeNumber: float
+    providerId: str
+    episodeUrl: str
+
+class SyncVaultRequest(BaseModel):
+    anilistId: int
+    episodeNumber: float
+
+@router.post("/v2/admin/swarm-vault/sync", dependencies=[Depends(verify_admin_key)])
+async def admin_sync_swarm_vault(payload: SyncVaultRequest):
+    """Fetch an episode from the main DB and add it to the vault."""
+    try:
+        query = """
+            SELECT e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."providerId", e."episodeUrl"
+            FROM episodes e
+            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
+            WHERE e."anilistId" = :anilistId AND e."episodeNumber" = :episodeNumber
+              AND (e."episodeUrl" LIKE '%tg-proxy%' OR e."episodeUrl" LIKE '%workers.dev%')
+            LIMIT 1
+        """
+        row = await database.fetch_one(query, {"anilistId": payload.anilistId, "episodeNumber": payload.episodeNumber})
+        if not row:
+            return {"success": False, "error": "No TG proxy episode found in database for this ID and Episode."}
+        
+        insert_query = """
+            INSERT INTO swarm_vault ("anilistId", title, "episodeNumber", "providerId", "episodeUrl")
+            VALUES (:anilistId, :title, :episodeNumber, :providerId, :episodeUrl)
+            ON CONFLICT ("episodeUrl") DO UPDATE 
+            SET "anilistId" = EXCLUDED."anilistId", title = EXCLUDED.title, 
+                "episodeNumber" = EXCLUDED."episodeNumber", "providerId" = EXCLUDED."providerId", 
+                "updatedAt" = now()
+            RETURNING id
+        """
+        values = dict(row)
+        new_id = await database.execute(insert_query, values)
+        return {"success": True, "id": new_id, "message": f"Successfully synced EP {payload.episodeNumber} to vault."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/v2/admin/swarm-vault", dependencies=[Depends(verify_admin_key)])
+async def admin_create_swarm_vault(payload: SwarmVaultCreate):
+    """Manually add a backup link to the swarm vault."""
+    try:
+        query = """
+            INSERT INTO swarm_vault ("anilistId", title, "episodeNumber", "providerId", "episodeUrl")
+            VALUES (:anilistId, :title, :episodeNumber, :providerId, :episodeUrl)
+            RETURNING id
+        """
+        values = payload.dict()
+        new_id = await database.execute(query, values)
+        return {"success": True, "id": new_id, "message": "Vault entry created successfully."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.put("/v2/admin/swarm-vault/{vault_id}", dependencies=[Depends(verify_admin_key)])
+async def admin_update_swarm_vault(vault_id: int, payload: SwarmVaultCreate):
+    """Update a vault entry."""
+    try:
+        query = """
+            UPDATE swarm_vault 
+            SET "anilistId" = :anilistId, title = :title, "episodeNumber" = :episodeNumber, 
+                "providerId" = :providerId, "episodeUrl" = :episodeUrl, "updatedAt" = now()
+            WHERE id = :id
+        """
+        values = payload.dict()
+        values["id"] = vault_id
+        await database.execute(query, values)
+        return {"success": True, "message": "Vault entry updated successfully."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.delete("/v2/admin/swarm-vault/{vault_id}", dependencies=[Depends(verify_admin_key)])
+async def admin_delete_swarm_vault(vault_id: int):
+    """Delete a vault entry."""
+    try:
+        query = "DELETE FROM swarm_vault WHERE id = :id"
+        await database.execute(query, {"id": vault_id})
+        return {"success": True, "message": "Vault entry deleted successfully."}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @router.get("/v2/admin/swarm-vault/export", dependencies=[Depends(verify_admin_key)])
 async def admin_export_swarm_vault():
     """Export all Telegram Proxy URLs to CSV format."""
     try:
-        where_clause = "(\"episodeUrl\" LIKE '%tg-proxy%' OR \"episodeUrl\" LIKE '%workers.dev%')"
         query = f"""
-            SELECT e.id, e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."providerId", e."episodeUrl", e."updatedAt"
-            FROM episodes e
-            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
-            WHERE {where_clause}
-            ORDER BY e."updatedAt" DESC
+            SELECT id, "anilistId", title, "episodeNumber", "providerId", "episodeUrl", "updatedAt"
+            FROM swarm_vault
+            ORDER BY "updatedAt" DESC
         """
 
         rows = await database.fetch_all(query)
@@ -513,13 +703,10 @@ async def admin_export_swarm_vault():
 async def admin_export_swarm_vault_tg():
     """Export all Telegram Proxy URLs to CSV and send directly to @myorca5_bot."""
     try:
-        where_clause = "(\"episodeUrl\" LIKE '%tg-proxy%' OR \"episodeUrl\" LIKE '%workers.dev%')"
         query = f"""
-            SELECT e.id, e."anilistId", a."cleanTitle" as title, e."episodeNumber", e."providerId", e."episodeUrl", e."updatedAt"
-            FROM episodes e
-            LEFT JOIN anime_metadata a ON e."anilistId" = a."anilistId"
-            WHERE {where_clause}
-            ORDER BY e."updatedAt" DESC
+            SELECT id, "anilistId", title, "episodeNumber", "providerId", "episodeUrl", "updatedAt"
+            FROM swarm_vault
+            ORDER BY "updatedAt" DESC
         """
         rows = await database.fetch_all(query)
 
@@ -1214,7 +1401,7 @@ async def admin_reingest_episode(episode_id: int, background_tasks: BackgroundTa
                 print(f"[Admin] Fast re-ingest starting for {aid} Ep {ep}")
                 from services.pipeline import sync_anime_episodes
                 await sync_anime_episodes(aid)
-                
+
                 from scripts.ingest_pending import ingest_pending
                 await ingest_pending(1, anilist_id=str(aid), ep_num=str(ep))
                 print(f"[Admin] Fast re-ingest completed for {aid} Ep {ep}")

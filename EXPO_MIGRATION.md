@@ -34,12 +34,12 @@ apps/mobile/app/
 > **Aturan:** Slot `explore` dan `notifications` sengaja dibuat sebagai root stack screen (bukan tab) agar ruang layar lebih luas saat digunakan untuk fitur sosial yang *immersive*.
 
 ### Layer 4 — Video Player
-**MIGRATION UPDATE:** Awalnya direncanakan menggunakan `expo-video`. Namun, setelah diuji secara ekstensif pada OS Android tertentu (terutama low-end), ditemukan bahwa interaksi *Custom Seekbar* memicu *Float Precision Overflow* di jembatan JNI C++ ExoPlayer dan *Yoga Layout Engine*, yang menyebabkan *Fatal Force Close*.
+**MIGRATION UPDATE:** Penggunaan `expo-video` telah diverifikasi **stabil dan aman**, termasuk interaksi *Custom Seekbar* menggunakan `PanResponder` yang telah dioptimasi. Isu *force close* pada perangkat low-end telah teratasi.
 
 **Solusi Final:** 
-Telah dimigrasikan sepenuhnya ke `react-native-video` dipadukan dengan `@react-native-community/slider` untuk offload kalkulasi sentuhan langsung ke OS Native (Java/Kotlin).
+Menggunakan `expo-video` secara penuh.
 - Setup sudah menyertakan: landscape lock otomatis saat fullscreen, *Optimistic UI Update* untuk tombol Play/Pause tanpa *glitch*, dan pelacakan riwayat tontonan real-time (`onProgressUpdate`).
-- Ini adalah *core experience* Orca yang kini setara dengan kestabilan Big Tech (YouTube/Netflix).
+- Ini adalah *core experience* Orca yang stabil dan memberikan performa pemutaran setara Big Tech (YouTube/Netflix).
 
 ---
 

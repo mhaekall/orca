@@ -1,5 +1,3 @@
-import requests
-import json
 
 SPACE_ID = "jonyyyyyyyu/anime-scraper-api"
 TOKEN = "YOUR_HF_TOKEN"

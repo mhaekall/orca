@@ -576,12 +576,18 @@ export default function HomeScreen() {
   });
 
   const d = data?.data || {};
-  const latest: any[] = d.latest || [];
-  const airing: any[] = d.airing || [];
-  const popular: any[] = d.popular || [];
-  const topRated: any[] = d.top_rated || [];
-  const completed: any[] = d.completed || [];
-  const movies: any[] = d.movies || [];
+  const hasEps = (a: any) => {
+    if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
+    const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
+    if (eps !== undefined && eps !== null) return Number(eps) > 0;
+    return true;
+  };
+  const latest: any[] = (d.latest || []).filter(hasEps);
+  const airing: any[] = (d.airing || []).filter(hasEps);
+  const popular: any[] = (d.popular || []).filter(hasEps);
+  const topRated: any[] = (d.top_rated || []).filter(hasEps);
+  const completed: any[] = (d.completed || []).filter(hasEps);
+  const movies: any[] = (d.movies || []).filter(hasEps);
 
   const hero = airing[0] || latest[0];
 

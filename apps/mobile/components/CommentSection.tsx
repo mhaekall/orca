@@ -163,21 +163,23 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
     );
   };
 
-  return (
-    <Modal visible={visible} animationType={isFullscreen ? "fade" : "slide"} transparent={true} onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
-      <View style={[
+  const content = (
+      <View 
+        pointerEvents={isFullscreen ? "box-none" : "auto"}
+        style={[
         styles.modalOverlay, 
+        isFullscreen && StyleSheet.absoluteFillObject,
         { paddingBottom: kbHeight },
-        isFullscreen && { justifyContent: 'flex-end', flexDirection: 'row' }
+        isFullscreen && { justifyContent: 'flex-end', flexDirection: 'row', zIndex: 9999 }
       ]}>
-        <View style={[styles.backdrop, { backgroundColor: 'transparent' }]}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={[styles.backdrop, { backgroundColor: 'transparent' }]} pointerEvents={isFullscreen ? "none" : "auto"}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => { if (!isFullscreen) onClose(); }} />
         </View>
         <Animated.View style={[
           styles.container,
           isFullscreen && { 
             height: '100%', 
-            width: 380, 
+            width: 320, 
             borderTopLeftRadius: 24, 
             borderTopRightRadius: 0,
             borderBottomLeftRadius: 24,
@@ -283,6 +285,17 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
         </SafeAreaView>
         </Animated.View>
       </View>
+  );
+
+  if (!visible) return null;
+
+  if (isFullscreen) {
+    return content;
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
+      {content}
     </Modal>
   );
 }

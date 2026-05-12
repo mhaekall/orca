@@ -1,7 +1,8 @@
-import os
-import httpx
 import logging
-from typing import Dict, Any, Optional
+import os
+from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -19,22 +20,22 @@ class TelegramNotifier:
     """
 
     @classmethod
-    def _get_credentials(cls, topic: str) -> tuple[Optional[str], Optional[str]]:
+    def _get_credentials(cls, topic: str) -> tuple[str | None, str | None]:
         topic = topic.upper()
-        
+
         # Override specific topic
         bot_token = os.getenv(f"TG_BOT_{topic}")
         chat_id = os.getenv(f"TG_CHAT_{topic}")
-        
+
         # Fallback to default if topic specific is not set
         if not bot_token or not chat_id:
             bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
             chat_id = os.getenv("TELEGRAM_CHAT_ID")
-            
+
         return bot_token, chat_id
 
     @classmethod
-    async def send(cls, topic: str, message: str, reply_markup: Optional[Dict[str, Any]] = None) -> bool:
+    async def send(cls, topic: str, message: str, reply_markup: dict[str, Any] | None = None) -> bool:
         bot_token, chat_id = cls._get_credentials(topic)
 
         if not bot_token or not chat_id:
@@ -46,24 +47,24 @@ class TelegramNotifier:
             "text": message,
             "parse_mode": "HTML" # Default HTML, fallback logic can be added if Markdown is needed
         }
-        
+
         if reply_markup:
             payload["reply_markup"] = reply_markup
 
         # Use shared async client configuration for better performance
         limits = httpx.Limits(max_keepalive_connections=10, max_connections=20)
         timeout = httpx.Timeout(15.0)
-        
+
         async with httpx.AsyncClient(limits=limits, timeout=timeout) as client:
             try:
                 res = await client.post(
                     f"https://api.telegram.org/bot{bot_token}/sendMessage",
                     json=payload
                 )
-                
+
                 if res.status_code != 200:
                     logger.error(f"[Notifier] Failed to send to {topic}. HTTP {res.status_code}: {res.text}")
-                    
+
                     # Markdown parsing error fallback
                     if res.status_code == 400 and "parse" in res.text.lower():
                         # Try without parse_mode if it fails due to unclosed tags
@@ -73,7 +74,7 @@ class TelegramNotifier:
                             json=payload
                         )
                         return retry_res.status_code == 200
-                        
+
                     return False
                 return True
             except Exception as e:

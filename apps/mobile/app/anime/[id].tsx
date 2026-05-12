@@ -90,7 +90,17 @@ export default function AnimeDetailScreen() {
   const watchHistoryRaw = Array.isArray(progressData) ? progressData : (progressData?.data || []);
   const animeHistory = watchHistoryRaw.filter((h: any) => String(h.animeSlug) === String(id));
 
-  const d = data?.data;
+  const d = data?.data ? { ...data.data } : undefined;
+  if (d) {
+    const hasEps = (a: any) => {
+      if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
+      const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
+      if (eps !== undefined && eps !== null) return Number(eps) > 0;
+      return true;
+    };
+    d.recommendations = (d.recommendations || []).filter(hasEps);
+    d.relations = (d.relations || []).filter(hasEps);
+  }
 
   const apiEps = Array.isArray(epsData) ? epsData : (epsData?.data || []);
   const rawEps = apiEps.length > 0 ? apiEps : (d?.episodes || []);

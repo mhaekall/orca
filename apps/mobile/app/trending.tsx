@@ -41,7 +41,13 @@ export default function TrendingScreen() {
         const data = await res.json();
 
         if (data?.success && data.data) {
-          setResults(data.data);
+          const hasEps = (a: any) => {
+            if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
+            const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
+            if (eps !== undefined && eps !== null) return Number(eps) > 0;
+            return true;
+          };
+          setResults(data.data.filter(hasEps));
         } else {
           setResults([]);
         }

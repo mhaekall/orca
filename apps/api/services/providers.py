@@ -1,27 +1,10 @@
-import os
-import sys
-
-# Add scraper services to path (Local Dev)
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../services/scraper"))
-)
-# Add scraper services to path (Docker HF Space)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "scraper")))
-
-try:
-    from providers.doronime import DoronimeProvider
-    from providers.kuronime.provider import KuronimeProvider
-    from providers.oploverz import OploverzProvider
-    from providers.otakudesu import OtakudesuProvider
-    from providers.samehadaku import SamehadakuProvider
-except ImportError:
-    from scraper.providers.doronime import DoronimeProvider
-    from scraper.providers.kuronime.provider import KuronimeProvider
-    from scraper.providers.oploverz import OploverzProvider
-    from scraper.providers.otakudesu import OtakudesuProvider
-    from scraper.providers.samehadaku import SamehadakuProvider
 import time
 
+from services.scraper.providers.doronime import DoronimeProvider
+from services.scraper.providers.kuronime.provider import KuronimeProvider
+from services.scraper.providers.oploverz import OploverzProvider
+from services.scraper.providers.otakudesu import OtakudesuProvider
+from services.scraper.providers.samehadaku import SamehadakuProvider
 from services.transport import ProviderTransport
 from utils.circuit_breaker import CircuitBreaker, CircuitBreakerOpenException
 from utils.extractor import UniversalExtractor

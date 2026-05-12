@@ -1,7 +1,7 @@
 import asyncio
+import hashlib
 import json
 import time
-import hashlib
 
 from services.clients import client
 from services.config import UPSTASH_CREDENTIALS
@@ -11,13 +11,13 @@ _local_cache = {}
 def get_redis_credentials(key: str):
     if not UPSTASH_CREDENTIALS:
         return None, None
-    
+
     # Hitung nilai hash dari key
     hash_value = int(hashlib.md5(key.encode()).hexdigest(), 16)
-    
+
     # Modulo untuk menentukan akun mana yang dipakai
-    account_index = hash_value % len(UPSTASH_CREDENTIALS) 
-    
+    account_index = hash_value % len(UPSTASH_CREDENTIALS)
+
     creds = UPSTASH_CREDENTIALS[account_index]
     return creds["url"], creds["token"]
 
@@ -27,7 +27,7 @@ async def upstash_get(key: str):
         url, token = get_redis_credentials(key)
         if not url or not token:
             return _local_cache.get(key)
-            
+
         endpoint = f"{url}/get/{key}"
         res = await client.get(endpoint, headers={"Authorization": f"Bearer {token}"})
         data = res.json()
@@ -73,7 +73,7 @@ async def upstash_set(key: str, value: dict, ex: int = 3600, nx: bool = False):
                 return False
             _local_cache[key] = value
             return True
-            
+
         payload = json.dumps(value)
         command = ["SET", key, payload, "EX", str(ex)]
         if nx:
@@ -154,7 +154,6 @@ async def swr_cache_refresh(key: str, fetch_fn, ttl: int, swr: int):
         print(f"[SWR] Background refresh error for {key}: {e}")
 
 
-import hashlib
 
 
 def _slug_hash(provider_id: str, slug: str) -> str:

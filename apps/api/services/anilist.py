@@ -197,7 +197,7 @@ async def fetch_anilist_info_by_id(anilist_id: int):
 
             genres = media.get("genres") or []
             tags = media.get("tags") or []
-            
+
             # Enrich genres with high-ranking tags (>= 60%)
             for tag in tags:
                 tag_name = tag.get("name")
@@ -379,7 +379,7 @@ async def fetch_anilist_info(title: str):
 
             genres = media.get("genres") or []
             tags = media.get("tags") or []
-            
+
             # Enrich genres with high-ranking tags (>= 60%)
             for tag in tags:
                 tag_name = tag.get("name")

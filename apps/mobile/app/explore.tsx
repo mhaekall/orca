@@ -58,12 +58,25 @@ export default function ExploreScreen() {
   
   const [query, setQuery] = useState((params.q as string) || "");
   const [genre, setGenre] = useState((params.genre as string) || "");
+  const [sort, setSort] = useState("popularity");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const isFetchingRef = useRef(false);
+
   const debouncedQuery = useDebounce(query, 600);
+
+  // Reset pagination when search params change
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+  }, [debouncedQuery, genre, sort]);
 
   useEffect(() => {
     loadHistory();
@@ -101,15 +114,21 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     const fetchResults = async () => {
-      if (!debouncedQuery && !genre) {
+      if (!debouncedQuery && !genre && sort === "popularity") {
         setResults([]);
         setLoading(false);
+        setHasMore(true);
         return;
       }
 
-      setLoading(true);
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
       try {
-        let url = `${API}/api/v2/browse?page=1&sort=popularity`;
+        let url = `${API}/api/v2/browse?page=${page}&sort=${sort}`;
         if (debouncedQuery) url += `&q=${encodeURIComponent(debouncedQuery)}`;
         if (genre) url += `&genre=${encodeURIComponent(genre)}`;
 
@@ -117,23 +136,44 @@ export default function ExploreScreen() {
         const data = await res.json();
 
         if (data?.success && data.data) {
-          setResults(data.data);
-          if (debouncedQuery && data.data.length > 0) {
+          const hasEps = (a: any) => {
+            if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
+            const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
+            if (eps !== undefined && eps !== null) return Number(eps) > 0;
+            return true;
+          };
+          const filtered = data.data.filter(hasEps);
+          
+          if (page === 1) {
+            setResults(filtered);
+          } else {
+            setResults(prev => [...prev, ...filtered]);
+          }
+
+          if (data.data.length === 0) {
+            setHasMore(false);
+          }
+
+          if (page === 1 && debouncedQuery && filtered.length > 0) {
             addSearchTerm(debouncedQuery);
           }
         } else {
-          setResults([]);
+          if (page === 1) setResults([]);
+          setHasMore(false);
         }
       } catch (e) {
         console.error("Search fetch error", e);
-        setResults([]);
+        if (page === 1) setResults([]);
+        setHasMore(false);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
+        isFetchingRef.current = false;
       }
     };
 
     fetchResults();
-  }, [debouncedQuery, genre]);
+  }, [debouncedQuery, genre, sort, page]);
 
   const clearSearch = () => {
     setQuery("");
@@ -176,10 +216,41 @@ export default function ExploreScreen() {
             )}
           </View>
         </View>
+        
+        {/* Sort Filter Pills */}
+        <View style={{ paddingBottom: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+            {[
+              { id: "popularity", label: "Populer" },
+              { id: "trending", label: "Sedang Tren" },
+              { id: "newest", label: "Terbaru" },
+              { id: "score", label: "Tertinggi" },
+              { id: "a-z", label: "A-Z" },
+              { id: "z-a", label: "Z-A" },
+            ].map((s) => (
+              <Pressable 
+                key={s.id} 
+                onPress={() => setSort(s.id)}
+                style={{ 
+                  paddingHorizontal: 16, paddingVertical: 6, 
+                  borderRadius: 16, 
+                  backgroundColor: sort === s.id ? "rgba(10, 132, 255, 0.15)" : SURFACE2,
+                  borderWidth: 1, 
+                  borderColor: sort === s.id ? "rgba(10, 132, 255, 0.5)" : "rgba(255,255,255,0.05)"
+                }}
+              >
+                <Text style={{ 
+                  color: sort === s.id ? "#0A84FF" : "rgba(255,255,255,0.6)", 
+                  fontSize: 12, fontWeight: "600" 
+                }}>{s.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
       {/* Content */}
-      {(query || genre) ? (
+      {(query || genre || sort !== "popularity") ? (
         // Search Results
         loading ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -190,17 +261,30 @@ export default function ExploreScreen() {
           <FlatList
             showsVerticalScrollIndicator={false}
             data={results}
-            keyExtractor={(item) => String(item.anilistId || item.id)}
+            keyExtractor={(item, index) => String(item.anilistId || item.id) + '-' + index}
             numColumns={3}
             contentContainerStyle={{ padding: 16 }}
             columnWrapperStyle={{ gap: 8, marginBottom: 16 }}
+            onEndReached={() => {
+              if (hasMore && !loading && !loadingMore) {
+                setPage(p => p + 1);
+              }
+            }}
+            onEndReachedThreshold={0.5}
             ListHeaderComponent={
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 }}>
-                  {genre ? `GENRE: ${genre}` : "HASIL PENCARIAN"}
+                  {genre ? `GENRE: ${genre}` : (query ? "HASIL PENCARIAN" : "SEMUA ANIME")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: "600" }}>{results.length} ITEM</Text>
               </View>
+            }
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#0A84FF" />
+                </View>
+              ) : null
             }
             renderItem={({ item }) => (
               <View style={{ width: CARD_WIDTH }}>

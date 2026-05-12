@@ -35,7 +35,6 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from db.connection import metadata
-import db.models
 
 # add your model's MetaData object here
 # for 'autogenerate' support

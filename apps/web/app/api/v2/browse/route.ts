@@ -43,6 +43,8 @@ export async function GET(request: Request) {
       popularity: 'meta.popularity DESC NULLS LAST',
       trending: 'meta.trending DESC NULLS LAST',
       newest: 'meta."seasonYear" DESC NULLS LAST',
+      'a-z': 'meta."cleanTitle" ASC NULLS LAST',
+      'z-a': 'meta."cleanTitle" DESC NULLS LAST',
     };
     const orderClause = sortMap[sort] || sortMap.score;
 

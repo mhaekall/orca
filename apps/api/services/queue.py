@@ -5,7 +5,6 @@ import httpx
 
 from services.config import QSTASH_TOKEN
 
-
 _batch_workers = set()
 
 
@@ -135,20 +134,21 @@ class QStashPublisher:
 
                 await ingest_pending(5000, shard_id, total_shards)
             except Exception as e:
-                import traceback
-                import httpx
                 import os
+                import traceback
+
+                import httpx
 
                 err_msg = f"<b>[HF SPACE CRASH]</b> Queue native worker failed:\n<pre>{traceback.format_exc()}</pre>"
                 try:
-                    import asyncio
 
                     async def send_err():
                         bot_token = os.getenv("TELEGRAM_BOT_TOKEN_5", "")
 
                         try:
-                            from services.cache import upstash_set
                             import time
+
+                            from services.cache import upstash_set
 
                             await upstash_set(
                                 f"hf_crash_log_{int(time.time())}", {"error": err_msg}, ex=86400

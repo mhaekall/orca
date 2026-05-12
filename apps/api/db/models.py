@@ -128,6 +128,20 @@ video_cache = Table(
 
 # ── NEW: social & watch behavior ──────────────────────────────────────────────
 
+swarm_vault = Table(
+    "swarm_vault",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("anilistId", Integer, nullable=False),
+    Column("title", Text, nullable=True),
+    Column("episodeNumber", Float, nullable=False),
+    Column("providerId", Text, nullable=False),
+    Column("episodeUrl", Text, nullable=False, unique=True),
+    Column("createdAt", DateTime, nullable=False, server_default=func.now()),
+    Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
+    Index("idx_swarm_vault_anilist_num", "anilistId", "episodeNumber"),
+)
+
 users = Table(
     "user",
     metadata,

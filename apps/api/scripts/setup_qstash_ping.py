@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # 1b. Keep-Alive Ping for Worker Space
     worker_url = "https://jonyyyyyyyu-anime-ingestion-worker.hf.space"
     requests.post(
-        f"{QSTASH_URL}/{worker_url}/healthz", 
+        f"{QSTASH_URL}/{worker_url}/healthz",
         headers={
             "Authorization": f"Bearer {QSTASH_TOKEN}",
             "Content-Type": "application/json",

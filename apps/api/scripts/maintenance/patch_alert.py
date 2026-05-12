@@ -1,8 +1,7 @@
 import re
-import os
 
 file_path = "../../services/ingestion/main.py"
-with open(file_path, "r") as f:
+with open(file_path) as f:
     content = f.read()
 
 # Replace the tg_proxy usage with api.telegram.org in _send_telegram_alert
@@ -16,7 +15,7 @@ with open(file_path, "w") as f:
     f.write(content)
 
 file_path_2 = "services/queue.py"
-with open(file_path_2, "r") as f:
+with open(file_path_2) as f:
     content2 = f.read()
 
 content2 = re.sub(

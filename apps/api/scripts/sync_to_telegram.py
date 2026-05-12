@@ -13,13 +13,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 import importlib.util
 
 spec = importlib.util.spec_from_file_location(
-    "provider", "../../services/scraper/providers/kuronime/provider.py"
+    "provider", "../services/scraper/providers/kuronime/provider.py"
 )
 kuronime_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(kuronime_module)
 KuronimeProvider = kuronime_module.KuronimeProvider
 
-spec_transport = importlib.util.spec_from_file_location("transport", "../../services/transport.py")
+spec_transport = importlib.util.spec_from_file_location("transport", "../services/transport.py")
 transport_module = importlib.util.module_from_spec(spec_transport)
 spec_transport.loader.exec_module(transport_module)
 ProviderTransport = transport_module.ProviderTransport

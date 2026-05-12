@@ -22,15 +22,15 @@ async def seed_v3_relations():
 
         for idx, anilist_id in enumerate(anime_ids):
             print(f"[{idx + 1}/{len(anime_ids)}] Fetching rich metadata for ID {anilist_id}...")
-            
+
             rich_data = await fetch_anilist_info_by_id(anilist_id)
             if not rich_data:
                 continue
-                
+
             rich_genres = rich_data.get("genres", [])
             rich_studios = rich_data.get("studios", [])
             rich_relations = rich_data.get("relations", [])
-            
+
             # Update the JSONB columns as fallback/legacy support
             await conn.execute(
                 anime_metadata.update()
@@ -83,7 +83,7 @@ async def seed_v3_relations():
                     )
                 except Exception:
                     pass  # Already exists
-                    
+
             # Brief sleep to avoid hitting API rate limits
             await asyncio.sleep(0.5)
 

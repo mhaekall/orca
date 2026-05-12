@@ -12,10 +12,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from services.ingestion.main import IngestionEngine
-
 from db.connection import database
 from services.cache import upstash_del, upstash_get, upstash_set
+from services.ingestion.main import IngestionEngine
 from services.stream_cache import stream_cache
 
 logging.basicConfig(level=logging.INFO)
@@ -115,7 +114,7 @@ async def ingest_pending(
                     quality_order = ["720p", "1080p", "480p", "Auto", "360p", "Unknown"]
                     best_source = None
                     best_rank = 999
-                    
+
                     for s in sources_response["sources"]:
                         if any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
                             q = s.get("quality", "Unknown")

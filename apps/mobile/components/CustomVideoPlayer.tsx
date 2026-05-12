@@ -92,7 +92,7 @@ export function CustomVideoPlayer({
     }
   );
 
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -100,21 +100,42 @@ export function CustomVideoPlayer({
   const [isBuffering, setIsBuffering] = useState(true);
   const [previewTime, setPreviewTime] = useState<number | null>(null);
   
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const hideTimeout = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
+  const isSeeking = useRef(false);
+  const seekingTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastTapRef = useRef({ time: 0 });
+  const wasBuffering = useRef(isBuffering);
+
+  useEffect(() => {
+    if (wasBuffering.current && !isBuffering && !isLoading && isPlaying) {
+      // Transitioned from buffering to playing
+      // Hide controls immediately to prevent flashing top/center controls
+      if (hideTimeout.current) clearTimeout(hideTimeout.current);
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => setControlsVisible(false));
+    }
+    wasBuffering.current = isBuffering;
+  }, [isBuffering, isLoading, isPlaying, fadeAnim]);
   
   // Progress bar refs
   const progressBarWidth = useRef(0);
   const progressBarPageX = useRef(0);
 
   const durationRef = useRef(duration);
-  
+  const playerRef = useRef(player);
+
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
 
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
   // Handle expo-video events natively without setInterval
   useEffect(() => {
     if (!player) return;
@@ -135,7 +156,7 @@ export function CustomVideoPlayer({
       setDuration(event.duration);
     });
     const subTimeUpdate = player.addListener('timeUpdate', (event) => {
-      if (!isDragging.current) {
+      if (!isDragging.current && !isSeeking.current) {
         const cur = event.currentTime;
         const dur = durationRef.current;
         setCurrentTime(cur);
@@ -198,6 +219,12 @@ export function CustomVideoPlayer({
       },
       onPanResponderRelease: (e) => {
         isDragging.current = false;
+        isSeeking.current = true;
+        if (seekingTimeout.current) clearTimeout(seekingTimeout.current);
+        seekingTimeout.current = setTimeout(() => {
+          isSeeking.current = false;
+        }, 1000);
+
         const touchPageX = e.nativeEvent.pageX;
         const barWidth = progressBarWidth.current || 1;
         let pct = (touchPageX - progressBarPageX.current) / barWidth;
@@ -207,8 +234,12 @@ export function CustomVideoPlayer({
         if (durationRef.current > 0) {
            const newTime = pct * durationRef.current;
            setCurrentTime(newTime);
-           if (player) {
-             player.currentTime = newTime;
+           if (playerRef.current) {
+             try {
+               playerRef.current.currentTime = newTime;
+             } catch (e) {
+               console.warn("Failed to seek player:", e);
+             }
            }
         }
         showControls();
@@ -280,7 +311,6 @@ export function CustomVideoPlayer({
   }, [controlsVisible, fadeAnim, showControls]);
 
   useEffect(() => {
-    showControls();
     return () => {
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
     };
@@ -405,19 +435,21 @@ export function CustomVideoPlayer({
         <Animated.View style={[styles.controlsContainer, { opacity: fadeAnim }]} pointerEvents="box-none">
           
           {/* Top Gradient Background */}
-          <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topGradient} pointerEvents="none" />
+          {!(isLoading || isBuffering) && (
+            <LinearGradient colors={['rgba(0,0,0,0.8)', 'transparent']} style={styles.topGradient} pointerEvents="none" />
+          )}
           
           {/* Bottom Gradient Background */}
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.bottomGradient} pointerEvents="none" />
 
           {/* Top Bar Content */}
-          <View style={styles.topBarContentWrapper} pointerEvents="box-none">
+          <View style={[styles.topBarContentWrapper, (isLoading || isBuffering) && { opacity: 0 }]} pointerEvents="box-none">
             <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
           </View>
 
           {/* Center Play/Pause & Skip Controls */}
-          <View style={styles.centerControls} pointerEvents="box-none">
-            <View style={styles.centerRow} pointerEvents="box-none">
+          <View style={[styles.centerControls, (isLoading || isBuffering) && { opacity: 0 }]} pointerEvents={(isLoading || isBuffering) ? "none" : "box-none"}>
+            <View style={styles.centerRow} pointerEvents={(isLoading || isBuffering) ? "none" : "box-none"}>
               {onPrevious ? (
                 <Pressable onPress={() => {
                   onPrevious();
@@ -463,13 +495,15 @@ export function CustomVideoPlayer({
             <View style={styles.timeRow} pointerEvents="box-none">
               <Text style={styles.timeText}>{formatTime(currentTime)} <Text style={{color: 'rgba(255,255,255,0.5)'}}>/ {formatTime(duration)}</Text></Text>
               
-              <View style={styles.bottomRightControls} pointerEvents="auto">
-                  <Pressable onPress={() => {
-                     handleToggleFullscreen();
-                  }} style={styles.iconButton}>
-                    {isFullscreen ? <Minimize color="white" size={24} /> : <Maximize color="white" size={24} />}
-                  </Pressable>
-              </View>
+              {!(isLoading || isBuffering) && (
+                <View style={styles.bottomRightControls} pointerEvents="auto">
+                    <Pressable onPress={() => {
+                       handleToggleFullscreen();
+                    }} style={styles.iconButton}>
+                      {isFullscreen ? <Minimize color="white" size={24} /> : <Maximize color="white" size={24} />}
+                    </Pressable>
+                </View>
+              )}
             </View>
 
             {/* Preview Bubble when Scrubbing */}
@@ -498,7 +532,7 @@ export function CustomVideoPlayer({
 
             {/* Social Actions in Fullscreen */}
             {isFullscreen && (
-              <View style={styles.fullscreenSocialBarBottom} pointerEvents="auto">
+              <View style={[styles.fullscreenSocialBarBottom, (isLoading || isBuffering) && { opacity: 0 }]} pointerEvents={(isLoading || isBuffering) ? "none" : "auto"}>
                 <View style={styles.viewBadge}>
                   <Eye color="#e5e5ea" size={14} />
                   <Text style={styles.socialText}>

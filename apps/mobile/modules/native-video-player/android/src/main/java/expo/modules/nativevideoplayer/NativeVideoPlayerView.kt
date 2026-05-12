@@ -120,7 +120,7 @@ class NativeVideoPlayerView(
         override fun onPlaybackStateChanged(state: Int) {
             if (state == Player.STATE_ENDED) {
                 stopProgressPolling()
-                this@NativeVideoPlayerView.onPlaybackEnd(Unit)
+                this@NativeVideoPlayerView.onPlaybackEnd(mapOf<String, Any>())
                 Log.d(TAG, "onPlaybackEnd dispatched.")
             }
         }

@@ -58,13 +58,14 @@ class NativeVideoPlayerView(
     fun setHeaders(headers: Map<String, String>) {
         if (headers == currentHeaders) return
         currentHeaders = headers
-        rebuildPlayer()
+        if (!currentUrl.isNullOrBlank()) rebuildPlayer()
     }
 
     fun setIsPlaying(isPlaying: Boolean) {
-        if (player?.playWhenReady != isPlaying) {
-            player?.playWhenReady = isPlaying
-            if (isPlaying) startProgressPolling() else stopProgressPolling()
+        if (isPlaying) {
+            player?.play()
+        } else {
+            player?.pause()
         }
     }
 

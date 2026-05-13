@@ -74,17 +74,16 @@ export function resolveProxyUrl(videoUrl: string | null): string | null {
     let queryString = parts[1] || '';
     
     if (!baseUrl.endsWith('.m3u8') && !baseUrl.endsWith('.mp4') && !baseUrl.endsWith('.ts')) {
-       if (baseUrl.includes('tele-proxy')) {
-           baseUrl += '.mp4';
-       } else {
-           baseUrl += '.m3u8';
-       }
+       baseUrl += '.m3u8';
     }
     
-    const separator = queryString ? '&' : '';
     // We remove the dynamic Date.now() here to ensure the URL string remains stable across re-renders.
     // If a cache buster is strictly required, it should be appended at the data-fetching level, not the UI render level.
-    urlStr = `${baseUrl}?${queryString}`;
+    if (queryString) {
+        urlStr = `${baseUrl}?${queryString}`;
+    } else {
+        urlStr = baseUrl;
+    }
   }
   return urlStr;
 }

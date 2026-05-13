@@ -10,31 +10,13 @@ import { Play, Bookmark, Share as ShareIcon, Star, ArrowLeft, Eye, Clock, Calend
 import { AnimeCard } from '../../components/AnimeCard';
 import { Skeleton } from '../../components/Skeleton';
 import { useAuth } from '../../lib/auth';
+import { formatSynopsis, formatViews, hasEps } from '../../lib/utils';
 import { Alert } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
 const paddingTopSafe = Platform.OS === "android" ? 30 : 50;
 import { API_URL, HF_API_URL } from "../../lib/config";
 import { fetcher, fetchWithAuth } from "../../lib/fetcher";
-
-function formatSynopsis(text: string) {
-  if (!text) return "Sinopsis belum tersedia.";
-  let clean = text.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, " ").trim();
-  const sourceIndex = clean.search(/\(?\[?(Sumber|Source|Written by)\s*:/i);
-  if (sourceIndex !== -1) {
-    clean = clean.substring(0, sourceIndex).trim();
-  }
-  clean = clean.replace(/\n{3,}/g, '\n\n');
-  clean = clean.replace(/ {2,}/g, ' ');
-  return clean;
-}
-
-function formatViews(v: number): string {
-  if (!v) return '0';
-  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
-  return v.toString();
-}
 
 export default function AnimeDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -92,12 +74,6 @@ export default function AnimeDetailScreen() {
 
   const d = data?.data ? { ...data.data } : undefined;
   if (d) {
-    const hasEps = (a: any) => {
-      if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
-      const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
-      if (eps !== undefined && eps !== null) return Number(eps) > 0;
-      return true;
-    };
     d.recommendations = (d.recommendations || []).filter(hasEps);
     d.relations = (d.relations || []).filter(hasEps);
   }

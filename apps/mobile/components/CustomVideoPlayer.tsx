@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as NavigationBar from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
+import { resolveProxyUrl } from '../lib/utils';
 
 interface Props {
   videoUrl: string | null;
@@ -54,42 +55,7 @@ export function CustomVideoPlayer({
   onEnd
 }: Props) {
   // Bypass stale Cloudflare Edge Cache for proxy URLs & ensure it doesn't trigger re-renders
-  const finalUrl = React.useMemo(() => {
-    if (!videoUrl) return null;
-    let urlStr = videoUrl;
-    
-    // Intercept old tg-proxy URLs and rewrite them to the new tele-proxy format
-    if (urlStr.includes('tg-proxy') && !urlStr.includes('/stream/bot')) {
-      const match = urlStr.match(/tg-proxy(-[0-9]+)?\.moehamadhkl\.workers\.dev\/(.+)/);
-      if (match) {
-        const proxyDomain = match[1] || ''; // e.g. "", "-2", "-4"
-        const fileId = match[2];
-        let fallbackToken = '8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE'; // default (tg-proxy)
-        if (proxyDomain === '-4') fallbackToken = '7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8';
-        else if (proxyDomain === '-2') fallbackToken = '8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8';
-        urlStr = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot${fallbackToken}/${fileId}`;
-      }
-    }
-
-    if (urlStr.includes('proxy') || urlStr.includes('workers.dev')) {
-      // Use pure string manipulation to avoid Hermes polyfill crashes
-      const parts = urlStr.split('?');
-      let baseUrl = parts[0];
-      let queryString = parts[1] || '';
-      
-      // Force .m3u8 extension if it's missing
-      if (!baseUrl.endsWith('.m3u8') && !baseUrl.endsWith('.mp4') && !baseUrl.endsWith('.ts')) {
-         baseUrl += '.m3u8';
-      }
-      
-      // Cache buster
-      const separator = queryString ? '&' : '';
-      queryString += `${separator}cb=${Date.now()}`;
-      
-      urlStr = `${baseUrl}?${queryString}`;
-    }
-    return urlStr;
-  }, [videoUrl]);
+  const finalUrl = React.useMemo(() => resolveProxyUrl(videoUrl), [videoUrl]);
 
   const playerRef = useRef<NativeVideoPlayerRef>(null);
 

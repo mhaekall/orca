@@ -1,21 +1,26 @@
 import * as SecureStore from "expo-secure-store";
 
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const sessionStr = await SecureStore.getItemAsync("auth_session");
+    if (sessionStr) {
+      const sessionData = JSON.parse(sessionStr);
+      return sessionData?.token || sessionData?.session?.token || sessionData?.accessToken || sessionData?.user?.token;
+    }
+  } catch (e) {
+    console.warn("Error reading auth_session", e);
+  }
+  return null;
+}
+
 export const fetcher = async (url: string) => {
   let headers: HeadersInit = {
     "Content-Type": "application/json",
   };
 
-  try {
-    const sessionStr = await SecureStore.getItemAsync("auth_session");
-    if (sessionStr) {
-      const sessionData = JSON.parse(sessionStr);
-      const token = sessionData?.token || sessionData?.session?.token || sessionData?.accessToken || sessionData?.user?.token;
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-    }
-  } catch (e) {
-    console.warn("Fetcher error reading auth_session", e);
+  const token = await getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const res = await fetch(url, { headers });
@@ -36,17 +41,9 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  try {
-    const sessionStr = await SecureStore.getItemAsync("auth_session");
-    if (sessionStr) {
-      const sessionData = JSON.parse(sessionStr);
-      const token = sessionData?.token || sessionData?.session?.token || sessionData?.accessToken || sessionData?.user?.token;
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-    }
-  } catch (e) {
-    console.warn("fetchWithAuth error reading auth_session", e);
+  const token = await getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   return fetch(url, { ...options, headers });

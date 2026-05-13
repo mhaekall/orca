@@ -9,6 +9,8 @@ import { AnimeCard } from '../../../components/AnimeCard';
 import { CommentSection } from '../../../components/CommentSection';
 import { Skeleton } from '../../../components/Skeleton';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
+import { useWatchProgress } from '../../../lib/hooks/useWatchProgress';
+import { hasEps } from '../../../lib/utils';
 
 const { width: W } = Dimensions.get('window');
 import { API_URL, HF_API_URL } from "../../../lib/config";
@@ -22,9 +24,6 @@ export default function WatchScreen() {
   const [showComments, setShowComments] = useState(false);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  const currentVideoTime = useRef(0);
-  const currentVideoDuration = useRef(0);
   
   const { data: animeData } = useSWR(`${API_URL}/api/v2/anime/${id}`, fetcher);
   const { data: streamData, isLoading: streamLoading } = useSWR(
@@ -44,6 +43,19 @@ export default function WatchScreen() {
   const likesCount = statsData?.likes || 0;
   const isLiked = statsData?.user_liked || false;
   const realViews = animeStatsData?.total_episode_views || animeData?.data?.views || animeData?.data?.popularity || 0;
+
+  const anime = animeData?.data;
+  const sources = streamData?.sources || [];
+  const episodes = anime?.episodes || [];
+  const recommendations = (anime?.recommendations || []).filter(hasEps);
+  
+  // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
+  const bestSource = sources.length > 0 ? sources[0] : null;
+  const videoUrl = bestSource?.url || null;
+
+  const userId = user?.id || user?.email;
+
+  const { updateProgress } = useWatchProgress(userId, String(id), String(episode), videoUrl);
 
   const handleToggleLike = async () => {
     if (!user) {
@@ -100,90 +112,6 @@ export default function WatchScreen() {
       Alert.alert("Error", "Gagal menyimpan koleksi.");
     }
   };
-
-  const anime = animeData?.data;
-  const sources = streamData?.sources || [];
-  const episodes = anime?.episodes || [];
-  const hasEps = (a: any) => {
-    if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
-    const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
-    if (eps !== undefined && eps !== null) return Number(eps) > 0;
-    return true;
-  };
-  const recommendations = (anime?.recommendations || []).filter(hasEps);
-  
-  // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
-  const bestSource = sources.length > 0 ? sources[0] : null;
-  let videoUrl = bestSource?.url || null;
-  let sourceType = bestSource?.type || 'hls';
-  const customHeaders = streamData?.headers || { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36' };
-
-  if (videoUrl && (videoUrl.includes('tg-proxy') || videoUrl.includes('tele-proxy') || videoUrl.includes('workers.dev'))) {
-    sourceType = 'hls';
-  }
-
-  const { data: watchSessionData } = useSWR(
-    user ? `${HF_API_URL}/api/v2/social/watch-session/${id}/${episode}?user_id=${user.id}` : null,
-    fetcher
-  );
-
-  const [hasRestoredTime, setHasRestoredTime] = useState(false);
-
-  const userId = user?.id || user?.email;
-
-  useEffect(() => {
-    if (!userId || !videoUrl) return;
-
-    const saveProgress = () => {
-      try {
-        const currentT = currentVideoTime.current;
-        const durationT = currentVideoDuration.current;
-        if (currentT > 1) {
-          // Update granular watch session
-          fetchWithAuth(`${HF_API_URL}/api/v2/social/watch-session`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: userId,
-              anilist_id: parseInt(id as string),
-              episode_number: parseFloat(episode as string),
-              watch_duration_sec: Math.floor(currentT),
-              total_duration_sec: Math.floor(durationT),
-              quality_watched: "Auto",
-              provider_used: "Cloudflare"
-            }),
-          }).catch(() => {});
-
-          // Update main watch history for Collection/Home timeline
-          const isComp = durationT > 0 && (currentT / durationT) > 0.9;
-          fetchWithAuth(`${HF_API_URL}/api/v2/social/progress`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: userId,
-              anilistId: id,
-              episodeNumber: episode,
-              progressSeconds: Math.floor(currentT),
-              durationSeconds: Math.floor(durationT),
-              isCompleted: isComp
-            }),
-          }).catch(() => {});
-        }
-      } catch (e) {
-      }
-    };
-
-    const interval = setInterval(() => {
-      try {
-        saveProgress();
-      } catch (e) {}
-    }, 15000);
-
-    return () => {
-      clearInterval(interval);
-      saveProgress();
-    };
-  }, [userId, id, episode, videoUrl]);
 
   const displayTitle = anime?.cleanTitle || anime?.nativeTitle || anime?.title?.english || anime?.title?.romaji || anime?.title || "Anime";
 
@@ -309,8 +237,7 @@ export default function WatchScreen() {
               onLike={handleToggleLike}
               onShowComments={() => setShowComments(true)}
               onProgressUpdate={(time, dur) => {
-                currentVideoTime.current = time;
-                currentVideoDuration.current = dur;
+                updateProgress(time, dur);
               }}
               onEnd={() => {
                 if (nextEp) handleEpisodeChange(String(getEpNumStr(nextEp)));

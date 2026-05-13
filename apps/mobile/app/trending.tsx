@@ -16,9 +16,11 @@ import { AnimeCard } from "../components/AnimeCard";
 const { width: W } = Dimensions.get("window");
 import { API_URL } from "../lib/config";
 import { fetchWithAuth } from "../lib/fetcher";
+import { hasEps } from "../lib/utils";
+import { Theme } from "../lib/theme";
 const API = API_URL;
-const BG = "#0a0812";
-const SURFACE = "#1f1c29";
+const BG = Theme.colors.background;
+const SURFACE = Theme.colors.surface2;
 
 export default function TrendingScreen() {
   const router = useRouter();
@@ -42,12 +44,6 @@ export default function TrendingScreen() {
         const data = await res.json();
 
         if (data?.success && data.data) {
-          const hasEps = (a: any) => {
-            if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
-            const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
-            if (eps !== undefined && eps !== null) return Number(eps) > 0;
-            return true;
-          };
           setResults(data.data.filter(hasEps));
         } else {
           setResults([]);

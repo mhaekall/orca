@@ -11,6 +11,7 @@ import { Skeleton } from "../../components/Skeleton";
 import { HF_API_URL } from "../../lib/config";
 
 import { fetcher } from "../../lib/fetcher";
+import { formatHistoryDate, formatDuration } from "../../lib/utils";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 
@@ -18,30 +19,6 @@ const TABS = [
   { id: "all", label: "Semua", icon: Bookmark },
   { id: "history", label: "Riwayat Menonton", icon: Clock }
 ];
-
-function formatHistoryDate(dateStr: string) {
-  try {
-    const safeStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
-    const realD = new Date(safeStr);
-    if (isNaN(realD.getTime())) return "Waktu tidak diketahui";
-    const wibTime = new Date(realD.getTime() + (7 * 3600000));
-    const day = wibTime.getUTCDate();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
-    const month = months[wibTime.getUTCMonth()];
-    const year = wibTime.getUTCFullYear();
-    const hh = String(wibTime.getUTCHours()).padStart(2, '0');
-    const mm = String(wibTime.getUTCMinutes()).padStart(2, '0');
-    return `${day} ${month} ${year} • ${hh}:${mm} WIB`;
-  } catch (e) {
-    return "Waktu tidak diketahui";
-  }
-}
-
-function formatDuration(sec: number) {
-  if (!sec) return "0m";
-  const m = Math.floor(sec / 60);
-  return `${m}m`;
-}
 
 const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }) => {
   const router = useRouter();

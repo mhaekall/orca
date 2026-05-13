@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { mutate } from 'swr';
 
 import { API_URL } from "../lib/config";
+import { formatViews } from '../lib/utils';
 
 interface Props {
   id: string;
@@ -24,12 +25,6 @@ interface Props {
   views?: number | null;
   progressPercent?: number; 
   isCompleted?: boolean;
-}
-
-function formatViews(v: number): string {
-  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
-  return v.toString();
 }
 
 function AnimeCardInner({

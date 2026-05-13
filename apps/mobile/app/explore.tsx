@@ -22,10 +22,12 @@ import { AnimeCard } from "../components/AnimeCard";
 const { width: W } = Dimensions.get("window");
 import { API_URL } from "../lib/config";
 import { fetchWithAuth } from "../lib/fetcher";
+import { hasEps } from "../lib/utils";
+import { Theme } from "../lib/theme";
 const API = API_URL;
-const BG = "#0a0812";
-const SURFACE = "#13111a";
-const SURFACE2 = "#1f1c29";
+const BG = Theme.colors.background;
+const SURFACE = Theme.colors.surface;
+const SURFACE2 = Theme.colors.surface2;
 
 // Genre data based on web implementation
 const GENRES = [
@@ -137,12 +139,6 @@ export default function ExploreScreen() {
         const data = await res.json();
 
         if (data?.success && data.data) {
-          const hasEps = (a: any) => {
-            if (a?.status === 'NOT_YET_RELEASED' || a?.status === 'UPCOMING') return false;
-            const eps = a?.latestEpisode ?? a?.episodes ?? a?.totalEpisodes;
-            if (eps !== undefined && eps !== null) return Number(eps) > 0;
-            return true;
-          };
           const filtered = data.data.filter(hasEps);
           
           if (page === 1) {

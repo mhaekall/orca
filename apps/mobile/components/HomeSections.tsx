@@ -1,0 +1,539 @@
+import React from "react";
+import { View, Text, Pressable, FlatList, StyleSheet, Dimensions, Animated, Platform } from "react-native";
+import { Image } from "expo-image";
+import { Link, useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Play, Eye, Star, ChevronRight } from "lucide-react-native";
+import { formatViews, formatDuration } from "../lib/utils";
+import { mutate } from "swr";
+import { API_URL } from "../lib/config";
+import { Theme } from "../lib/theme";
+
+const { width: W } = Dimensions.get("window");
+const BG = Theme.colors.background;
+const SURFACE = Theme.colors.surface;
+const SURFACE2 = Theme.colors.surfaceAlt;
+
+const FONT_REGULAR = Theme.typography.weights.regular;
+const FONT_MEDIUM = Theme.typography.weights.medium;
+const FONT_SEMIBOLD = Theme.typography.weights.semibold;
+const FONT_BOLD = Theme.typography.weights.bold;
+
+export const prefetchAnime = (id: string) => {
+  mutate(`${API_URL}/api/v2/anime/${id}`);
+};
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+function Skel({ w, h, r = 12 }: { w: number; h: number; r?: number }) {
+  const pulseAnim = React.useRef(new Animated.Value(0.4)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.8,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.4,
+          duration: 800,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View 
+      style={{ 
+        width: w, 
+        height: h, 
+        borderRadius: r, 
+        backgroundColor: "rgba(255,255,255,0.1)",
+        opacity: pulseAnim 
+      }} 
+    />
+  );
+}
+
+export function LoadingState() {
+  return (
+    <View style={{ paddingTop: 0 }}>
+      <View style={{ marginBottom: 28 }}>
+        <Skel w={W} h={W * 1.4} r={0} />
+      </View>
+      {[0, 1, 2].map((s) => (
+        <View key={s} style={{ marginBottom: 28 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, marginBottom: 12 }}>
+            <Skel w={140} h={16} r={6} />
+          </View>
+          <View style={{ flexDirection: "row", gap: 10, paddingLeft: 16 }}>
+            {[0, 1, 2, 3].map((c) => (
+              <View key={c} style={{ gap: 6 }}>
+                <Skel w={s === 1 ? W * 0.72 : 110} h={s === 1 ? 155 : 158} r={14} />
+                {s !== 1 && <Skel w={85} h={10} r={5} />}
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────────
+export function HeroCard({ item }: { item: any }) {
+  const id = String(item.anilistId || item.id);
+  const ep = item.latestEpisode ? String(item.latestEpisode) : "1";
+  const img = item.poster || item.img || item.coverImage?.extraLarge || item.coverImage?.large;
+  const title = item.title?.english || item.title?.romaji || item.title || "";
+  const score = item.score || item.averageScore;
+  const views = item.views || 0;
+  
+  return (
+    <Link href={`/watch/${id}/${ep}` as any} asChild>
+      <Pressable style={s.hero} onPressIn={() => prefetchAnime(id)}>
+        <Image 
+          source={{ uri: img }} 
+          style={StyleSheet.absoluteFillObject} 
+          contentFit="cover" 
+          transition={400} 
+        />
+        <LinearGradient 
+          colors={["rgba(10,8,18,0.4)", "transparent", "rgba(10,8,18,0.7)", BG]} 
+          locations={[0, 0.3, 0.7, 1]} 
+          style={StyleSheet.absoluteFillObject} 
+        />
+        
+        <View style={s.heroBottom}>
+          <View style={{ alignSelf: 'flex-start', marginBottom: 12, marginLeft: -20, position: 'relative' }}>
+            <View style={{
+              position: 'absolute',
+              top: 0, bottom: 0, left: 0, right: 0,
+              transform: [{ rotate: '-3deg' }, { skewX: '-18deg' }],
+              shadowColor: '#FF2D55', shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6,
+            }}>
+              <View style={{ 
+                flex: 1, 
+                backgroundColor: '#FF2D55',
+                borderTopRightRadius: 4, borderBottomRightRadius: 12,
+                overflow: 'hidden'
+              }}>
+                <View style={{ position: 'absolute', width: 2, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', transform: [{rotate: '45deg'}], left: 10, top: -10 }} />
+                <View style={{ position: 'absolute', width: 4, height: 60, backgroundColor: 'rgba(255,255,255,0.15)', transform: [{rotate: '45deg'}], left: 30, top: -10 }} />
+                <View style={{ position: 'absolute', width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.3)', transform: [{rotate: '45deg'}], left: 50, top: -10 }} />
+                <View style={{ position: 'absolute', width: 6, height: 80, backgroundColor: 'rgba(0,0,0,0.1)', transform: [{rotate: '-30deg'}], left: 70, top: -20 }} />
+                <View style={{ position: 'absolute', width: 2, height: 60, backgroundColor: 'rgba(255,255,255,0.2)', transform: [{rotate: '45deg'}], left: 100, top: -10 }} />
+                <View style={{ position: 'absolute', width: 3, height: 60, backgroundColor: 'rgba(0,0,0,0.15)', transform: [{rotate: '45deg'}], left: 120, top: 0 }} />
+                <View style={{ position: 'absolute', width: 1, height: 60, backgroundColor: 'rgba(255,255,255,0.25)', transform: [{rotate: '-45deg'}], left: 140, top: -10 }} />
+              </View>
+            </View>
+            
+            <Text style={{
+              color: '#fff', fontSize: 24, 
+              paddingHorizontal: 16, paddingVertical: 2,
+              fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
+              fontWeight: 'bold', fontStyle: 'italic',
+              textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
+              transform: [{ rotate: '-4deg' }]
+            }}>
+              Tayang Terbaru
+            </Text>
+          </View>
+
+          <Text style={s.heroTitle} numberOfLines={2}>{title}</Text>
+          
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: -4 }}>
+            {views > 0 && (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Eye size={12} color="rgba(255,255,255,0.7)" />
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                  {formatViews(views)}
+                </Text>
+              </View>
+            )}
+            {score ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Star size={12} color="#FFD60A" fill="#FFD60A" />
+                <Text style={{ color: "#FFD60A", fontSize: 11, fontWeight: FONT_BOLD }}>
+                  {(score / 10).toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+            <View style={{ backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+              <Text style={{ color: "#fff", fontSize: 10, fontWeight: FONT_BOLD }}>
+                EPS {ep}
+              </Text>
+            </View>
+          </View>
+
+          <View style={s.heroPlayBtn}>
+            <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+          </View>
+        </View>
+      </Pressable>
+    </Link>
+  );
+}
+
+// ── Spotlight: 1 big + 2 stacked (Scrollable chunks) ────────────────────────
+export function SpotlightRow({ items }: { items: any[] }) {
+  if (items.length === 0) return null;
+  
+  const listData = [];
+  if (items.length > 0) {
+    listData.push({ type: 'big', item: items[0], rank: 1 });
+  }
+  for (let i = 1; i < items.length; i += 2) {
+    if (items[i]) {
+      listData.push({
+        type: 'stacked',
+        items: items.slice(i, i + 2),
+        startRank: i + 1,
+      });
+    }
+  }
+
+  const BIG_W = W * 0.55;
+  const SMALL_W = W * 0.35;
+
+  return (
+    <FlatList
+      data={listData}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      decelerationRate="fast"
+      contentContainerStyle={{ paddingLeft: 16, paddingRight: 6 }}
+      keyExtractor={(_, i) => String(i)}
+      renderItem={({ item: chunk }) => {
+        if (chunk.type === 'big') {
+          const item = chunk.item;
+          const id = String(item.anilistId || item.id);
+          const img = item.img || item.coverImage?.extraLarge;
+          const title = item.title?.english || item.title?.romaji || item.title || "";
+          const score = item.score || item.averageScore;
+          const views = item.views || 0;
+          return (
+            <View style={{ width: BIG_W, height: 230, marginRight: 10 }}>
+              <Link key={id} href={`/anime/${id}` as any} asChild>
+                <Pressable style={s.spotBig} onPressIn={() => prefetchAnime(id)}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.95)"]} style={StyleSheet.absoluteFillObject} />
+                  <View style={s.spotBigBadge}><Text style={s.spotBigBadgeText}>#{chunk.rank} TRENDING</Text></View>
+                  <Text style={s.spotBigTitle} numberOfLines={2}>{title}</Text>
+                  
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                    {score ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                        <Text style={{ color: "#FFD60A", fontSize: 11, fontWeight: FONT_BOLD }}>
+                          {(score / 10).toFixed(1)}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {views > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                        <Eye size={11} color="rgba(255,255,255,0.6)" />
+                        <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                          {formatViews(views)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              </Link>
+            </View>
+          );
+        }
+
+        if (chunk.type === 'stacked') {
+          return (
+            <View style={{ width: SMALL_W, height: 230, marginRight: 10, flexDirection: "column", gap: 10 }}>
+              {chunk.items.map((item: any, i: number) => {
+                const id = String(item.anilistId || item.id);
+                const img = item.img || item.coverImage?.extraLarge;
+                const title = item.title?.english || item.title?.romaji || item.title || "";
+                const score = item.score || item.averageScore;
+                const views = item.views || 0;
+                return (
+                  <Link key={id} href={`/anime/${id}` as any} asChild>
+                    <Pressable style={s.spotSmall} onPressIn={() => prefetchAnime(id)}>
+                      <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                      <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject} />
+                      <View style={s.spotSmallBadge}><Text style={s.spotSmallBadgeText}>#{chunk.startRank + i}</Text></View>
+                      <Text style={s.spotSmallTitle} numberOfLines={2}>{title}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        {score ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                            <Star size={9} color="#FFD60A" fill="#FFD60A" />
+                            <Text style={{ color: "#FFD60A", fontSize: 9, fontWeight: FONT_BOLD }}>
+                              {(score / 10).toFixed(1)}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {views > 0 && (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                            <Eye size={9} color="rgba(255,255,255,0.6)" />
+                            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 9, fontWeight: FONT_MEDIUM }}>
+                              {formatViews(views)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+                  </Link>
+                );
+              })}
+            </View>
+          );
+        }
+        
+        return null;
+      }}
+    />
+  );
+}
+
+// ── Wide Row (List View) ──────────────────────────────────────────────────────
+export function WideRow({ items }: { items: any[] }) {
+  return (
+    <View style={{ paddingHorizontal: 16, gap: 16 }}>
+      {items.slice(0, 5).map((item, i) => {
+        const id = String(item.anilistId || item.id);
+        const img = item.poster || item.img || item.coverImage?.extraLarge || item.banner;
+        const title = item.title?.english || item.title?.romaji || item.title || "";
+        const score = item.score || item.averageScore;
+        const views = item.views || 0;
+        const genres = item.genres || [];
+        const firstGenre = genres.length > 0 ? genres[0] : "";
+
+        return (
+          <View key={String(id || i)} style={{ width: "100%", height: 130 }}>
+            <Link href={`/anime/${id}` as any} asChild>
+              <Pressable style={{ flex: 1, flexDirection: "row", backgroundColor: SURFACE2, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" }} onPressIn={() => prefetchAnime(id)}>
+                <View style={{ width: 100, height: "100%", backgroundColor: BG }}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.8)"]} style={StyleSheet.absoluteFillObject} />
+                  <LinearGradient start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} colors={["transparent", "transparent", SURFACE2]} locations={[0, 0.6, 1]} style={StyleSheet.absoluteFillObject} />
+                </View>
+                
+                <View style={{ flex: 1, padding: 14, justifyContent: "center", paddingLeft: 4 }}>
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: FONT_SEMIBOLD, marginBottom: 6, lineHeight: 20 }} numberOfLines={2}>
+                    {title}
+                  </Text>
+                  
+                  <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                     {score ? (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                          <Star size={11} color="#FFD60A" fill="#FFD60A" />
+                          <Text style={{ color: "#FFD60A", fontSize: 11, fontWeight: FONT_BOLD }}>
+                            {(score / 10).toFixed(1)}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {views > 0 && (
+                        <>
+                          <Text style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>•</Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                            <Eye size={11} color="rgba(255,255,255,0.6)" />
+                            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                              {formatViews(views)}
+                            </Text>
+                          </View>
+                        </>
+                      )}
+
+                      {firstGenre ? (
+                        <>
+                          <Text style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>•</Text>
+                          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: FONT_MEDIUM }}>
+                            {firstGenre}
+                          </Text>
+                        </>
+                      ) : null}
+                  </View>
+
+                  <View style={{ alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: FONT_BOLD, letterSpacing: 0.5 }}>LIHAT DETAIL</Text>
+                  </View>
+                </View>
+              </Pressable>
+            </Link>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Vertical Small Row ────────────────────────────────────────────────────────
+export function VertRow({ items, showRank, cw = 110, ch = 158 }: { items: any[]; showRank?: boolean; cw?: number; ch?: number }) {
+  return (
+    <FlatList
+      data={items.slice(0, 15)} horizontal showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingLeft: 16, paddingRight: 8 }}
+      keyExtractor={(item, i) => String(item.anilistId || item.id || i)}
+      renderItem={({ item, index }) => {
+        const id = String(item.anilistId || item.id);
+        const ep = item.latestEpisode ? String(item.latestEpisode) : "1";
+        const img = item.img || item.coverImage?.extraLarge;
+        const title = item.title?.english || item.title?.romaji || item.title || "";
+        const score = item.score || item.averageScore;
+        const views = item.views || 0;
+        return (
+          <Link href={`/anime/${id}` as any} asChild>
+            <Pressable style={{ width: cw, marginRight: 10 }} onPressIn={() => prefetchAnime(id)}>
+              <View style={{ height: ch, borderRadius: 12, overflow: "hidden", backgroundColor: SURFACE, marginBottom: 8 }}>
+                <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" transition={300} />
+                <LinearGradient colors={["transparent", "rgba(10,8,18,0.85)"]} style={StyleSheet.absoluteFillObject} />
+                {showRank && <Text style={s.rankNum}>#{index + 1}</Text>}
+                <View style={s.epBadge}><Text style={s.epBadgeText}>EP {ep}</Text></View>
+              </View>
+              <Text style={s.cardTitle} numberOfLines={2}>{title}</Text>
+              
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                 {score ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <Star size={10} color="#FFD60A" fill="#FFD60A" />
+                      <Text style={{ color: "#FFD60A", fontSize: 10, fontWeight: FONT_BOLD }}>
+                        {(score / 10).toFixed(1)}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {views > 0 && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <Eye size={10} color="rgba(255,255,255,0.6)" />
+                      <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: FONT_MEDIUM }}>
+                        {formatViews(views)}
+                      </Text>
+                    </View>
+                  )}
+              </View>
+            </Pressable>
+          </Link>
+        );
+      }}
+    />
+  );
+}
+
+// ── Watch History Row ─────────────────────────────────────────────────────────
+export function WatchHistoryRow({ items }: { items: any[] }) {
+  const router = useRouter();
+  if (!items || items.length === 0) return null;
+
+  return (
+    <View style={{ marginBottom: 32 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 12 }}>
+        <Text style={{ color: "#fff", fontSize: 18, fontWeight: FONT_SEMIBOLD, letterSpacing: -0.2 }}>Lanjutkan Menonton</Text>
+        <Pressable onPress={() => router.push("/collection?tab=history")} style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ color: "#0A84FF", fontSize: 12, fontWeight: FONT_BOLD, marginRight: 2 }}>Selengkapnya</Text>
+          <ChevronRight size={14} color="#0A84FF" />
+        </Pressable>
+      </View>
+      <FlatList<any>
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+        data={items.slice(0, 8)}
+        keyExtractor={(item: any, index: number) => String(item.anilistId || item.animeSlug || '') + '-' + String(item.episode || '') + '-' + index}
+        renderItem={({ item }: any) => {
+          const id = String(item.animeSlug || item.anilistId);
+          const title = item.cleanTitle || item.nativeTitle || `Anime #${id}`;
+          const img = item.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
+          const ep = item.episode || "?";
+          const ts = item.timestampSec || 0;
+          const dur = item.durationSec || 0;
+          const pct = dur > 0 ? Math.min(100, Math.max(0, (ts / dur) * 100)) : 0;
+
+          return (
+            <Link href={`/anime/${id}` as any} asChild>
+              <Pressable style={{ width: 140 }}>
+                <View style={{ height: 78, borderRadius: 10, overflow: "hidden", backgroundColor: SURFACE2, marginBottom: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" }}>
+                  <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+                  <LinearGradient colors={["transparent", "rgba(10,8,18,0.9)"]} style={StyleSheet.absoluteFillObject} />
+                  
+                  <View style={{ position: "absolute", top: '32%', left: '41%' }}>
+                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                       <Play size={12} color="#fff" />
+                     </View>
+                  </View>
+
+                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+                    {dur > 0 && (
+                      <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                        <View style={{ height: '100%', backgroundColor: '#0A84FF', width: `${pct}%` }} />
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ position: "absolute", top: 4, right: 4, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
+                     <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD }}>EPS {ep}</Text>
+                  </View>
+                </View>
+                
+                <Text style={{ color: "#fff", fontSize: 12, fontWeight: FONT_SEMIBOLD, marginBottom: 2, lineHeight: 16 }} numberOfLines={1}>
+                  {title}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, fontWeight: FONT_MEDIUM }}>
+                   Tersisa {dur > 0 ? formatDuration(dur - ts) : "..."}
+                </Text>
+              </Pressable>
+            </Link>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+// ── Section Header ────────────────────────────────────────────────────────────
+export function SecHeader({ label }: { label: string }) {
+  return (
+    <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+      <Text style={{ color: "#fff", fontSize: 18, fontWeight: FONT_SEMIBOLD, letterSpacing: -0.2 }}>{label}</Text>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  hero: { width: "100%", aspectRatio: 3/4, overflow: "hidden", backgroundColor: SURFACE },
+  heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 40 },
+  heroTitle: { color: "#fff", fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginBottom: 8, lineHeight: 28, paddingRight: 60 },
+  heroPlayBtn: {
+    position: "absolute", bottom: 16, right: 16,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#0A84FF", alignItems: "center", justifyContent: "center",
+    elevation: 4, shadowColor: "#0A84FF", shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }
+  },
+  spotBig: {
+    flex: 1, borderRadius: 16, overflow: "hidden",
+    backgroundColor: SURFACE, justifyContent: "flex-end", padding: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.05)"
+  },
+  spotBigBadge: {
+    position: "absolute", top: 12, left: 12,
+    backgroundColor: "#FF9F0A", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+  },
+  spotBigBadgeText: { color: "#000", fontSize: 9, fontWeight: FONT_BOLD, letterSpacing: 0.5 },
+  spotBigTitle: { color: "#fff", fontSize: 14, fontWeight: FONT_SEMIBOLD, lineHeight: 20 },
+  spotSmall: {
+    flex: 1, borderRadius: 12, overflow: "hidden",
+    backgroundColor: SURFACE, justifyContent: "flex-end", padding: 10,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.05)"
+  },
+  spotSmallBadge: {
+    position: "absolute", top: 8, left: 8,
+    backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4,
+  },
+  spotSmallBadgeText: { color: "#fff", fontSize: 9, fontWeight: FONT_BOLD },
+  spotSmallTitle: { color: "#fff", fontSize: 12, fontWeight: FONT_MEDIUM, lineHeight: 16 },
+  rankNum: { position: "absolute", top: 6, left: 8, color: "#fff", fontSize: 24, fontWeight: FONT_BOLD, opacity: 0.9, letterSpacing: -1 },
+  epBadge: {
+    position: "absolute", bottom: 8, right: 8,
+    backgroundColor: "rgba(0,0,0,0.7)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4,
+  },
+  epBadgeText: { color: "#fff", fontSize: 10, fontWeight: FONT_MEDIUM },
+  cardTitle: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: FONT_MEDIUM, lineHeight: 18, marginTop: 8, minHeight: 36 },
+});

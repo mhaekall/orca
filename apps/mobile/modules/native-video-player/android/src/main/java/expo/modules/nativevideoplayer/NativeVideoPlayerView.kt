@@ -102,28 +102,13 @@ class NativeVideoPlayerView(
             .setUpstreamDataSourceFactory(httpFactory)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-        // INJECTION: DefaultLoadControl for 5-minute buffer hack
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                5000,    // minBufferMs
-                300000,  // maxBufferMs (5 minutes)
-                2500,    // bufferForPlaybackMs
-                5000     // bufferForPlaybackAfterRebufferMs
-            )
-            .build()
-
         val newPlayer = ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(cacheFactory))
-            .setLoadControl(loadControl) // INJECTED LOAD CONTROL
             .build()
             .also { exo ->
                 exo.repeatMode    = Player.REPEAT_MODE_OFF
                 exo.playWhenReady = true
-                val mediaItem = MediaItem.Builder()
-                    .setUri(url)
-                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
-                    .build()
-                exo.setMediaItem(mediaItem)
+                exo.setMediaItem(MediaItem.fromUri(url))
                 exo.prepare()
                 exo.addListener(playerListener)
             }

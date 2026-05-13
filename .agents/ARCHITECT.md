@@ -16,3 +16,6 @@
 - **Backend:** FastAPI (Python), PostgreSQL, Upstash Redis.
 - **Frontend:** Next.js (TypeScript), Tailwind CSS (Vanilla CSS preferred for Custom HIG), Drizzle ORM.
 - **Deployment:** Cloudflare Pages (Frontend), Direct Cloudflare API Upload.
+
+## 4. Crucial Protocol References
+- **[Telegram HLS Streaming Quirks](./PROTOCOLS/TELEGRAM_HLS_STREAMING_QUIRKS.md):** MUST READ before modifying Cloudflare Workers, Kotlin Native Player, or Telegram proxy URL routing. Contains solutions for Error 1101, ExoPlayer Duration 0 bug, and Token file_id routing.

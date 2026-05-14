@@ -1,15 +1,27 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable, Alert, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, StyleSheet, Dimensions, Platform } from "react-native";
 import { Image } from "expo-image";
-import { LogOut, ChevronRight, Crown, Shield, FileText, RefreshCw, Bell, Users, Settings, Activity } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { LogOut, ChevronRight, Crown, Shield, Activity, Sparkles, Swords, Trophy, Medal } from "lucide-react-native";
 import { useAuth } from "../../lib/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Theme } from "../../lib/theme";
+
+const { width: W } = Dimensions.get("window");
 
 export default function ProfileScreen() {
   const { user, isLoading, signInWithGoogle, signOut } = useAuth();
 
-  // Placeholder for future SWR hooks in mobile
-  const stats = { completed: 0, totalEps: 0, days: "0.0" };
+  // Placeholder stats for Gamification
+  const stats = { 
+    completed: 12, 
+    totalEps: 245, 
+    days: "4.2",
+    level: 14,
+    exp: 3450,
+    nextExp: 5000,
+    title: "Isekai Survivor" // User's equipped title
+  };
 
   const handleClearCache = () => {
     Alert.alert(
@@ -31,195 +43,177 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Header Profile Section */}
-        <View style={styles.headerSection}>
-          <View style={styles.avatarWrapper}>
-            <View style={styles.avatarContainer}>
-              <Image 
-                source={{ uri: user?.image || user?.picture || "https://api.dicebear.com/7.x/notionists/svg?seed=OrcaUser" }} 
-                style={StyleSheet.absoluteFillObject}
-                contentFit="cover" 
-              />
-            </View>
-            {user && (
-              <View style={styles.crownBadge}>
-                <Crown size={16} color="white" />
-              </View>
-            )}
-          </View>
-
-          {user ? (
-            <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {user.name || "Orca User"}
-            </Text>
-            <Text style={styles.userHandle}>@{user.email?.split('@')[0]}</Text>
-            {user.id && (
-              <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 2, fontFamily: 'monospace' }}>
-                ID: {user.id}
-              </Text>
-            )}
-
-            <View style={styles.userStats}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>0</Text>
-                  <Text style={styles.statLabel}>Pengikut</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>0</Text>
-                  <Text style={styles.statLabel}>Mengikuti</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{stats.completed}</Text>
-                  <Text style={styles.statLabel}>Tamat</Text>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.guestInfo}>
-              <Text style={styles.guestTitle}>Guest Mode</Text>
-              <Text style={styles.guestDescription}>Masuk untuk melacak riwayat tontonan, mengelola koleksi, dan berinteraksi dengan komunitas.</Text>
-              <Pressable 
-                onPress={signInWithGoogle}
-                disabled={isLoading}
-                style={({pressed}) => [
-                  styles.loginButton, 
-                  isLoading && styles.loginButtonDisabled,
-                  pressed && !isLoading && styles.loginButtonPressed
-                ]}
-              >
-                <Text style={styles.loginButtonText}>
-                  {isLoading ? "Memproses..." : "Lanjutkan dengan Google"}
-                </Text>
-              </Pressable>
-            </View>
-          )}
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} bounces={false}>
+        
+        {/* Banner Profile (Top Background) */}
+        <View style={styles.bannerContainer}>
+          <Image 
+            source={{ uri: "https://s4.anilist.co/file/anilistcdn/media/anime/banner/145545-XbOaDpm14W63.jpg" }} // Placeholder Banner
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+          />
+          <LinearGradient 
+            colors={["rgba(10,8,18,0.1)", "rgba(10,8,18,0.8)", Theme.colors.background]} 
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
         </View>
 
-        {/* Social / Action Buttons */}
-        {user && (
-          <View style={styles.actionButtons}>
-            <Pressable style={({pressed}) => [styles.actionButton, pressed && styles.actionButtonPressed]}>
-              <Bell size={24} color="white" style={styles.actionIcon} />
-              <Text style={styles.actionText}>Notifikasi</Text>
-            </Pressable>
-            <Pressable 
-              onPress={() => Alert.alert("Segera Hadir", "Fitur Teman sedang dalam pengembangan!")}
-              style={({pressed}) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-            >
-              <Users size={24} color="white" style={styles.actionIcon} />
-              <Text style={styles.actionText}>Teman</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* Watch Stats */}
-        <View style={styles.watchStatsCard}>
-          <View style={styles.watchStatsHeader}>
-            <Activity size={16} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.watchStatsTitle}>
-              Aktivitas Menonton
-            </Text>
-          </View>
-          <View style={styles.watchStatsRow}>
-            <View style={[styles.watchStatItem, styles.watchStatItemBorder]}>
-              <Text style={styles.watchStatValueWhite}>{stats.totalEps}</Text>
-              <Text style={styles.watchStatLabel}>Eps Ditonton</Text>
-            </View>
-            <View style={[styles.watchStatItem, styles.watchStatItemBorder]}>
-              <Text style={styles.watchStatValueOrange}>{stats.days}</Text>
-              <Text style={styles.watchStatLabel}>Hari Dihabiskan</Text>
-            </View>
-            <View style={styles.watchStatItem}>
-              <Text style={styles.watchStatValueGreen}>0</Text>
-              <Text style={styles.watchStatLabel}>Sedang Aktif</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Menu / Links */}
-        <View style={styles.menuSection}>
-          <View style={styles.menuHeader}>
-            <Settings size={16} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.menuTitle}>
-              Sistem & Pengaturan
-            </Text>
-          </View>
+        <View style={styles.contentContainer}>
           
-          <View style={styles.menuCard}>
-            <Pressable style={({pressed}) => [styles.menuItem, styles.menuItemBorder, pressed && styles.menuItemPressed]}>
-              <View style={styles.menuItemLeft}>
-                <View style={[styles.menuIconContainer, styles.menuIconOrange]}>
-                  <Crown size={16} color="#FF9F0A" />
-                </View>
-                <View>
-                  <Text style={styles.menuItemTitle}>Orca Premium</Text>
-                  <Text style={styles.menuItemSubtitle}>Dukung kreator & hilangkan batasan</Text>
-                </View>
-              </View>
-              <ChevronRight size={20} color="rgba(255,255,255,0.2)" />
-            </Pressable>
-
-            <Pressable style={({pressed}) => [styles.menuItem, styles.menuItemBorder, pressed && styles.menuItemPressed]}>
-              <View style={styles.menuItemLeft}>
-                <View style={styles.menuIconContainer}>
-                  <FileText size={16} color="white" />
-                </View>
-                <Text style={styles.menuItemTitle}>Ketentuan Layanan</Text>
-              </View>
-              <ChevronRight size={20} color="rgba(255,255,255,0.2)" />
-            </Pressable>
-
-            <Pressable style={({pressed}) => [styles.menuItem, pressed && styles.menuItemPressed]}>
-              <View style={styles.menuItemLeft}>
-                <View style={styles.menuIconContainer}>
-                  <Shield size={16} color="white" />
-                </View>
-                <Text style={styles.menuItemTitle}>Kebijakan Privasi</Text>
-              </View>
-              <ChevronRight size={20} color="rgba(255,255,255,0.2)" />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Danger Zone */}
-        <View style={styles.dangerZone}>
-          <View style={styles.dangerCard}>
-            {user && (
-              <Pressable
-                onPress={signOut}
-                style={({pressed}) => [styles.dangerItem, styles.dangerItemBorder, pressed && styles.dangerItemPressed]}
+          {/* Avatar & Title Section */}
+          <View style={styles.headerSection}>
+            <View style={styles.avatarWrapper}>
+              {/* Premium Avatar Border (Gacha Item Placeholder) */}
+              <LinearGradient
+                colors={["#FFD60A", "#FF3B30", "#AF52DE"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.avatarBorderGlow}
               >
-                <View style={styles.dangerIconContainer}>
-                  <LogOut size={16} color="#FF453A" />
+                <View style={styles.avatarContainer}>
+                  <Image 
+                    source={{ uri: user?.image || user?.picture || "https://api.dicebear.com/7.x/notionists/svg?seed=OrcaUser" }} 
+                    style={StyleSheet.absoluteFillObject}
+                    contentFit="cover" 
+                  />
                 </View>
-                <Text style={styles.dangerTitle}>Keluar Akun</Text>
-              </Pressable>
+              </LinearGradient>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelBadgeText}>Lv {stats.level}</Text>
+              </View>
+            </View>
+
+            {user ? (
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>
+                  {user.name || "Orca User"}
+                </Text>
+                
+                {/* Equipped Title */}
+                <View style={styles.titleBadge}>
+                  <Sparkles size={12} color={Theme.colors.warning} />
+                  <Text style={styles.titleText}>{stats.title}</Text>
+                  <Sparkles size={12} color={Theme.colors.warning} />
+                </View>
+
+                {/* EXP Bar */}
+                <View style={styles.expContainer}>
+                  <View style={styles.expBarBg}>
+                    <LinearGradient 
+                      colors={[Theme.colors.primary, "#64D2FF"]} 
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={[styles.expBarFill, { width: `${(stats.exp / stats.nextExp) * 100}%` }]} 
+                    />
+                  </View>
+                  <Text style={styles.expText}>{stats.exp} / {stats.nextExp} EXP</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.guestInfo}>
+                <Text style={styles.userName}>Guest Mode</Text>
+                <Text style={styles.guestDescription}>Masuk untuk melacak progress dan mendapatkan Trophy.</Text>
+                <Pressable 
+                  onPress={signInWithGoogle}
+                  disabled={isLoading}
+                  style={({pressed}) => [
+                    styles.loginButton, 
+                    isLoading && styles.loginButtonDisabled,
+                    pressed && !isLoading && styles.loginButtonPressed
+                  ]}
+                >
+                  <Text style={styles.loginButtonText}>
+                    {isLoading ? "Memproses..." : "Lanjutkan dengan Google"}
+                  </Text>
+                </Pressable>
+              </View>
             )}
-            
-            <Pressable 
-              onPress={handleClearCache}
-              style={({pressed}) => [styles.dangerItem, pressed && styles.dangerItemPressed]}
-            >
-              <View style={styles.dangerIconContainer}>
-                <Shield size={16} color="#FF453A" />
-              </View>
-              <View>
-                <Text style={styles.dangerTitle}>Hapus Cache Lokal</Text>
-                <Text style={styles.dangerSubtitle}>Reset total data perangkat ini</Text>
-              </View>
-            </Pressable>
           </View>
-        </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerVersion}>Orca v3.0.0 (Social Ready)</Text>
-          <Text style={styles.footerSlogan}>Didesain untuk efisiensi maksimal </Text>
-        </View>
+          {user && (
+            <>
+              {/* RPG-Style Stats Showcase */}
+              <View style={styles.statsShowcase}>
+                <View style={styles.statCard}>
+                  <View style={[styles.statIconBox, { backgroundColor: 'rgba(10, 132, 255, 0.15)' }]}>
+                    <Activity size={20} color={Theme.colors.primary} />
+                  </View>
+                  <Text style={styles.statValue}>{stats.totalEps}</Text>
+                  <Text style={styles.statLabel}>Eps Ditonton</Text>
+                </View>
 
+                <View style={styles.statCard}>
+                  <View style={[styles.statIconBox, { backgroundColor: 'rgba(255, 159, 10, 0.15)' }]}>
+                    <Trophy size={20} color={Theme.colors.warningAlt} />
+                  </View>
+                  <Text style={styles.statValue}>{stats.completed}</Text>
+                  <Text style={styles.statLabel}>Anime Tamat</Text>
+                </View>
+
+                <View style={styles.statCard}>
+                  <View style={[styles.statIconBox, { backgroundColor: 'rgba(48, 209, 88, 0.15)' }]}>
+                    <Medal size={20} color={Theme.colors.success} />
+                  </View>
+                  <Text style={styles.statValue}>{stats.days}</Text>
+                  <Text style={styles.statLabel}>Hari (Jam)</Text>
+                </View>
+              </View>
+
+              {/* Action Buttons (Social / Friends Placeholder) */}
+              <View style={styles.actionButtons}>
+                <Pressable 
+                  onPress={() => Alert.alert("Segera Hadir", "Leaderboard antar teman sedang dalam pengembangan!")}
+                  style={({pressed}) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                >
+                  <Swords size={22} color={Theme.colors.text} style={styles.actionIcon} />
+                  <Text style={styles.actionText}>Leaderboard</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+
+          {/* Menu / Settings */}
+          <View style={styles.menuSection}>
+            <Text style={styles.menuSectionTitle}>Pengaturan Aplikasi</Text>
+            
+            <View style={styles.menuCard}>
+              <Pressable 
+                onPress={handleClearCache}
+                style={({pressed}) => [styles.menuItem, styles.menuItemBorder, pressed && styles.menuItemPressed]}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={styles.menuIconContainer}>
+                    <Shield size={16} color={Theme.colors.text} />
+                  </View>
+                  <View>
+                    <Text style={styles.menuItemTitle}>Hapus Cache Lokal</Text>
+                    <Text style={styles.menuItemSubtitle}>Reset data perangkat untuk performa</Text>
+                  </View>
+                </View>
+                <ChevronRight size={20} color={Theme.colors.textDim} />
+              </Pressable>
+
+              {user && (
+                <Pressable
+                  onPress={signOut}
+                  style={({pressed}) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                >
+                  <View style={styles.menuItemLeft}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(255, 59, 48, 0.1)' }]}>
+                      <LogOut size={16} color={Theme.colors.danger} />
+                    </View>
+                    <Text style={[styles.menuItemTitle, { color: Theme.colors.danger }]}>Keluar Akun</Text>
+                  </View>
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerVersion}>Orca v3.1.0 (Gamification Beta)</Text>
+            <Text style={styles.footerSlogan}>Didesain untuk efisiensi maksimal </Text>
+          </View>
+
+        </View>
       </ScrollView>
     </View>
   );
@@ -228,117 +222,161 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0812',
+    backgroundColor: Theme.colors.background,
   },
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
+  bannerContainer: {
+    width: "100%",
+    height: 220,
+    position: "absolute",
+    top: 0,
+  },
+  contentContainer: {
+    paddingTop: 140, // Overlaps the banner
+    paddingHorizontal: 20,
     paddingBottom: 100,
-    paddingTop: 60,
-    paddingHorizontal: 16,
   },
   headerSection: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    position: 'relative',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   avatarWrapper: {
     position: 'relative',
     marginBottom: 16,
   },
-  avatarContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: '#1f1c29',
+  avatarBorderGlow: {
+    width: 106,
+    height: 106,
+    borderRadius: 53,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  crownBadge: {
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'hidden',
+    backgroundColor: Theme.colors.surface2,
+    borderWidth: 3,
+    borderColor: Theme.colors.background,
+  },
+  levelBadge: {
     position: 'absolute',
-    bottom: -8,
-    right: -8,
-    backgroundColor: '#0A84FF',
-    padding: 6,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'black',
-    zIndex: 20,
+    bottom: -6,
+    alignSelf: 'center',
+    backgroundColor: Theme.colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Theme.colors.primary,
+  },
+  levelBadgeText: {
+    color: Theme.colors.text,
+    fontSize: 12,
+    fontWeight: Theme.typography.weights.black,
   },
   userInfo: {
     alignItems: 'center',
-    gap: 4, // space-y-1 roughly
+    width: '100%',
   },
   userName: {
-    fontSize: 24,
-    fontWeight: '900', // black
-    color: 'white',
+    fontSize: 26,
+    fontWeight: Theme.typography.weights.black,
+    color: Theme.colors.text,
     letterSpacing: -0.5,
+    marginBottom: 6,
   },
-  userHandle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.6)',
-  },
-  userStats: {
+  titleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 12,
-    marginTop: 8,
-  },
-  statItem: {
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 214, 10, 0.1)',
+    paddingHorizontal: 12,
     paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 214, 10, 0.3)',
+  },
+  titleText: {
+    color: Theme.colors.warning,
+    fontSize: 13,
+    fontWeight: Theme.typography.weights.bold,
+    letterSpacing: 0.5,
+  },
+  expContainer: {
+    width: '70%',
+    alignItems: 'center',
+  },
+  expBarBg: {
+    width: '100%',
+    height: 6,
+    backgroundColor: Theme.colors.surface2,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  expBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  expText: {
+    fontSize: 11,
+    color: Theme.colors.textDim,
+    fontWeight: Theme.typography.weights.semibold,
+  },
+  statsShowcase: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Theme.colors.surface,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  statIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: 'white',
+    fontSize: 22,
+    fontWeight: Theme.typography.weights.black,
+    color: Theme.colors.text,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: 'bold',
+    color: Theme.colors.textDim,
+    fontWeight: Theme.typography.weights.bold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   guestInfo: {
     alignItems: 'center',
     paddingVertical: 8,
   },
-  guestTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: 'white',
-    marginBottom: 8,
-  },
   guestDescription: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: Theme.colors.textDim,
     marginBottom: 16,
     textAlign: 'center',
     paddingHorizontal: 16,
   },
   loginButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'white',
+    backgroundColor: Theme.colors.text,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 9999,
@@ -350,115 +388,52 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   loginButtonText: {
-    color: 'black',
-    fontWeight: 'bold',
+    color: Theme.colors.background,
+    fontWeight: Theme.typography.weights.bold,
     fontSize: 14,
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   actionButton: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#1f1c29',
+    backgroundColor: Theme.colors.surface2,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: Theme.colors.border,
+    gap: 10,
   },
   actionButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: Theme.colors.borderHighlight,
   },
   actionIcon: {
-    marginBottom: 8,
+    opacity: 0.9,
   },
   actionText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'rgba(255,255,255,0.8)',
-  },
-  watchStatsCard: {
-    backgroundColor: '#1f1c29',
-    borderRadius: 24, // 3xl
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 24,
-  },
-  watchStatsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  watchStatsTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.5)',
-    textTransform: 'uppercase',
-    letterSpacing: 1, // tracking-widest
-  },
-  watchStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  watchStatItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  watchStatItemBorder: {
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.1)',
-  },
-  watchStatValueWhite: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: 'white',
-  },
-  watchStatValueOrange: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#FF9F0A',
-  },
-  watchStatValueGreen: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#32D74B',
-  },
-  watchStatLabel: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 4,
+    fontSize: 14,
+    fontWeight: Theme.typography.weights.bold,
+    color: Theme.colors.text,
   },
   menuSection: {
     marginBottom: 24,
   },
-  menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginLeft: 4,
+  menuSectionTitle: {
+    fontSize: 14,
+    fontWeight: Theme.typography.weights.bold,
+    color: Theme.colors.text,
     marginBottom: 12,
-  },
-  menuTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.5)',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    marginLeft: 4,
   },
   menuCard: {
-    backgroundColor: '#1f1c29',
+    backgroundColor: Theme.colors.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: Theme.colors.border,
     overflow: 'hidden',
   },
   menuItem: {
@@ -469,10 +444,10 @@ const styles = StyleSheet.create({
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: Theme.colors.border,
   },
   menuItemPressed: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: Theme.colors.borderHighlight,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -485,76 +460,34 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  menuIconOrange: {
-    backgroundColor: 'rgba(255, 159, 10, 0.1)',
+    backgroundColor: Theme.colors.surface2,
   },
   menuItemTitle: {
-    fontWeight: 'bold',
+    fontWeight: Theme.typography.weights.bold,
     fontSize: 14,
-    color: 'white',
+    color: Theme.colors.text,
   },
   menuItemSubtitle: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  dangerZone: {
-    marginBottom: 24,
-  },
-  dangerCard: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
-    overflow: 'hidden',
-  },
-  dangerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-  },
-  dangerItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  dangerItemPressed: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  dangerIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  dangerTitle: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#FF453A',
-  },
-  dangerSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255, 69, 58, 0.6)',
+    color: Theme.colors.textDim,
+    marginTop: 2,
   },
   footer: {
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   footerVersion: {
-    color: 'rgba(255,255,255,0.2)',
+    color: Theme.colors.textDim,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: Theme.typography.weights.black,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   footerSlogan: {
-    color: 'rgba(255,255,255,0.1)',
-    fontSize: 9,
-    fontWeight: 'bold',
-    marginTop: 4,
+    color: 'rgba(255,255,255,0.15)',
+    fontSize: 10,
+    fontWeight: Theme.typography.weights.bold,
+    marginTop: 6,
   },
 });

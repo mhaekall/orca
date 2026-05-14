@@ -12,7 +12,6 @@ export interface NativeVideoPlayerProps {
   isPlaying?: boolean;
   onProgress?: (event: NativeSyntheticEvent<VideoProgressEvent>) => void;
   onPlaybackEnd?: (event: NativeSyntheticEvent<void>) => void;
-  onBufferingChange?: (event: NativeSyntheticEvent<{ isBuffering: boolean }>) => void;
   style?: StyleProp<ViewStyle>;
 }
 

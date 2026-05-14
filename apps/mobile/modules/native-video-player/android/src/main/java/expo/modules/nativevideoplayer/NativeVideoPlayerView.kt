@@ -1,9 +1,10 @@
 package expo.modules.nativevideoplayer
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import android.widget.FrameLayout
-import androidx.media3.common.C
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -17,33 +18,31 @@ import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 
-@UnstableApi
+private const val TAG                  = "NativeVideoPlayerView"
+private const val PROGRESS_INTERVAL_MS = 1_000L
+
+@OptIn(UnstableApi::class)
 class NativeVideoPlayerView(
     context: Context,
-    appContext: AppContext
+    appContext: AppContext,
 ) : ExpoView(context, appContext) {
-
-    private val TAG = "NativeVideoPlayerView"
 
     private val onPlaybackEnd by EventDispatcher()
     private val onProgress by EventDispatcher()
-    private val onBufferingChange by EventDispatcher()
 
     private val playerView: PlayerView = PlayerView(context).apply {
         useController = false // DISABLED so React Native UI can take over
-        layoutParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        )
+        keepScreenOn  = true
+        layoutParams  = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        setFullscreenButtonClickListener(null)
     }
 
-    private var player: ExoPlayer? = null
-    private var currentUrl: String? = null
-    private var currentHeaders: Map<String, String>? = null
+    private var player         : ExoPlayer?              = null
+    private var currentUrl     : String?                 = null
+    private var currentHeaders : Map<String, String>     = emptyMap()
 
-    private var progressRunnable: Runnable? = null
-    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val PROGRESS_INTERVAL_MS = 1000L
+    private val mainHandler      = Handler(Looper.getMainLooper())
+    private var progressRunnable : Runnable? = null
 
     init {
         addView(playerView)
@@ -60,7 +59,7 @@ class NativeVideoPlayerView(
         currentHeaders = headers
         if (!currentUrl.isNullOrBlank()) rebuildPlayer()
     }
-
+    
     fun setIsPlaying(isPlaying: Boolean) {
         if (isPlaying) {
             player?.play()
@@ -68,13 +67,13 @@ class NativeVideoPlayerView(
             player?.pause()
         }
     }
-
-    fun seekTo(seconds: Double) {
-        val ms = (seconds * 1000).toLong()
-        player?.seekTo(ms)
+    
+    fun seekTo(timeSeconds: Double) {
+        player?.seekTo((timeSeconds * 1000).toLong())
     }
 
-    fun release() {
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
         releasePlayer()
     }
 
@@ -90,10 +89,12 @@ class NativeVideoPlayerView(
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(15_000)
-
-        currentHeaders?.let {
-            httpFactory.setDefaultRequestProperties(it)
-        }
+            .apply {
+                if (currentHeaders.isNotEmpty()) {
+                    setDefaultRequestProperties(currentHeaders)
+                    Log.d(TAG, "Injected ${currentHeaders.size} header(s) into HttpDataSource.")
+                }
+            }
 
         val cacheFactory = CacheDataSource.Factory()
             .setCache(VideoCacheSingleton.getInstance(context.applicationContext))
@@ -133,10 +134,6 @@ class NativeVideoPlayerView(
                 stopProgressPolling()
                 this@NativeVideoPlayerView.onPlaybackEnd(mapOf<String, Any>())
                 Log.d(TAG, "onPlaybackEnd dispatched.")
-            } else if (state == Player.STATE_BUFFERING) {
-                this@NativeVideoPlayerView.onBufferingChange(mapOf("isBuffering" to true))
-            } else if (state == Player.STATE_READY) {
-                this@NativeVideoPlayerView.onBufferingChange(mapOf("isBuffering" to false))
             }
         }
 
@@ -172,12 +169,12 @@ class NativeVideoPlayerView(
 
     private fun releasePlayer() {
         stopProgressPolling()
-        player?.apply {
-            removeListener(playerListener)
-            stop()
-            release()
+        player?.let { exo ->
+            exo.removeListener(playerListener)
+            playerView.player = null
+            exo.release()
+            Log.d(TAG, "ExoPlayer released.")
         }
         player = null
-        playerView.player = null
     }
 }

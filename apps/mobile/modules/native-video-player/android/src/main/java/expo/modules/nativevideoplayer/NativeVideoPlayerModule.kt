@@ -17,8 +17,6 @@ class NativeVideoPlayerModule : Module() {
             Events("onPlaybackEnd")
 
             Events("onProgress")
-            
-            Events("onBufferingChange")
 
             Prop("videoUrl") { view: NativeVideoPlayerView, url: String? ->
                 view.setVideoUrl(url)

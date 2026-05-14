@@ -263,9 +263,6 @@ export function CustomVideoPlayer({
           videoUrl={finalUrl}
           headers={headers}
           isPlaying={isPlaying}
-          onBufferingChange={({ nativeEvent }) => {
-            setIsBuffering(nativeEvent.isBuffering);
-          }}
           onProgress={({ nativeEvent }) => {
             if (!isDragging.current) {
               const cur = nativeEvent.currentTime;

@@ -513,10 +513,14 @@ async def resolve_episode_sources(episode_url: str, provider_id: str) -> dict:
         # Peringkat: 720p adalah 5 (Tertinggi), 1080p adalah 4 (Tertinggi ke-2), Auto adalah 3, lainnya di bawah itu
         quality_rank = {"720p": 5, "1080p": 4, "Auto": 3, "480p": 2, "360p": 1}
 
+        def sort_key(x):
+            q_score = quality_rank.get(x.get("quality", "Auto"), 0)
+            t = x.get("type", "").lower()
+            t_score = 1 if any(dt in t for dt in ["direct", "mp4", "hls"]) else 0
+            return (t_score, q_score)
+
         # Sort descending (Tertinggi di index 0)
-        filtered_sources.sort(
-            key=lambda x: quality_rank.get(x.get("quality", "Auto"), 0), reverse=True
-        )
+        filtered_sources.sort(key=sort_key, reverse=True)
         final_sources = filtered_sources
 
         from utils.signed_url import sign_stream_url
@@ -655,7 +659,7 @@ async def get_anime_detail(anilist_id: int) -> dict | None:
         if rec_ids:
             try:
                 rec_query = """
-                    SELECT m."anilistId", 
+                    SELECT m."anilistId", m."coverImage",
                            COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
                            (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode"
                     FROM anime_metadata m
@@ -671,11 +675,41 @@ async def get_anime_detail(anilist_id: int) -> dict | None:
                     if rid in valid_info:
                         r["totalEpisodes"] = valid_info[rid].get("totalEpisodes")
                         r["latestEpisode"] = valid_info[rid].get("latestEpisode")
+                        r["coverImage"] = valid_info[rid].get("coverImage")
                         new_recs.append(r)
                 meta_dict["recommendations"] = new_recs
             except Exception as e:
                 print(f"[Pipeline] Failed to filter recommendations: {e}")
                 meta_dict["recommendations"] = []
+
+    # Filter and enrich relations
+    if meta_dict.get("relations"):
+        rel_ids = [r["id"] for r in meta_dict["relations"] if r.get("id")]
+        if rel_ids:
+            try:
+                rel_query = """
+                    SELECT m."anilistId", m."coverImage",
+                           COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
+                           (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode"
+                    FROM anime_metadata m
+                    LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id
+                    WHERE m."anilistId" = ANY(:ids) AND EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
+                """
+                valid_rows = await database.fetch_all(rel_query, values={"ids": rel_ids})
+                valid_info = {r["anilistId"]: dict(r) for r in valid_rows}
+
+                new_rels = []
+                for r in meta_dict["relations"]:
+                    rid = r.get("id")
+                    if rid in valid_info:
+                        r["totalEpisodes"] = valid_info[rid].get("totalEpisodes")
+                        r["latestEpisode"] = valid_info[rid].get("latestEpisode")
+                        r["coverImage"] = valid_info[rid].get("coverImage")
+                        new_rels.append(r)
+                meta_dict["relations"] = new_rels
+            except Exception as e:
+                print(f"[Pipeline] Failed to filter relations: {e}")
+                meta_dict["relations"] = []
 
     return {
         **meta_dict,

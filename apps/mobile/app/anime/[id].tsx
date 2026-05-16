@@ -3,12 +3,13 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import useSWR from 'swr';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Play, Bookmark, Share as ShareIcon, Star, ArrowLeft, Eye, Clock, Calendar, Check, Info, Search, Bell, Forward } from 'lucide-react-native';
 import { AnimeCard } from '../../components/AnimeCard';
 import { Skeleton } from '../../components/Skeleton';
+import { AbstractBadge } from '../../components/AbstractBadge';
+import { ProgressBar } from '../../components/ProgressBar';
 import { useAuth } from '../../lib/auth';
 import { formatSynopsis, formatViews, hasEps } from '../../lib/utils';
 import { Alert } from 'react-native';
@@ -276,7 +277,6 @@ export default function AnimeDetailScreen() {
                     <Text style={{
                       color: '#fff', fontSize: 24, 
                       paddingHorizontal: 16, paddingVertical: 2,
-                      fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
                       fontWeight: 'bold', fontStyle: 'italic',
                       textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
                       transform: [{ rotate: '-4deg' }]
@@ -525,9 +525,14 @@ export default function AnimeDetailScreen() {
                             </View>
                             {epHistory && (
                                <View style={{ marginTop: 6, paddingRight: 24 }}>
-                                 <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
-                                   <View style={{ height: '100%', backgroundColor: epHistory.completed ? '#30D158' : '#0A84FF', width: `${progressPercent}%` }} />
-                                 </View>
+                                 <ProgressBar 
+                                   progress={progressPercent} 
+                                   height={3} 
+                                   borderRadius={2} 
+                                   color={epHistory.completed ? '#30D158' : '#0A84FF'}
+                                   trackColor="rgba(255,255,255,0.1)"
+                                   style={{ marginBottom: 4 }}
+                                 />
                                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Ditonton {formattedDate}</Text>
                                </View>
                             )}

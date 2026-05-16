@@ -5,6 +5,7 @@ import { Link } from 'expo-router';
 import { Play, Check, Star, Eye } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mutate } from 'swr';
+import { ProgressBar } from './ProgressBar';
 
 import { API_URL } from "../lib/config";
 import { formatViews } from '../lib/utils';
@@ -57,7 +58,11 @@ function AnimeCardInner({
 
   return (
     <Link href={href} asChild>
-      <Pressable onPressIn={handlePrefetch} style={styles.cardContainer}>
+      <Pressable 
+        onPressIn={handlePrefetch} 
+
+        style={({ pressed }) => [styles.cardContainer, pressed && { transform: [{ scale: 0.96 }], opacity: 0.85 }]}
+      >
         <View style={[styles.imageContainer, variant === 'horizontal' ? styles.aspectHorizontal : styles.aspectVertical]}>
           <Image
             source={{ uri: imageSrc || 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg' }}
@@ -126,9 +131,12 @@ function AnimeCardInner({
           </View>
 
           {progressPercent > 0 && (
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${progressPercent}%`, backgroundColor: accent }]} />
-            </View>
+            <ProgressBar 
+              progress={progressPercent} 
+              color={accent} 
+              style={styles.progressContainer} 
+              trackColor="rgba(255,255,255,0.2)"
+            />
           )}
         </View>
 

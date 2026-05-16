@@ -8,6 +8,9 @@ import { formatViews, formatDuration } from "../lib/utils";
 import { mutate } from "swr";
 import { API_URL } from "../lib/config";
 import { Theme } from "../lib/theme";
+import { Skeleton } from "./Skeleton";
+import { ProgressBar } from "./ProgressBar";
+import { AbstractBadge } from "./AbstractBadge";
 
 const { width: W } = Dimensions.get("window");
 const BG = Theme.colors.background;
@@ -61,18 +64,18 @@ export function LoadingState() {
   return (
     <View style={{ paddingTop: 0 }}>
       <View style={{ marginBottom: 28 }}>
-        <Skel w={W} h={W * 1.4} r={0} />
+        <Skeleton w={W} h={W * 1.4} r={0} />
       </View>
       {[0, 1, 2].map((s) => (
         <View key={s} style={{ marginBottom: 28 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, marginBottom: 12 }}>
-            <Skel w={140} h={16} r={6} />
+            <Skeleton w={140} h={16} r={6} />
           </View>
           <View style={{ flexDirection: "row", gap: 10, paddingLeft: 16 }}>
             {[0, 1, 2, 3].map((c) => (
               <View key={c} style={{ gap: 6 }}>
-                <Skel w={s === 1 ? W * 0.72 : 110} h={s === 1 ? 155 : 158} r={14} />
-                {s !== 1 && <Skel w={85} h={10} r={5} />}
+                <Skeleton w={s === 1 ? W * 0.72 : 110} h={s === 1 ? 155 : 158} r={14} />
+                {s !== 1 && <Skeleton w={85} h={10} r={5} />}
               </View>
             ))}
           </View>
@@ -133,7 +136,6 @@ export function HeroCard({ item }: { item: any }) {
             <Text style={{
               color: '#fff', fontSize: 24, 
               paddingHorizontal: 16, paddingVertical: 2,
-              fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'cursive',
               fontWeight: 'bold', fontStyle: 'italic',
               textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
               transform: [{ rotate: '-4deg' }]
@@ -462,11 +464,7 @@ export function WatchHistoryRow({ items }: { items: any[] }) {
                   </View>
 
                   <View style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
-                    {dur > 0 && (
-                      <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                        <View style={{ height: '100%', backgroundColor: '#0A84FF', width: `${pct}%` }} />
-                      </View>
-                    )}
+                    {dur > 0 && <ProgressBar progress={pct} height={3} />}
                   </View>
                   <View style={{ position: "absolute", top: 4, right: 4, backgroundColor: "rgba(0,0,0,0.6)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
                      <Text style={{ color: "#fff", fontSize: 9, fontWeight: FONT_BOLD }}>EPS {ep}</Text>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,44 +15,48 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import { Search, X, Clock, ChevronRight, ArrowLeft } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AnimeCard } from "../components/AnimeCard";
+import useSWRInfinite from "swr/infinite";
 
-const { width: W } = Dimensions.get("window");
+import { AnimeCard } from "../components/AnimeCard";
+import { Skeleton } from "../components/Skeleton";
 import { API_URL } from "../lib/config";
-import { fetchWithAuth } from "../lib/fetcher";
+import { fetcher } from "../lib/fetcher";
 import { hasEps } from "../lib/utils";
 import { Theme } from "../lib/theme";
+
+import { useDebounce } from "../lib/hooks/useDebounce";
+import { useSearchHistory } from "../lib/hooks/useSearchHistory";
+
+const { width: W } = Dimensions.get("window");
 const API = API_URL;
 const BG = Theme.colors.background;
 const SURFACE = Theme.colors.surface;
 const SURFACE2 = Theme.colors.surface2;
 
-// Genre data based on web implementation
 const GENRES = [
-  { name: "Action", bg: "rgba(255,59,48,0.1)", text: "#FF3B30", border: "rgba(255,59,48,0.2)" },
-  { name: "Romance", bg: "rgba(255,45,85,0.1)", text: "#FF2D55", border: "rgba(255,45,85,0.2)" },
-  { name: "Fantasy", bg: "rgba(88,86,214,0.1)", text: "#5856D6", border: "rgba(88,86,214,0.2)" },
-  { name: "Sci-Fi", bg: "rgba(0,122,255,0.1)", text: "#007AFF", border: "rgba(0,122,255,0.2)" },
-  { name: "Comedy", bg: "rgba(255,204,0,0.1)", text: "#FFCC00", border: "rgba(255,204,0,0.2)" },
-  { name: "Drama", bg: "rgba(255,149,0,0.1)", text: "#FF9500", border: "rgba(255,149,0,0.2)" },
-  { name: "Horror", bg: "rgba(255,69,58,0.1)", text: "#FF453A", border: "rgba(255,69,58,0.2)" },
-  { name: "Sports", bg: "rgba(52,199,89,0.1)", text: "#34C759", border: "rgba(52,199,89,0.2)" },
-  { name: "Mecha", bg: "rgba(100,210,255,0.1)", text: "#64D2FF", border: "rgba(100,210,255,0.2)" },
-  { name: "Slice of Life", bg: "rgba(175,82,222,0.1)", text: "#AF52DE", border: "rgba(175,82,222,0.2)" },
-  { name: "Mystery", bg: "rgba(94,92,230,0.1)", text: "#5E5CE6", border: "rgba(94,92,230,0.2)" },
-  { name: "Psychological", bg: "rgba(255,55,95,0.1)", text: "#FF375F", border: "rgba(255,55,95,0.2)" },
+  { name: "Action" },
+  { name: "Adventure" },
+  { name: "Comedy" },
+  { name: "Drama" },
+  { name: "Fantasy" },
+  { name: "Horror" },
+  { name: "Isekai" },
+  { name: "Magic" },
+  { name: "Mecha" },
+  { name: "Music" },
+  { name: "Mystery" },
+  { name: "Psychological" },
+  { name: "Romance" },
+  { name: "School" },
+  { name: "Sci-Fi" },
+  { name: "Seinen" },
+  { name: "Shounen" },
+  { name: "Slice of Life" },
+  { name: "Sports" },
+  { name: "Supernatural" },
+  { name: "Thriller" },
 ];
-
-function useDebounce(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -62,124 +66,73 @@ export default function ExploreScreen() {
   const [query, setQuery] = useState((params.q as string) || "");
   const [genre, setGenre] = useState((params.genre as string) || "");
   const [sort, setSort] = useState("popularity");
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
 
-  // Pagination states
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const isFetchingRef = useRef(false);
-
   const debouncedQuery = useDebounce(query, 600);
+  const { history, addSearchTerm, clearHistory } = useSearchHistory();
 
-  // Reset pagination when search params change
-  useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-  }, [debouncedQuery, genre, sort]);
+  const isSearchActive = !!debouncedQuery || !!genre || sort !== "popularity";
+
+  // SWR Infinite Pagination
+  const getKey = (pageIndex: number, previousPageData: any) => {
+    if (!isSearchActive) return null;
+    if (previousPageData && (!previousPageData.data || previousPageData.data.length === 0)) return null;
+    
+    let url = `${API}/api/v2/browse?page=${pageIndex + 1}&sort=${sort}`;
+    if (debouncedQuery) url += `&q=${encodeURIComponent(debouncedQuery)}`;
+    if (genre) url += `&genre=${encodeURIComponent(genre)}`;
+    return url;
+  };
+
+  const { data, error, size, setSize, isValidating } = useSWRInfinite(getKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateFirstPage: false,
+  });
+
+  const results = data ? data.flatMap(d => d.data || []).filter(hasEps) : [];
+  const isLoadingInitialData = !data && !error && isSearchActive;
+  const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined");
+  const isEmpty = data?.[0]?.data?.length === 0;
+  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.data?.length < 20); // Fallback assumption
 
   useEffect(() => {
-    loadHistory();
-    // Auto focus if no genre is set
+    // Add to history only on first page load of a successful new query
+    if (size === 1 && debouncedQuery && data && data[0]?.data?.length > 0) {
+      addSearchTerm(debouncedQuery);
+    }
+  }, [data, debouncedQuery, size, addSearchTerm]);
+
+  useEffect(() => {
     if (!params.genre) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, []);
 
-  const loadHistory = async () => {
-    try {
-      const stored = await AsyncStorage.getItem("@search_history");
-      if (stored) setHistory(JSON.parse(stored));
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const handleSortChange = useCallback((newSort: string) => {
+    setSort(newSort);
+    // Resetting size to 1 implicitly handled by SWR when key changes
+  }, []);
 
-  const saveHistory = async (newHistory: string[]) => {
-    try {
-      await AsyncStorage.setItem("@search_history", JSON.stringify(newHistory.slice(0, 10)));
-      setHistory(newHistory.slice(0, 10));
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const handleGenreSelect = useCallback((selectedGenre: string) => {
 
-  const addSearchTerm = (term: string) => {
-    if (!term.trim()) return;
-    const updated = [term.trim(), ...history.filter((t) => t.toLowerCase() !== term.toLowerCase())];
-    saveHistory(updated);
-  };
+    setGenre(selectedGenre);
+    setQuery("");
+  }, []);
 
-  const clearHistory = () => saveHistory([]);
+  const handleHistoryTap = useCallback((term: string) => {
 
-  useEffect(() => {
-    const fetchResults = async () => {
-      if (!debouncedQuery && !genre && sort === "popularity") {
-        setResults([]);
-        setLoading(false);
-        setHasMore(true);
-        return;
-      }
+    setQuery(term);
+    setGenre("");
+  }, []);
 
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
+  const clearSearch = useCallback(() => {
 
-      if (page === 1) setLoading(true);
-      else setLoadingMore(true);
-
-      try {
-        let url = `${API}/api/v2/browse?page=${page}&sort=${sort}`;
-        if (debouncedQuery) url += `&q=${encodeURIComponent(debouncedQuery)}`;
-        if (genre) url += `&genre=${encodeURIComponent(genre)}`;
-
-        const res = await fetchWithAuth(url);
-        const data = await res.json();
-
-        if (data?.success && data.data) {
-          const filtered = data.data.filter(hasEps);
-          
-          if (page === 1) {
-            setResults(filtered);
-          } else {
-            setResults(prev => [...prev, ...filtered]);
-          }
-
-          if (data.data.length === 0) {
-            setHasMore(false);
-          }
-
-          if (page === 1 && debouncedQuery && filtered.length > 0) {
-            addSearchTerm(debouncedQuery);
-          }
-        } else {
-          if (page === 1) setResults([]);
-          setHasMore(false);
-        }
-      } catch (e) {
-        console.error("Search fetch error", e);
-        if (page === 1) setResults([]);
-        setHasMore(false);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-        isFetchingRef.current = false;
-      }
-    };
-
-    fetchResults();
-  }, [debouncedQuery, genre, sort, page]);
-
-  const clearSearch = () => {
     setQuery("");
     setGenre("");
-    setResults([]);
     Keyboard.dismiss();
-  };
+  }, []);
 
-  const CARD_WIDTH = (W - 32 - 16) / 3; // 3 columns, 16px padding each side, 8px gap
+  const CARD_WIDTH = (W - 32 - 16) / 3;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -187,9 +140,11 @@ export default function ExploreScreen() {
       <StatusBar style="light" />
       
       {/* Header & Search Bar */}
-      <View style={{ paddingTop: insets.top, backgroundColor: "rgba(19,17,26,0.9)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)", zIndex: 10 }}>
+      <View 
+        style={{ paddingTop: insets.top, backgroundColor: "rgba(19,17,26,0.9)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.05)", zIndex: 10 }}
+      >
         <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, gap: 12 }}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={{ padding: 4 }}>
+          <Pressable onPress={() => { router.back(); }} hitSlop={10} style={{ padding: 4 }}>
             <ArrowLeft size={24} color="#fff" />
           </Pressable>
           <View style={s.searchContainer}>
@@ -204,7 +159,12 @@ export default function ExploreScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
-              onSubmitEditing={() => { if(query) addSearchTerm(query); Keyboard.dismiss(); }}
+              onSubmitEditing={() => { 
+                if(query) {
+                  addSearchTerm(query);
+                }
+                Keyboard.dismiss(); 
+              }}
             />
             {(query.length > 0 || genre.length > 0) && (
               <Pressable onPress={clearSearch} style={s.clearBtn}>
@@ -220,26 +180,23 @@ export default function ExploreScreen() {
             {[
               { id: "popularity", label: "Populer" },
               { id: "trending", label: "Sedang Tren" },
-              { id: "newest", label: "Terbaru" },
               { id: "score", label: "Tertinggi" },
               { id: "a-z", label: "A-Z" },
               { id: "z-a", label: "Z-A" },
-            ].map((s) => (
+            ].map((sObj) => (
               <Pressable 
-                key={s.id} 
-                onPress={() => setSort(s.id)}
-                style={{ 
-                  paddingHorizontal: 16, paddingVertical: 6, 
-                  borderRadius: 16, 
-                  backgroundColor: sort === s.id ? "rgba(10, 132, 255, 0.15)" : SURFACE2,
-                  borderWidth: 1, 
-                  borderColor: sort === s.id ? "rgba(10, 132, 255, 0.5)" : "rgba(255,255,255,0.05)"
-                }}
+                key={sObj.id} 
+                onPress={() => handleSortChange(sObj.id)}
+                style={({ pressed }) => [
+                  s.sortPill,
+                  sort === sObj.id && s.sortPillActive,
+                  pressed && s.sortPillPressed
+                ]}
               >
-                <Text style={{ 
-                  color: sort === s.id ? "#0A84FF" : "rgba(255,255,255,0.6)", 
-                  fontSize: 12, fontWeight: "600" 
-                }}>{s.label}</Text>
+                <Text style={[
+                  s.sortPillText,
+                  sort === sObj.id && s.sortPillTextActive
+                ]}>{sObj.label}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -247,12 +204,17 @@ export default function ExploreScreen() {
       </View>
 
       {/* Content */}
-      {(query || genre || sort !== "popularity") ? (
+      {isSearchActive ? (
         // Search Results
-        loading ? (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator size="large" color="#0A84FF" />
-            <Text style={{ color: "rgba(255,255,255,0.5)", marginTop: 12, fontSize: 14 }}>Mencari...</Text>
+        isLoadingInitialData ? (
+          <View style={s.skeletonGrid}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <View key={i} style={{ width: CARD_WIDTH, marginBottom: 16 }}>
+                 <Skeleton w="100%" h={CARD_WIDTH * 1.5} r={12} style={{ marginBottom: 8 }} />
+                 <Skeleton w="80%" h={14} r={6} style={{ marginBottom: 4 }} />
+                 <Skeleton w="40%" h={12} r={4} />
+              </View>
+            ))}
           </View>
         ) : results.length > 0 ? (
           <FlatList
@@ -260,11 +222,11 @@ export default function ExploreScreen() {
             data={results}
             keyExtractor={(item, index) => String(item.anilistId || item.id) + '-' + index}
             numColumns={3}
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
             columnWrapperStyle={{ gap: 8, marginBottom: 16 }}
             onEndReached={() => {
-              if (hasMore && !loading && !loadingMore) {
-                setPage(p => p + 1);
+              if (!isReachingEnd && !isLoadingMore) {
+                setSize(size + 1);
               }
             }}
             onEndReachedThreshold={0.5}
@@ -277,9 +239,9 @@ export default function ExploreScreen() {
               </View>
             }
             ListFooterComponent={
-              loadingMore ? (
+              isLoadingMore ? (
                 <View style={{ paddingVertical: 20, alignItems: "center" }}>
-                  <ActivityIndicator size="small" color="#0A84FF" />
+                   <Skeleton w={32} h={32} r={16} />
                 </View>
               ) : null
             }
@@ -288,7 +250,7 @@ export default function ExploreScreen() {
                 <AnimeCard 
                   id={String(item.anilistId || item.id)} 
                   title={item.cleanTitle || item.title?.english || item.title?.romaji || item.title || ""} 
-                  img={item.coverImage || item.img} 
+                  img={item.coverImage?.large || item.coverImage?.extraLarge || item.coverImage || item.img} 
                   score={item.score || item.averageScore} 
                   color={item.color} 
                   totalEps={item.latestEpisode || item.totalEpisodes || item.episodes} 
@@ -312,8 +274,8 @@ export default function ExploreScreen() {
           {history.length > 0 && (
             <View style={{ marginBottom: 32 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>Terakhir dicari</Text>
-                <Pressable onPress={clearHistory} hitSlop={10}>
+                <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", letterSpacing: -0.5 }}>Terakhir Dicari</Text>
+                <Pressable onPress={() => { clearHistory(); }} hitSlop={10}>
                   <Text style={{ color: "#0A84FF", fontSize: 13, fontWeight: "600" }}>Hapus Semua</Text>
                 </Pressable>
               </View>
@@ -321,8 +283,11 @@ export default function ExploreScreen() {
                 {history.map((term, i) => (
                   <Pressable 
                     key={i} 
-                    onPress={() => { setQuery(term); setGenre(""); }} 
-                    style={{ flexDirection: "row", alignItems: "center", backgroundColor: SURFACE2, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" }}
+                    onPress={() => handleHistoryTap(term)} 
+                    style={({pressed}) => [
+                      s.historyChip,
+                      pressed && s.historyChipPressed
+                    ]}
                   >
                     <Clock size={12} color="rgba(255,255,255,0.4)" style={{ marginRight: 6 }} />
                     <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "500" }}>{term}</Text>
@@ -333,18 +298,18 @@ export default function ExploreScreen() {
           )}
 
           <View>
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 16 }}>Eksplorasi Genre</Text>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 16, letterSpacing: -0.5 }}>Eksplorasi Genre</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
               {GENRES.map((g) => (
                 <Pressable
                   key={g.name}
-                  onPress={() => { setGenre(g.name); setQuery(""); }}
-                  style={{ width: (W - 32 - 12) / 2, backgroundColor: g.bg, borderColor: g.border, borderWidth: 1, borderRadius: 16, padding: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+                  onPress={() => handleGenreSelect(g.name)}
+                  style={({pressed}) => [
+                    { width: Math.floor((W - 32 - 24) / 3), backgroundColor: SURFACE2, borderColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
+                    pressed && { opacity: 0.7, transform: [{scale: 0.95}] }
+                  ]}
                 >
-                  <Text style={{ color: g.text, fontSize: 14, fontWeight: "800" }}>{g.name}</Text>
-                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(19,17,26,0.3)", alignItems: "center", justifyContent: "center" }}>
-                    <ChevronRight size={14} color={g.text} />
-                  </View>
+                  <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, fontWeight: "700", textAlign: "center" }} numberOfLines={1}>{g.name}</Text>
                 </Pressable>
               ))}
             </View>
@@ -361,11 +326,9 @@ const s = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: SURFACE2,
-    borderRadius: 16,
-    height: 48,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.1)", // Apple-like translucent input
+    borderRadius: 22,
+    height: 44,
   },
   input: {
     flex: 1,
@@ -382,5 +345,47 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+  },
+  sortPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: SURFACE2,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  sortPillActive: {
+    backgroundColor: "rgba(10, 132, 255, 0.15)",
+    borderColor: "rgba(10, 132, 255, 0.5)",
+  },
+  sortPillPressed: {
+    opacity: 0.8,
+  },
+  sortPillText: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  sortPillTextActive: {
+    color: "#0A84FF",
+  },
+  historyChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SURFACE2,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  historyChipPressed: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  skeletonGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 16,
+    gap: 8,
   }
 });

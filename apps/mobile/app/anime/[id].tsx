@@ -572,56 +572,12 @@ export default function AnimeDetailScreen() {
             )}
           </View>
 
-          {/* Relations */}
+          {/* Relations (Formatted like the old recommendations) */}
           {d.relations && d.relations.length > 0 && (
             <View style={styles.recommendationsSection}>
               <Text style={[styles.sectionTitle, {marginBottom: 16}]}>Anime Terkait</Text>
-              <View style={{ gap: 12 }}>
-                {d.relations.map((r: any, i: number) => {
-                  const recId = String(r.id || r.anilistId);
-                  if (!recId) return null;
-                  return (
-                    <Pressable 
-                      key={i} 
-                      onPress={() => router.push(`/anime/${recId}` as any)}
-                      style={({pressed}) => [{
-                        flexDirection: 'row', 
-                        gap: 16, 
-                        padding: 12, 
-                        borderRadius: 16, 
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        borderWidth: 1,
-                        borderColor: 'rgba(255,255,255,0.05)'
-                      }, pressed && { opacity: 0.8, backgroundColor: 'rgba(255,255,255,0.1)' }]}
-                    >
-                      <View style={{ width: 64, height: 90, borderRadius: 8, overflow: 'hidden' }}>
-                        <Image 
-                          source={{ uri: typeof r.cover === 'string' ? r.cover : (r.coverImage?.large || r.coverImage?.extraLarge || r.image || '') }} 
-                          style={{ width: '100%', height: '100%' }} 
-                          contentFit="cover" 
-                        />
-                      </View>
-                      <View style={{ flex: 1, justifyContent: 'center' }}>
-                        <Text style={{ color: '#0A84FF', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-                          {r.relationType ? r.relationType.replace(/_/g, " ") : "RELATED"}
-                        </Text>
-                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold', lineHeight: 20 }} numberOfLines={2}>
-                          {r.title?.english || r.title?.romaji || r.title || ''}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Recommendations */}
-          {d.recommendations && d.recommendations.length > 0 && (
-            <View style={styles.recommendationsSection}>
-              <Text style={[styles.sectionTitle, {marginBottom: 16}]}>Mungkin Anda Suka</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recommendationsScroll} contentContainerStyle={styles.recommendationsScrollContent}>
-                  {d.recommendations.map((r: any, i: number) => {
+                  {d.relations.map((r: any, i: number) => {
                     const recId = String(r.id || r.anilistId);
                     if (!recId) return null;
                     return (
@@ -629,7 +585,7 @@ export default function AnimeDetailScreen() {
                         <AnimeCard 
                           id={recId} 
                           title={r.title?.english || r.title?.romaji || r.title || ''} 
-                          img={typeof r.coverImage === 'string' ? r.coverImage : (r.coverImage?.extraLarge || r.coverImage?.large || r.cover || r.poster || r.image || '')} 
+                          img={typeof r.cover === 'string' ? r.cover : (r.coverImage?.extraLarge || r.coverImage?.large || r.cover || r.poster || r.image || '')} 
                           totalEps={r.latestEpisode || r.totalEpisodes || r.episodes} 
                           variant="vertical"
                         />

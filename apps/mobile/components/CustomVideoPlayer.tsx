@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder, BackHandler } from 'react-native';
 import NativeVideoPlayer, { NativeVideoPlayerRef } from '../modules/native-video-player/src/index';
-import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw } from 'lucide-react-native';
+import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as NavigationBar from 'expo-navigation-bar';
@@ -11,7 +11,7 @@ import { resolveProxyUrl } from '../lib/utils';
 interface Props {
   videoUrl: string | null;
   sourceType?: string;
-  title: string;
+  title?: string;
   headers?: Record<string, string>;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -24,6 +24,7 @@ interface Props {
   onShowComments?: () => void;
   onProgressUpdate?: (currentTime: number, duration: number) => void;
   onEnd?: () => void;
+  onBack?: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -40,7 +41,7 @@ function formatTime(seconds: number) {
 export function CustomVideoPlayer({ 
   videoUrl, 
   sourceType,
-  title, 
+  title,
   headers,
   onNext, 
   onPrevious, 
@@ -52,7 +53,8 @@ export function CustomVideoPlayer({
   onLike,
   onShowComments,
   onProgressUpdate,
-  onEnd
+  onEnd,
+  onBack
 }: Props) {
   // Bypass stale Cloudflare Edge Cache for proxy URLs & ensure it doesn't trigger re-renders
   const finalUrl = React.useMemo(() => resolveProxyUrl(videoUrl), [videoUrl]);
@@ -166,6 +168,23 @@ export function CustomVideoPlayer({
   };
 
   useEffect(() => {
+    const backAction = () => {
+      if (isFullscreen) {
+        handleToggleFullscreen();
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [isFullscreen]);
+
+  useEffect(() => {
     return () => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
       NavigationBar.setVisibilityAsync('visible').catch(() => {});
@@ -259,6 +278,7 @@ export function CustomVideoPlayer({
       
       {finalUrl ? (
         <NativeVideoPlayer
+          // @ts-ignore
           ref={playerRef}
           videoUrl={finalUrl}
           headers={headers}
@@ -352,7 +372,13 @@ export function CustomVideoPlayer({
 
           {/* Top Bar Content */}
           <View style={styles.topBarContentWrapper} pointerEvents="box-none">
-            <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
+            {!isFullscreen && onBack ? (
+              <Pressable onPress={onBack} style={styles.backButton}>
+                <ArrowLeft color="white" size={24} />
+              </Pressable>
+            ) : isFullscreen && title ? (
+              <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
+            ) : <View style={{ width: 40 }} />}
           </View>
 
           {/* Center Play/Pause & Skip Controls */}
@@ -522,6 +548,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 2,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleText: {
     color: 'white',

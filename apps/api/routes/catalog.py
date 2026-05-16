@@ -85,7 +85,7 @@ async def debug_kuronime(url: str = Query(...)):
 
 @router.get("/v2/anime/{anilist_id}")
 async def get_anime_v2(anilist_id: int, background_tasks: BackgroundTasks, response: Response):
-    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    response.headers["Cache-Control"] = "public, max-age=10, stale-while-revalidate=60"
     try:
         """
         Full anime detail with episode list.

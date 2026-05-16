@@ -35,10 +35,7 @@ export default function NotificationsScreen() {
   useEffect(() => {
     // If auth is loaded and user is not logged in, redirect to profile/login
     if (!authLoading && !user) {
-      // Small timeout to prevent state update during render warning in React Navigation
-      setTimeout(() => {
-         router.replace("/profile" as any);
-      }, 100);
+      router.replace("/profile" as any);
     }
   }, [user, authLoading]);
 

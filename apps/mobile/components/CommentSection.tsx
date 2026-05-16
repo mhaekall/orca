@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Platform, SafeAreaView, StyleSheet, Keyboard, Animated } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Platform, SafeAreaView, StyleSheet, Keyboard, Animated, Alert } from 'react-native';
 import useSWR, { mutate as globalMutate } from 'swr';
 import { X, Heart, MessageSquare, Send } from 'lucide-react-native';
 import { Image } from 'expo-image';

@@ -682,34 +682,67 @@ async def get_anime_detail(anilist_id: int) -> dict | None:
                 print(f"[Pipeline] Failed to filter recommendations: {e}")
                 meta_dict["recommendations"] = []
 
-    # Filter and enrich relations
-    if meta_dict.get("relations"):
-        rel_ids = [r["id"] for r in meta_dict["relations"] if r.get("id")]
-        if rel_ids:
-            try:
-                rel_query = """
-                    SELECT m."anilistId", m."coverImage",
-                           COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
-                           (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode"
-                    FROM anime_metadata m
-                    LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id
-                    WHERE m."anilistId" = ANY(:ids) AND EXISTS (SELECT 1 FROM episodes e WHERE e."anilistId" = m."anilistId")
-                """
-                valid_rows = await database.fetch_all(rel_query, values={"ids": rel_ids})
-                valid_info = {r["anilistId"]: dict(r) for r in valid_rows}
-
-                new_rels = []
-                for r in meta_dict["relations"]:
-                    rid = r.get("id")
-                    if rid in valid_info:
-                        r["totalEpisodes"] = valid_info[rid].get("totalEpisodes")
-                        r["latestEpisode"] = valid_info[rid].get("latestEpisode")
-                        r["coverImage"] = valid_info[rid].get("coverImage")
-                        new_rels.append(r)
-                meta_dict["relations"] = new_rels
-            except Exception as e:
-                print(f"[Pipeline] Failed to filter relations: {e}")
-                meta_dict["relations"] = []
+    # Filter and enrich relations (Franchise-wide BFS)
+    try:
+        # Fetch all anime for graph traversal to prevent broken chains (e.g. if a middle season has 0 episodes)
+        rows = await database.fetch_all('SELECT m."anilistId", m."cleanTitle", m."coverImage", COALESCE(c.episode_count_actual, m."totalEpisodes") as "totalEpisodes", m.relations, (SELECT COUNT(id) FROM episodes e WHERE e."anilistId" = m."anilistId") as eps FROM anime_metadata m LEFT JOIN canonical_anime c ON m."anilistId" = c.anilist_id')
+        graph = {}
+        node_data = {}
+        import json
+        for r in rows:
+            aid = r["anilistId"]
+            node_data[aid] = dict(r)
+            graph[aid] = set()
+            rels = r["relations"]
+            if rels:
+                if isinstance(rels, str):
+                    try:
+                        rels = json.loads(rels)
+                    except:
+                        rels = []
+                for rel in rels:
+                    if rel.get("id"):
+                        graph[aid].add(rel["id"])
+        
+        # Ensure undirected graph (two-way relationships)
+        for u in list(graph.keys()):
+            for v in list(graph[u]):
+                if v in graph:
+                    graph[v].add(u)
+                    
+        # BFS
+        start_id = meta_dict["anilistId"]
+        visited = set()
+        if start_id in graph:
+            queue = [start_id]
+            visited.add(start_id)
+            while queue:
+                curr = queue.pop(0)
+                if curr in graph:
+                    for neighbor in graph[curr]:
+                        if neighbor not in visited and neighbor in node_data:
+                            visited.add(neighbor)
+                            queue.append(neighbor)
+                        
+        new_rels = []
+        for vid in visited:
+            if vid != start_id:
+                data = node_data[vid]
+                # Only include in the final response if it actually has episodes in the DB
+                if data["eps"] > 0:
+                    latest_ep = await database.fetch_val('SELECT MAX("episodeNumber") FROM episodes WHERE "anilistId" = :id', values={"id": vid})
+                    new_rels.append({
+                        "id": vid,
+                        "title": data["cleanTitle"],
+                        "relationType": "FRANCHISE",
+                        "coverImage": data["coverImage"],
+                        "totalEpisodes": data["totalEpisodes"],
+                        "latestEpisode": latest_ep
+                    })
+        meta_dict["relations"] = new_rels
+    except Exception as e:
+        print(f"[Pipeline] Failed to compute franchise relations: {e}")
+        meta_dict["relations"] = []
 
     return {
         **meta_dict,

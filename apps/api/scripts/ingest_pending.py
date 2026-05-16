@@ -24,7 +24,10 @@ logger = logging.getLogger(__name__)
 async def ingest_pending(
     limit: int, shard_id: int = 0, total_shards: int = 1, anilist_id: str = None, ep_num: str = None
 ):
-    await database.connect()
+    connected_here = False
+    if not database.is_connected:
+        await database.connect()
+        connected_here = True
 
     if anilist_id and ep_num:
         logger.info(f"Targeted ingestion for Anime ID: {anilist_id}, Episode: {ep_num}")
@@ -70,7 +73,8 @@ async def ingest_pending(
 
     if not rows:
         logger.info("No pending episodes found.")
-        await database.disconnect()
+        if connected_here:
+            await database.disconnect()
         return
 
     logger.info(f"Found {len(rows)} pending episodes.")
@@ -116,12 +120,24 @@ async def ingest_pending(
                     best_rank = 999
 
                     for s in sources_response["sources"]:
-                        if any(t in s.get("type", "") for t in ["mp4", "direct", "hls"]):
-                            q = s.get("quality", "Unknown")
-                            rank = quality_order.index(q) if q in quality_order else 999
-                            if rank < best_rank:
-                                best_rank = rank
-                                best_source = s
+                        source_provider = s.get("provider", "").lower()
+                        source_url = s.get("url", "").lower()
+                        
+                        penalty = 0
+                        if "pixeldrain" in source_provider or "pixeldrain" in source_url:
+                            penalty = 10
+                        if any(x in source_provider or x in source_url for x in ["dood", "dsvplay", "vidhide", "kraken", "filelions"]):
+                            penalty = 20
+                        if "mp4upload" in source_provider or "mp4upload" in source_url:
+                            penalty = -5
+                        
+                        q = s.get("quality", "Unknown")
+                        base_rank = quality_order.index(q) if q in quality_order else 999
+                        rank = base_rank + penalty
+                        
+                        if rank < best_rank:
+                            best_rank = rank
+                            best_source = s
 
                     if best_source:
                         direct_url = best_source.get("raw_url") or best_source.get("url", "")

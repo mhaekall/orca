@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert, Dimensions, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useSWR from 'swr';
 import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign, MessageSquare, ChevronDown } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -18,6 +19,7 @@ import { fetcher, fetchWithAuth } from "../../../lib/fetcher";
 
 export default function WatchScreen() {
   const { id, episode } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
   const [showAllEpisodes, setShowAllEpisodes] = useState(false);
@@ -203,19 +205,9 @@ export default function WatchScreen() {
       
       {/* Video Player Container */}
       <View style={[
-        isFullscreen ? styles.fullscreenVideoContainer : styles.videoContainer,
+        isFullscreen ? styles.fullscreenVideoContainer : [styles.videoContainer, { marginTop: Math.max(insets.top + 16, 60) }],
         isFullscreen && showComments && { right: 320 }
       ]}>
-        {!isFullscreen && (
-          <View style={styles.backButtonWrapper}>
-            <Pressable 
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
-              <ArrowLeft color="white" size={20} />
-            </Pressable>
-          </View>
-        )}
 
         {streamLoading ? (
           <View style={styles.loadingContainer}>
@@ -227,6 +219,7 @@ export default function WatchScreen() {
             <CustomVideoPlayer 
               videoUrl={videoUrl}
               title={`${displayTitle} - Eps ${episode}`}
+              onBack={() => router.back()}
               onNext={nextEp ? () => handleEpisodeChange(String(getEpNumStr(nextEp))) : undefined}
               onPrevious={prevEp ? () => handleEpisodeChange(String(getEpNumStr(prevEp))) : undefined}
               isLoading={streamLoading}
@@ -494,7 +487,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'black',
     position: 'relative',
     justifyContent: 'center',
-    marginTop: 48, // Equivalent to mt-12. Adjust if iOS safe area needs different handling.
     zIndex: 100, // Force this on top to prevent ScrollView touch stealing
   },
   backButtonWrapper: {
@@ -507,11 +499,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   loadingContainer: {
     flex: 1,

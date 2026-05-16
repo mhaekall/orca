@@ -585,7 +585,7 @@ export default function AnimeDetailScreen() {
                         <AnimeCard 
                           id={recId} 
                           title={r.title?.english || r.title?.romaji || r.title || ''} 
-                          img={typeof r.cover === 'string' ? r.cover : (r.coverImage?.extraLarge || r.coverImage?.large || r.cover || r.poster || r.image || '')} 
+                          img={typeof r.coverImage === 'string' ? r.coverImage : (typeof r.cover === 'string' ? r.cover : (r.coverImage?.extraLarge || r.coverImage?.large || r.cover || r.poster || r.image || ''))} 
                           totalEps={r.latestEpisode || r.totalEpisodes || r.episodes} 
                           variant="vertical"
                         />

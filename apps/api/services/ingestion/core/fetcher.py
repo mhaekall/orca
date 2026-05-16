@@ -208,6 +208,37 @@ async def _single_stream_download(url: str, output_path: str) -> bool:
     return True
 
 
+async def _extract_with_ytdlp(url: str) -> str | None:
+    """Menggunakan yt-dlp untuk mengekstrak direct URL dari embed/iframe."""
+    logger.info(f"[Fetcher] Memeriksa/Mengekstrak URL dengan yt-dlp: {url}")
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "yt-dlp", "-g", url,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30.0)
+        if process.returncode == 0 and stdout:
+            lines = stdout.decode().strip().split('\n')
+            for line in reversed(lines):
+                if line.startswith("http"):
+                    return line.strip()
+            return lines[0].strip() if lines else None
+        else:
+            logger.warning(f"[Fetcher] yt-dlp gagal mengekstrak (mungkin bukan link support): {stderr.decode()[:100] if stderr else ''}")
+            return None
+    except asyncio.TimeoutError:
+        logger.warning("[Fetcher] yt-dlp timeout setelah 30 detik.")
+        try:
+            process.kill()
+        except:
+            pass
+        return None
+    except Exception as e:
+        logger.warning(f"[Fetcher] Exception saat yt-dlp: {e}")
+        return None
+
+
 class VideoFetcher:
     def __init__(self, output_dir: str = None):
         self.output_dir = output_dir or os.getenv("INGEST_TMP_DIR", "./tmp_ingest")
@@ -218,13 +249,30 @@ class VideoFetcher:
         Download video dari URL ke disk.
 
         Strategy otomatis:
+        0. Jika URL mencurigakan (embed/iframe), coba ekstrak dengan yt-dlp dulu.
         1. HLS (.m3u8)          → FFmpeg langsung (tidak bisa di-chunk)
         2. MP4 + Range support  → Parallel chunk download (4 koneksi paralel)
         3. MP4 + no Range       → FFmpeg single stream fallback
         """
-        output_path = os.path.join(self.output_dir, output_filename)
         logger.info(f"[Fetcher] Target: {url[:80]}...")
 
+        # Deteksi apakah butuh ekstraksi yt-dlp
+        url_lower = url.lower()
+        needs_extraction = False
+        if "embed" in url_lower or "iframe" in url_lower or ".html" in url_lower:
+            needs_extraction = True
+        elif not (url_lower.endswith(".mp4") or url_lower.endswith(".m3u8") or ".m3u8?" in url_lower or ".mp4?" in url_lower or "/api/file/" in url_lower):
+            needs_extraction = True
+
+        if needs_extraction:
+            extracted_url = await _extract_with_ytdlp(url)
+            if extracted_url:
+                logger.info(f"[Fetcher] yt-dlp berhasil mengekstrak URL!")
+                url = extracted_url
+            else:
+                logger.info("[Fetcher] Lanjut menggunakan URL asli karena ekstraksi yt-dlp gagal/kosong.")
+
+        output_path = os.path.join(self.output_dir, output_filename)
         headers = _make_headers(url)
 
         # Determine file size first to verify existing file

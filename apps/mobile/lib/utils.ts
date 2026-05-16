@@ -61,9 +61,9 @@ export function resolveProxyUrl(videoUrl: string | null): string | null {
     if (match) {
       const proxyDomain = match[1] || '';
       const fileId = match[2];
-      let fallbackToken = '8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE';
-      if (proxyDomain === '-4') fallbackToken = '7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8';
-      else if (proxyDomain === '-2') fallbackToken = '8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8';
+      let fallbackToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_1 || '8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE';
+      if (proxyDomain === '-4') fallbackToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_4 || '7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8';
+      else if (proxyDomain === '-2') fallbackToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_2 || '8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8';
       urlStr = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot${fallbackToken}/${fileId}`;
     }
   }

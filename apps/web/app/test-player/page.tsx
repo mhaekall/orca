@@ -2,12 +2,11 @@ import { VideoPlayer } from "@/ui/player/VideoPlayer";
 import { VideoSource } from "@/core/types/anime";
 
 export default function TestPlayerPage() {
-  const proxyBase = process.env.NEXT_PUBLIC_TG_PROXY_URL || "https://tg-proxy-1.moehamadhkl.workers.dev";
   const testSources: VideoSource[] = [
     {
       provider: "Telegram Swarm Proxy",
       quality: "1080p",
-      url: `${proxyBase}/BQACAgUAAyEGAATc0SFaAAMkadrcTCsz9C08LyIQzIk5OtbtZw8AAvIbAAJSidhWkIrMPA3jiHo7BA`,
+      url: `https://tele-proxy.moehamadhkl.workers.dev/stream/bot7328759161:AAGhAbS5jy9HWt7qHJnPAZsuCIOmTyDtKw0/BQACAgUAAyEGAATc0SFaAAEBVehp_IocgOpzTVwNnqHoyR74kf0jwwACczAAAqU34VdN1nH7eS-fHDsE`,
       type: "hls"
     }
   ];

@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { useAuth } from "../../lib/auth";
 import { AnimeCard } from "../../components/AnimeCard";
 import { Skeleton } from "../../components/Skeleton";
+import { ProgressBar } from "../../components/ProgressBar";
 
 import { HF_API_URL } from "../../lib/config";
 
@@ -52,9 +53,12 @@ const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }
              
              {dur > 0 && (
                <>
-                 <View style={styles.historyProgBarBg}>
-                   <View style={[styles.historyProgBarFill, { width: `${pct}%` }] as any} />
-                 </View>
+                 <ProgressBar 
+                   progress={pct} 
+                   style={styles.historyProgBarBg} 
+                   trackColor="rgba(255,255,255,0.1)" 
+                   borderRadius={2}
+                 />
                  <Text style={styles.historyProgText}>{formatDuration(ts)} / {formatDuration(dur)} ditonton</Text>
                </>
              )}

@@ -5,10 +5,11 @@ import { AnimeCard } from './AnimeCard';
 interface Props {
   title: string;
   items: any[];
-  badge?: 'NEW' | 'BEST' | 'MOVIE';
+  badge?: 'NEW' | 'BEST' | 'MOVIE' | 'UPDATE';
+  mediaType?: 'anime' | 'manga';
 }
 
-export function LatestGrid({ title, items, badge }: Props) {
+export function LatestGrid({ title, items, badge, mediaType = 'anime' }: Props) {
   const [visibleCount, setVisibleCount] = useState(12);
 
   if (!items || items.length === 0) return null;
@@ -39,10 +40,11 @@ export function LatestGrid({ title, items, badge }: Props) {
                 score={a.score || a.averageScore}
                 views={a.views}
                 color={a.color || a.coverImage?.color}
-                epId={a.latestEpisode ? String(a.latestEpisode) : (a.episodes ? String(a.episodes) : undefined)}
+                epId={a.latestChapter ? String(a.latestChapter) : (a.latestEpisode ? String(a.latestEpisode) : (a.episodes ? String(a.episodes) : undefined))}
                 totalEps={a.episodes}
                 variant="vertical"
                 badge={badge}
+                mediaType={mediaType}
               />
             </View>
           );

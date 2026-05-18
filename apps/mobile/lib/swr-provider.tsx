@@ -30,8 +30,25 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
           saveTimeout = setTimeout(() => {
             // Convert to array, slice to keep latest, to avoid massive JSON limits
             const entries = Array.from(map.entries()).slice(-MAX_CACHE_KEYS);
-            const data = JSON.stringify(entries);
-            AsyncStorage.setItem(CACHE_KEY, data).catch(console.error);
+            
+            const getCircularReplacer = () => {
+              const seen = new WeakSet();
+              return (key: string, value: any) => {
+                if (typeof value === "object" && value !== null) {
+                  if (seen.has(value)) return; // Discard circular reference
+                  seen.add(value);
+                }
+                if (value instanceof Error) return value.message;
+                return value;
+              };
+            };
+
+            try {
+              const data = JSON.stringify(entries, getCircularReplacer());
+              AsyncStorage.setItem(CACHE_KEY, data).catch(console.error);
+            } catch (err) {
+              console.warn('Failed to serialize SWR cache:', err);
+            }
           }, 1000);
         };
 

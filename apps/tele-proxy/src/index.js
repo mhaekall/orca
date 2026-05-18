@@ -62,8 +62,11 @@ export default {
              
              // Rewrite old tg-proxy chunks to tele-proxy format
              if (text.includes("tg-proxy")) {
-                 text = text.replace(/https:\/\/tg-proxy(-[0-9]+)?\.moehamadhkl\.workers\.dev\/([A-Za-z0-9_-]+)/g, (match, p1, p2) => {
+                 text = text.replace(/https:\/\/tg-proxy(-[0-9]+)?\.moehamadhkl\.workers\.dev\/([A-Za-z0-9_.\/:-]+)/g, (match, p1, p2) => {
                      const domain = p1 || '';
+                     if (p2.startsWith('stream/bot')) {
+                         return `https://tele-proxy.moehamadhkl.workers.dev/${p2}`;
+                     }
                      let token = '8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE'; // default tg-proxy
                      if (domain === '-4') token = '7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8';
                      else if (domain === '-2') token = '8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8';
@@ -162,8 +165,11 @@ export default {
           
           // Rewrite old tg-proxy chunks to tele-proxy format
           if (text.includes("tg-proxy")) {
-              text = text.replace(/https:\/\/tg-proxy(-[0-9]+)?\.moehamadhkl\.workers\.dev\/([A-Za-z0-9_-]+)/g, (match, p1, p2) => {
+              text = text.replace(/https:\/\/tg-proxy(-[0-9]+)?\.moehamadhkl\.workers\.dev\/([A-Za-z0-9_.\/:-]+)/g, (match, p1, p2) => {
                   const domain = p1 || '';
+                  if (p2.startsWith('stream/bot')) {
+                      return `https://tele-proxy.moehamadhkl.workers.dev/${p2}`;
+                  }
                   let token = '8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE'; // default tg-proxy
                   if (domain === '-4') token = '7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8';
                   else if (domain === '-2') token = '8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8';

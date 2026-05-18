@@ -1,0 +1,39 @@
+--- apps/tele-proxy/src/index.js
++++ apps/tele-proxy/src/index.js
+@@ -93,6 +93,17 @@
+        });
+     }
+ 
++    // FIX FOR LITERAL \n in M3U8 FILES
++    let body = response.body;
++    if (url.pathname.endsWith('.m3u8') || url.searchParams.get("mime") === "m3u8" || response.headers.get("Content-Type")?.includes("mpegurl")) {
++      let text = await response.text();
++      // Replace literal \n with actual newlines
++      if (text.includes("\\n")) {
++         text = text.replace(/\\n/g, "\n");
++      }
++      body = text;
++    }
++
+     // 4. Rebuild headers for aggressive caching and CORS
+     const newHeaders = new Headers(response.headers);
+     newHeaders.set("Access-Control-Allow-Origin", "*");
+@@ -124,7 +135,7 @@
+     if (response.status === 200 || response.status === 206) {
+       // Cache API rejects 206 status codes. We MUST store it as 200.
+-      const cacheableResponse = new Response(response.clone().body, {
++      const cacheableResponse = new Response(body, {
+         status: 200,
+         statusText: "OK",
+         headers: newHeaders
+       });
+       ctx.waitUntil(cache.put(cacheKey, cacheableResponse));
+     }
+ 
+-    return new Response(response.body, {
++    return new Response(body, {
+       status: finalStatus,
+       statusText: finalStatusText,
+       headers: newHeaders
+     });
+   }

@@ -50,13 +50,13 @@ watch_history = Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("userId", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
-    Column("animeSlug", String, nullable=False),
+    Column("anilist_id", String, nullable=False),
     Column("episode", Integer, nullable=False),
     Column("timestampSec", Integer, default=0),
     Column("durationSec", Integer, default=0),
     Column("completed", Boolean, default=False),
     Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
-    UniqueConstraint("userId", "animeSlug", "episode", name="uq_user_anime_history_v2"),
+    UniqueConstraint("userId", "anilist_id", "episode", name="uq_user_anime_history_v2"),
 )
 
 anime_mappings = Table(
@@ -271,7 +271,7 @@ collections = Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("userId", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
-    Column("animeSlug", String, nullable=False),
+    Column("anilist_id", String, nullable=False),
     Column(
         "status", String, nullable=False, default="plan_to_watch"
     ),  # watching, plan_to_watch, completed, dropped
@@ -283,7 +283,7 @@ collections = Table(
         comment="Tracks the latest episode number watched (can be fractional like 12.5)",
     ),
     Column("updatedAt", DateTime, nullable=False, server_default=func.now(), onupdate=func.now()),
-    UniqueConstraint("userId", "animeSlug", name="uq_user_anime_collection"),
+    UniqueConstraint("userId", "anilist_id", name="uq_user_anime_collection"),
 )
 
 

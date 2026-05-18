@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 class CommentCreate(BaseModel):
     user_id: str
-    anilistId: int
+    anilistId: str
     episodeNumber: float
     text: str
     parent_id: int | None = None

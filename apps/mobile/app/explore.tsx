@@ -27,6 +27,9 @@ import { Theme } from "../lib/theme";
 
 import { useDebounce } from "../lib/hooks/useDebounce";
 import { useSearchHistory } from "../lib/hooks/useSearchHistory";
+import { MangaEngine } from "../lib/manga/engine";
+import { MANGA_SOURCES } from "../lib/manga/sources";
+import { MangaItem } from "../lib/manga/types";
 
 const { width: W } = Dimensions.get("window");
 const API = API_URL;
@@ -63,6 +66,8 @@ export default function ExploreScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   
+  const mediaType = (params.mediaType as string) || "anime";
+  
   const [query, setQuery] = useState((params.q as string) || "");
   const [genre, setGenre] = useState((params.genre as string) || "");
   const [sort, setSort] = useState("popularity");
@@ -73,9 +78,13 @@ export default function ExploreScreen() {
 
   const isSearchActive = !!debouncedQuery || !!genre || sort !== "popularity";
 
-  // SWR Infinite Pagination
+  // Manga Search State
+  const [mangaResults, setMangaResults] = useState<MangaItem[]>([]);
+  const [mangaLoading, setMangaLoading] = useState(false);
+
+  // SWR Infinite Pagination (For Anime)
   const getKey = (pageIndex: number, previousPageData: any) => {
-    if (!isSearchActive) return null;
+    if (mediaType === "manga" || !isSearchActive) return null;
     if (previousPageData && (!previousPageData.data || previousPageData.data.length === 0)) return null;
     
     let url = `${API}/api/v2/browse?page=${pageIndex + 1}&sort=${sort}`;
@@ -89,18 +98,42 @@ export default function ExploreScreen() {
     revalidateFirstPage: false,
   });
 
-  const results = data ? data.flatMap(d => d.data || []).filter(hasEps) : [];
-  const isLoadingInitialData = !data && !error && isSearchActive;
-  const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined");
-  const isEmpty = data?.[0]?.data?.length === 0;
-  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.data?.length < 20); // Fallback assumption
+  useEffect(() => {
+    if (mediaType === "manga" && isSearchActive && debouncedQuery) {
+      const fetchMangaSearch = async () => {
+        setMangaLoading(true);
+        try {
+          // Fallback to first source for search. Ideally we could let user select source.
+          const source = MANGA_SOURCES[0];
+          const results = await MangaEngine.getSearchList(source, debouncedQuery);
+          setMangaResults(results);
+        } catch (e) {
+          console.error(e);
+          setMangaResults([]);
+        } finally {
+          setMangaLoading(false);
+        }
+      };
+      fetchMangaSearch();
+    } else if (mediaType === "manga") {
+      setMangaResults([]);
+    }
+  }, [debouncedQuery, mediaType, isSearchActive]);
+
+  const results = mediaType === "manga" ? mangaResults : (data ? data.flatMap(d => d.data || []).filter(hasEps) : []);
+  const isLoadingInitialData = mediaType === "manga" ? mangaLoading : (!data && !error && isSearchActive);
+  const isLoadingMore = mediaType === "anime" && (isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined"));
+  const isEmpty = mediaType === "manga" ? (mangaResults.length === 0 && !mangaLoading) : (data?.[0]?.data?.length === 0);
+  const isReachingEnd = mediaType === "manga" ? true : (isEmpty || (data && data[data.length - 1]?.data?.length < 20));
 
   useEffect(() => {
     // Add to history only on first page load of a successful new query
-    if (size === 1 && debouncedQuery && data && data[0]?.data?.length > 0) {
-      addSearchTerm(debouncedQuery);
+    if (debouncedQuery && results.length > 0) {
+      if ((mediaType === "anime" && size === 1) || mediaType === "manga") {
+        addSearchTerm(debouncedQuery);
+      }
     }
-  }, [data, debouncedQuery, size, addSearchTerm]);
+  }, [results.length, debouncedQuery, size, mediaType, addSearchTerm]);
 
   useEffect(() => {
     if (!params.genre) {
@@ -253,7 +286,8 @@ export default function ExploreScreen() {
                   img={item.coverImage?.large || item.coverImage?.extraLarge || item.coverImage || item.img} 
                   score={item.score || item.averageScore} 
                   color={item.color} 
-                  totalEps={item.latestEpisode || item.totalEpisodes || item.episodes} 
+                  totalEps={item.latestEpisode || item.totalEpisodes || item.episodes || item.latestChapter} 
+                  mediaType={mediaType as "anime" | "manga"}
                 />
               </View>
             )}

@@ -20,29 +20,23 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 10
-
       - name: Set up Java 17
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Cache pnpm dependencies
+      - name: Cache npm dependencies
         uses: actions/cache@v3
         with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: |
-          pnpm config set ignore-scripts false
-          cd apps/mobile && pnpm install --ignore-workspace --no-frozen-lockfile
+          cd apps/mobile && npm install --legacy-peer-deps
 
       - name: Prebuild Android (Generate Native Code)
         working-directory: ./apps/mobile

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { Link, useRouter, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import useSWR, { mutate } from "swr";
-import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star, ChevronRight } from "lucide-react-native";
+import { Search, Play, Bell, TrendingUp, Flame, Film, Tv, Eye, Star, ChevronRight, BookOpen } from "lucide-react-native";
 import { LatestGrid } from "../../components/LatestGrid";
 import { 
   LoadingState, 
@@ -28,6 +28,7 @@ import {
   WatchHistoryRow, 
   SecHeader 
 } from "../../components/HomeSections";
+import { MangaHome } from "../../components/manga/MangaHome";
 import { useAuth } from "../../lib/auth";
 import { hasEps } from "../../lib/utils";
 import { Theme } from "../../lib/theme";
@@ -45,6 +46,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id || user?.email;
+
+  const [activeTab, setActiveTab] = useState<'anime' | 'manga'>('anime');
 
   const { data, isLoading, isValidating, error, mutate } = useSWR(`${API}/api/v2/home?v=3`, fetcher, {
     revalidateOnFocus: false,
@@ -107,22 +110,42 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="light" />
 
-      {/* Fixed header with Search Bar integrated */}
+      {/* Fixed header with Search Bar and Segmented Control */}
       <Animated.View style={[s.header, { backgroundColor: headerBg }]}>
-        <Text style={s.logo}>orca</Text>
-        
-        {/* Search integrated into header */}
-        <Pressable onPress={() => router.push("/explore" as any)} style={s.search}>
-          <Search size={16} color="rgba(255,255,255,0.4)" />
-          <Text style={s.searchText}>Cari anime...</Text>
-        </Pressable>
+        <View style={s.headerTopRow}>
+          <Text style={s.logo}>orca</Text>
+          
+          <Pressable onPress={() => router.push(`/explore?mediaType=${activeTab}` as any)} style={s.search}>
+            <Search size={16} color="rgba(255,255,255,0.4)" />
+            <Text style={s.searchText}>Cari {activeTab === 'anime' ? 'anime' : 'komik'}...</Text>
+          </Pressable>
 
-        <Pressable onPress={() => router.push("/notifications" as any)} style={s.bellBtn}>
-          <Bell size={21} color="rgba(255,255,255,0.8)" />
-        </Pressable>
+          <Pressable onPress={() => router.push("/notifications" as any)} style={s.bellBtn}>
+            <Bell size={21} color="rgba(255,255,255,0.8)" />
+          </Pressable>
+        </View>
+
+        <View style={s.segmentedControlWrapper}>
+          <View style={s.segmentedControl}>
+            <Pressable 
+              onPress={() => setActiveTab('anime')}
+              style={[s.segmentBtn, activeTab === 'anime' && s.segmentBtnActive]}
+            >
+              <Text style={[s.segmentText, activeTab === 'anime' && s.segmentTextActive]}>Nonton</Text>
+            </Pressable>
+            <Pressable 
+              onPress={() => setActiveTab('manga')}
+              style={[s.segmentBtn, activeTab === 'manga' && s.segmentBtnActive]}
+            >
+              <Text style={[s.segmentText, activeTab === 'manga' && s.segmentTextActive]}>Baca</Text>
+            </Pressable>
+          </View>
+        </View>
       </Animated.View>
 
-      {isLoading ? (
+      {activeTab === 'manga' ? (
+        <MangaHome />
+      ) : isLoading ? (
         <LoadingState />
       ) : isError ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40 }}>
@@ -142,7 +165,7 @@ export default function HomeScreen() {
       ) : (
         <Animated.ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 110 }}
+          contentContainerStyle={{ paddingBottom: 110, paddingTop: 100 }}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
           scrollEventThrottle={16}
           refreshControl={
@@ -212,10 +235,40 @@ const paddingTopSafe = Platform.OS === 'android' ? RNStatusBar.currentHeight || 
 const s = StyleSheet.create({
   header: {
     position: "absolute", top: 0, left: 0, right: 0, zIndex: 100,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    flexDirection: "column",
     paddingHorizontal: 16, paddingTop: paddingTopSafe + 10, paddingBottom: 16,
   },
+  headerTopRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 12,
+  },
   logo: { fontSize: 24, fontWeight: FONT_BOLD, color: "#fff", letterSpacing: -0.5 },
+  segmentedControlWrapper: {
+    alignItems: "flex-start", // align left or center, let's align left like apple style or center
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 20,
+    padding: 2,
+    alignSelf: "flex-start",
+  },
+  segmentBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  segmentBtnActive: {
+    backgroundColor: Theme.colors.primary,
+  },
+  segmentText: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 13,
+    fontWeight: FONT_BOLD,
+  },
+  segmentTextActive: {
+    color: "#fff",
+  },
   bellBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.08)",
@@ -224,9 +277,9 @@ const s = StyleSheet.create({
   search: {
     flex: 1,
     flexDirection: "row", alignItems: "center",
-    marginHorizontal: 12,
     backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 8, gap: 8,
+    marginHorizontal: 12,
   },
   searchText: { color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: "400" },
 });

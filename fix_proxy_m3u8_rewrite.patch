@@ -1,0 +1,21 @@
+--- apps/tele-proxy/src/index.js
++++ apps/tele-proxy/src/index.js
+@@ -51,10 +51,15 @@
+       let cachedBody = response.body;
+       if (newHeaders.get("Content-Type")?.includes("mpegurl")) {
+          let text = await response.text();
++         let isModified = false;
+          if (text.includes("\\n")) {
+              text = text.replace(/\\n/g, "\n");
++             isModified = true;
++         }
++         // Force bust cache and enforce mime type for ExoPlayer chunks
++         if (text.includes("tele-proxy")) {
++             text = text.replace(/(https:\/\/tele-proxy[\w\.\/\-:]+)(?!.*\bmime=ts)/g, "$1?mime=ts&v=2");
++             isModified = true;
++         }
++         if (isModified) {
+              newHeaders.delete("Content-Length");
+          }
+          cachedBody = text;
+       }

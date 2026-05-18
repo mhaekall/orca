@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert, Dimensions, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Share, StyleSheet, Alert, Dimensions, Linking, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack, Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useSWR from 'swr';
-import { Bookmark, Share as ShareIcon, ArrowLeft, Heart, Eye, Flag, DollarSign, MessageSquare, ChevronDown } from 'lucide-react-native';
+import { Bookmark, Forward, ArrowLeft, Heart, Eye, Flag, MessageSquare, ChevronDown } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useAuth } from '../../../lib/auth';
 import { AnimeCard } from '../../../components/AnimeCard';
 import { CommentSection } from '../../../components/CommentSection';
 import { Skeleton } from '../../../components/Skeleton';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
+import { AnimeEpisodes } from '../../../components/anime-detail/AnimeEpisodes';
 import { useWatchProgress } from '../../../lib/hooks/useWatchProgress';
 import { hasEps } from '../../../lib/utils';
 
@@ -22,12 +23,15 @@ export default function WatchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const [showAllEpisodes, setShowAllEpisodes] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [playerError, setPlayerError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  const { data: animeData } = useSWR(`${API_URL}/api/v2/anime/${id}`, fetcher);
+  const { data: animeData } = useSWR(`${HF_API_URL}/api/v2/anime/${id}?_cb=5`, fetcher);
+  
+  const { data: progressData } = useSWR(
+    user?.id || user?.email ? `${HF_API_URL}/api/v2/social/progress?user_id=${user?.id || user?.email}` : null,
+    fetcher
+  );
   const { data: streamData, isLoading: streamLoading } = useSWR(
     `${API_URL}/api/v2/anime/${id}/episodes/${episode}/stream`,
     fetcher
@@ -49,7 +53,9 @@ export default function WatchScreen() {
   const anime = animeData?.data;
   const sources = streamData?.sources || [];
   const episodes = anime?.episodes || [];
-  const recommendations = (anime?.recommendations || []).filter(hasEps);
+
+  const watchHistoryRaw = Array.isArray(progressData) ? progressData : (progressData?.data || []);
+  const animeHistory = watchHistoryRaw.filter((h: any) => String(h.animeSlug) === String(id));
   
   // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
   const bestSource = sources.length > 0 ? sources[0] : null;
@@ -122,7 +128,7 @@ export default function WatchScreen() {
     try {
       await Share.share({
         message: `Nonton ${displayTitle} Episode ${episode} di aplikasi Orca!`,
-        url: `https://orcanime.pages.dev/watch/${id}/${episode}`, // fallback to web link that redirects to deep link
+        url: `https://orca-anime.com/watch/${id}/${episode}`, // fallback to web link that redirects to deep link
       });
     } catch (error) {
       console.error(error);
@@ -152,8 +158,7 @@ export default function WatchScreen() {
             anilist_id: parseInt(id as string),
             episode_number: parseFloat(episode as string),
             issue_type: issue,
-            video_url: videoUrl,
-            player_error: playerError
+            video_url: videoUrl
           }),
         });
         Alert.alert("Terima Kasih", `Laporan '${issue}' telah dikirim ke tim kami.`);
@@ -205,7 +210,7 @@ export default function WatchScreen() {
       
       {/* Video Player Container */}
       <View style={[
-        isFullscreen ? styles.fullscreenVideoContainer : [styles.videoContainer, { marginTop: Math.max(insets.top + 16, 60) }],
+        isFullscreen ? styles.fullscreenVideoContainer : [styles.videoContainer, { marginTop: Math.max(insets.top, 0) }],
         isFullscreen && showComments && { right: 320 }
       ]}>
 
@@ -215,33 +220,26 @@ export default function WatchScreen() {
             <Text style={styles.loadingText}>Mencari sumber video...</Text>
           </View>
         ) : videoUrl ? (
-          <>
-            <CustomVideoPlayer 
-              videoUrl={videoUrl}
-              title={`${displayTitle} - Eps ${episode}`}
-              onBack={() => router.back()}
-              onNext={nextEp ? () => handleEpisodeChange(String(getEpNumStr(nextEp))) : undefined}
-              onPrevious={prevEp ? () => handleEpisodeChange(String(getEpNumStr(prevEp))) : undefined}
-              isLoading={streamLoading}
-              onFullscreenChange={setIsFullscreen}
-              views={realViews}
-              likes={likesCount}
-              isLiked={isLiked}
-              onLike={handleToggleLike}
-              onShowComments={() => setShowComments(true)}
-              onProgressUpdate={(time, dur) => {
-                updateProgress(time, dur);
-              }}
-              onEnd={() => {
-                if (nextEp) handleEpisodeChange(String(getEpNumStr(nextEp)));
-              }}
-            />
-            {!!playerError && (
-              <View style={{ position: 'absolute', top: 60, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.7)', padding: 10, borderRadius: 8, zIndex: 100 }} pointerEvents="none">
-                <Text style={{color:'red', fontWeight: 'bold'}}>Player Error: {playerError}</Text>
-              </View>
-            )}
-          </>
+          <CustomVideoPlayer 
+            videoUrl={videoUrl}
+            title={`${displayTitle} - Eps ${episode}`}
+            onBack={() => router.back()}
+            onNext={nextEp ? () => handleEpisodeChange(String(getEpNumStr(nextEp))) : undefined}
+            onPrevious={prevEp ? () => handleEpisodeChange(String(getEpNumStr(prevEp))) : undefined}
+            isLoading={streamLoading}
+            onFullscreenChange={setIsFullscreen}
+            views={realViews}
+            likes={likesCount}
+            isLiked={isLiked}
+            onLike={handleToggleLike}
+            onShowComments={() => setShowComments(true)}
+            onProgressUpdate={(time, dur) => {
+              updateProgress(time, dur);
+            }}
+            onEnd={() => {
+              if (nextEp) handleEpisodeChange(String(getEpNumStr(nextEp)));
+            }}
+          />
         ) : (
           <View style={styles.unavailableContainer}>
             <Text style={styles.unavailableText}>Video belum tersedia untuk episode ini.</Text>
@@ -251,215 +249,115 @@ export default function WatchScreen() {
 
       {/* Konten Halaman */}
       {!isFullscreen && (
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {anime ? (
-          <>
-            {/* Judul & Detail Singkat */}
-            <View style={styles.titleSection}>
-              <Text style={styles.titleText}>
-                {displayTitle} <Text style={styles.episodeText}>· Eps {episode}</Text>
-              </Text>
-            </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          {anime ? (
+            <CommentSection 
+              anilistId={String(id)} 
+              episode={String(episode)} 
+              user={user} 
+              visible={true} 
+              onClose={() => setShowComments(false)} 
+              isFullscreen={false}
+              ListHeaderComponent={
+                <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+                  {/* Judul & Detail Singkat */}
+                  <View style={styles.titleSection}>
+                    <Text style={styles.titleText}>
+                      {displayTitle} <Text style={styles.episodeText}>· Eps {episode}</Text>
+                    </Text>
+                  </View>
 
-            {/* Scrollable Action Bar */}
-            <View style={styles.actionBarWrapper}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionBarContent}>
-                <Link href={`/anime/${id}`} asChild>
-                  <Pressable style={({pressed}) => [styles.avatarPressable, pressed && styles.pressedState]}>
-                    <Image 
-                      source={{ uri: poster || "https://api.dicebear.com/7.x/notionists/svg" }} 
-                      style={styles.avatarImage} 
-                      contentFit="cover"
-                    />
-                  </Pressable>
-                </Link>
+                  {/* Scrollable Action Bar */}
+                  <View style={styles.actionBarWrapper}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionBarContent}>
+                      <Link href={`/anime/${id}`} asChild>
+                        <Pressable style={({pressed}) => [styles.avatarPressable, pressed && styles.pressedState]}>
+                          <Image 
+                            source={{ uri: poster || "https://api.dicebear.com/7.x/notionists/svg" }} 
+                            style={styles.avatarImage} 
+                            contentFit="cover"
+                          />
+                        </Pressable>
+                      </Link>
 
-                <Pressable 
-                  onPress={handleSaveCollection}
-                  style={({pressed}) => [styles.actionButtonWhite, pressed && styles.actionButtonWhitePressed]}
-                >
-                  <Text style={styles.actionButtonWhiteText}>Simpan</Text>
-                </Pressable>
-
-                <View style={styles.viewBadge}>
-                  <Eye color="#e5e5ea" size={16} />
-                  <Text style={styles.viewBadgeText}>
-                    {realViews >= 1000000 ? (realViews/1000000).toFixed(1) + 'M' : realViews >= 1000 ? (realViews/1000).toFixed(1) + 'K' : realViews}
-                  </Text>
-                </View>
-
-                <Pressable 
-                  onPress={handleToggleLike}
-                  style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
-                >
-                  <Heart color={isLiked ? "#ff2d55" : "white"} fill={isLiked ? "#ff2d55" : "transparent"} size={16} />
-                  <Text style={[styles.actionButtonDarkText, isLiked && { color: "#ff2d55" }]}>{likesCount > 0 ? likesCount : 'Suka'}</Text>
-                </Pressable>
-
-                <Pressable 
-                  onPress={handleShare}
-                  style={({pressed}) => [styles.iconOnlyButton, pressed && styles.actionButtonDarkPressed]}
-                >
-                  <ShareIcon color="white" size={16} />
-                </Pressable>
-
-                <Pressable 
-                  onPress={handleSupport}
-                  style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
-                >
-                  <DollarSign color="white" size={14} />
-                  <Text style={styles.actionButtonDarkText}>Thanks</Text>
-                </Pressable>
-
-                <Pressable 
-                  onPress={handleReport}
-                  style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
-                >
-                  <Flag color="white" size={14} />
-                  <Text style={styles.actionButtonDarkText}>Lapor</Text>
-                </Pressable>
-              </ScrollView>
-            </View>
-
-            {/* List Episode */}
-            <View style={styles.episodesSection}>
-              <View style={styles.episodesHeader}>
-                <Text style={styles.episodesTitle}>
-                  {showAllEpisodes ? `Episode (${sortedEpisodes.length})` : 'Episode'}
-                </Text>
-                <Pressable 
-                  onPress={() => setShowAllEpisodes(!showAllEpisodes)}
-                  style={({pressed}) => [styles.episodesToggleButton, pressed && styles.episodesToggleButtonPressed]}
-                >
-                  <Text style={styles.episodesToggleText}>{showAllEpisodes ? "Tutup" : "Semua"}</Text>
-                </Pressable>
-              </View>
-              
-              {showAllEpisodes ? (
-                <View style={styles.allEpisodesGrid}>
-                  {sortedEpisodes.map((ep: any) => {
-                    const epNum = getEpNumStr(ep);
-                    const isActive = String(epNum) === String(episode);
-                    return (
                       <Pressable 
-                        key={epNum}
-                        onPress={() => handleEpisodeChange(String(epNum))}
+                        onPress={handleShare}
                         style={({pressed}) => [
-                          styles.allEpisodeItem,
-                          isActive ? styles.episodeItemActive : styles.episodeItemInactive,
-                          pressed && !isActive && styles.episodeItemPressed
+                          { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" }, 
+                          pressed && styles.pressedState
                         ]}
                       >
-                        <Text style={[styles.episodeItemText, isActive ? styles.episodeTextActive : styles.episodeTextInactive]}>
-                          {epNum}
-                        </Text>
+                        <Forward color="white" size={16} />
                       </Pressable>
-                    );
-                  })}
-                </View>
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.episodesScroll} contentContainerStyle={styles.episodesScrollContent}>
-                    {sortedEpisodes.map((ep: any) => {
-                      const epNum = getEpNumStr(ep);
-                      const isActive = String(epNum) === String(episode);
-                      return (
-                        <Pressable 
-                          key={epNum}
-                          onPress={() => handleEpisodeChange(String(epNum))}
-                          style={({pressed}) => [
-                            styles.scrollEpisodeItem,
-                            isActive ? styles.episodeItemActive : styles.episodeItemInactive,
-                            pressed && !isActive && styles.episodeItemPressed
-                          ]}
-                        >
-                          <Text style={[styles.scrollEpisodeText, isActive ? styles.episodeTextActive : styles.episodeTextInactive]}>
-                            {epNum}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                </ScrollView>
-              )}
-            </View>
 
-            {/* Comments Preview Box */}
-            <View style={styles.commentsPreviewSection}>
-              <Pressable 
-                onPress={() => setShowComments(true)}
-                style={({pressed}) => [styles.commentsBox, pressed && styles.commentsBoxPressed]}
-              >
-                <View style={styles.commentsHeader}>
-                  <Text style={styles.commentsTitle}>Komentar </Text>
-                  <ChevronDown color="#8e8e93" size={18} />
-                </View>
-                <View style={styles.commentsInputRow}>
-                  <View style={styles.userAvatarContainer}>
-                    {user?.picture ? (
-                      <Image source={{ uri: user.picture }} style={styles.userAvatarImage} />
-                    ) : (
-                      <Text style={styles.userAvatarText}>{user?.name ? user.name.charAt(0) : "U"}</Text>
-                    )}
+                      <View style={styles.viewBadge}>
+                        <Eye color="#e5e5ea" size={16} />
+                        <Text style={styles.viewBadgeText}>
+                          {realViews >= 1000000 ? (realViews/1000000).toFixed(1) + 'M' : realViews >= 1000 ? (realViews/1000).toFixed(1) + 'K' : realViews}
+                        </Text>
+                      </View>
+
+                      <Pressable 
+                        onPress={handleToggleLike}
+                        style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
+                      >
+                        <Heart color={isLiked ? "#ff2d55" : "white"} fill={isLiked ? "#ff2d55" : "transparent"} size={16} />
+                        <Text style={[styles.actionButtonDarkText, isLiked && { color: "#ff2d55" }]}>{likesCount > 0 ? likesCount : 'Suka'}</Text>
+                      </Pressable>
+
+                      <Pressable 
+                        onPress={handleReport}
+                        style={({pressed}) => [styles.actionButtonDark, pressed && styles.actionButtonDarkPressed]}
+                      >
+                        <Flag color="white" size={14} />
+                        <Text style={styles.actionButtonDarkText}>Lapor</Text>
+                      </Pressable>
+                    </ScrollView>
                   </View>
-                  <Text style={styles.commentsPlaceholderText} numberOfLines={1}>
-                    Bagikan pendapatmu tentang episode ini...
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
 
-            {/* Recommendations */}
-            {recommendations && recommendations.length > 0 && (
-              <View style={styles.recommendationsSection}>
-                <Text style={styles.recommendationsTitle}>Rekomendasi</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recommendationsScroll} contentContainerStyle={styles.recommendationsScrollContent}>
-                    {recommendations.slice(0, 10).map((rec: any, i: number) => {
-                      const recId = String(rec.id || rec.anilistId);
-                      if (!recId) return null;
-                      return (
-                        <View key={i} style={styles.recommendationItem}>
-                          <AnimeCard 
-                            id={recId} 
-                            title={rec.title?.english || rec.title?.romaji || rec.title || ''} 
-                            img={rec.cover || rec.poster || rec.image || rec.coverImage?.extraLarge} 
-                            totalEps={rec.latestEpisode || rec.totalEpisodes || rec.episodes} 
-                          />
-                        </View>
-                      );
-                    })}
-                </ScrollView>
+                  {/* List Episode Terpusat dari Komponen Detail */}
+                  <AnimeEpisodes 
+                    animeId={String(id)} 
+                    rawEps={episodes} 
+                    history={animeHistory} 
+                    activeEpisode={String(episode)} 
+                    onEpisodePress={handleEpisodeChange}
+                  />
+                </View>
+              }
+            />
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+              <View style={styles.skeletonContainer}>
+                <Skeleton w="80%" h={28} r={8} style={styles.skeletonTitle} />
+                <Skeleton w="50%" h={16} r={6} style={styles.skeletonSubtitle} />
+                <View style={styles.skeletonActions}>
+                  <Skeleton w={50} h={50} r={25} />
+                  <Skeleton w={50} h={50} r={25} />
+                  <Skeleton w={50} h={50} r={25} />
+                  <Skeleton w={50} h={50} r={25} />
+                </View>
+                <Skeleton w={120} h={20} r={8} style={styles.skeletonSectionTitle} />
+                <View style={styles.skeletonGrid}>
+                   {Array.from({ length: 10 }).map((_, i) => (
+                     <Skeleton key={i} w={70} h={40} r={12} />
+                   ))}
+                </View>
               </View>
-            )}
-            
-          </>
-        ) : (
-          <View style={styles.skeletonContainer}>
-            <Skeleton w="80%" h={28} r={8} style={styles.skeletonTitle} />
-            <Skeleton w="50%" h={16} r={6} style={styles.skeletonSubtitle} />
-            <View style={styles.skeletonActions}>
-              <Skeleton w={50} h={50} r={25} />
-              <Skeleton w={50} h={50} r={25} />
-              <Skeleton w={50} h={50} r={25} />
-              <Skeleton w={50} h={50} r={25} />
-            </View>
-            <Skeleton w={120} h={20} r={8} style={styles.skeletonSectionTitle} />
-            <View style={styles.skeletonGrid}>
-               {Array.from({ length: 10 }).map((_, i) => (
-                 <Skeleton key={i} w={70} h={40} r={12} />
-               ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
+            </ScrollView>
+          )}
+        </KeyboardAvoidingView>
       )}
-      
-      {anime && (
+
+      {/* Render khusus untuk overlay komentar di mode fullscreen */}
+      {isFullscreen && showComments && (
         <CommentSection 
           anilistId={String(id)} 
           episode={String(episode)} 
           user={user} 
-          visible={showComments} 
+          visible={true} 
           onClose={() => setShowComments(false)} 
-          isFullscreen={isFullscreen}
+          isFullscreen={true}
         />
       )}
     </View>
@@ -530,7 +428,8 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 0,
+    flexGrow: 1,
   },
   titleSection: {
     marginBottom: 8,
@@ -675,112 +574,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
   },
-  episodesSection: {
-    marginBottom: 24,
-  },
-  episodesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  episodesTitle: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    letterSpacing: -0.5,
-  },
-  episodesToggleButton: {
-    backgroundColor: 'rgba(10, 132, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  episodesToggleButtonPressed: {
-    backgroundColor: 'rgba(10, 132, 255, 0.2)',
-  },
-  episodesToggleText: {
-    color: '#0A84FF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  allEpisodesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  allEpisodeItem: {
-    width: '18%',
-    aspectRatio: 1,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  episodesScroll: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-  },
-  episodesScrollContent: {
-    paddingRight: 32,
-    gap: 10,
-  },
-  scrollEpisodeItem: {
-    height: 48,
-    minWidth: 64,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  episodeItemActive: {
-    backgroundColor: 'white',
-    borderColor: 'white',
-  },
-  episodeItemInactive: {
-    backgroundColor: '#1f1c29',
-    borderColor: 'transparent',
-  },
-  episodeItemPressed: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  episodeItemText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  scrollEpisodeText: {
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  episodeTextActive: {
-    color: 'black',
-  },
-  episodeTextInactive: {
-    color: '#8e8e93',
-  },
-  recommendationsSection: {
-    marginBottom: 24,
-  },
-  recommendationsTitle: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    letterSpacing: -0.5,
-    marginBottom: 12,
-  },
-  recommendationsScroll: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-  },
-  recommendationsScrollContent: {
-    paddingRight: 32,
-    gap: 12,
-  },
-  recommendationItem: {
-    width: 120,
-  },
+
   skeletonContainer: {
     paddingHorizontal: 20,
     paddingTop: 24,

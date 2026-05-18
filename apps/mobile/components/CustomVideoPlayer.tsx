@@ -80,11 +80,40 @@ export function CustomVideoPlayer({
 
   const durationRef = useRef(duration);
   const currentTimeRef = useRef(currentTime);
+  const lastTimeRef = useRef(0);
+  const stuckCountRef = useRef(0);
   
   useEffect(() => {
     durationRef.current = duration;
     currentTimeRef.current = currentTime;
   }, [duration, currentTime]);
+
+  // Frontend-only buffering detection interval
+  useEffect(() => {
+    if (!isPlaying) {
+      setIsBuffering(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (isDragging.current) return;
+      
+      const timeNow = currentTimeRef.current;
+      // If we haven't reached the end and time is stuck
+      if (timeNow > 0 && timeNow === lastTimeRef.current && timeNow < durationRef.current - 1) {
+        stuckCountRef.current += 1;
+        if (stuckCountRef.current >= 2) {
+          setIsBuffering(true);
+        }
+      } else {
+        stuckCountRef.current = 0;
+        setIsBuffering(false);
+      }
+      lastTimeRef.current = timeNow;
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   useEffect(() => {
     setIsBuffering(true);
@@ -287,9 +316,18 @@ export function CustomVideoPlayer({
             if (!isDragging.current) {
               const cur = nativeEvent.currentTime;
               const dur = nativeEvent.duration;
+              
+              // Frontend-only buffering detection
+              // If we are supposed to be playing but time hasn't changed for 2 updates (approx 2s), we are buffering.
+              // Need a ref to store previous time and count
+              
               setCurrentTime(cur);
               setDuration(dur);
-              setIsBuffering(false);
+              
+              // Basic heuristic: if the current time is exactly the same as the last time we checked, 
+              // and we are supposed to be playing, we might be buffering.
+              // To avoid flickering, we will handle this with a useEffect interval instead.
+              
               if (onProgressUpdate) onProgressUpdate(cur, dur);
             }
           }}
@@ -490,7 +528,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'transparent',
     zIndex: 10,
     elevation: 10,
     pointerEvents: 'none',

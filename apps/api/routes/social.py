@@ -75,7 +75,7 @@ async def get_watch_session(anilist_id: int, episode_number: float, user_id: str
 @router.get("/progress")
 async def get_watch_history(user_id: str):
     # Join with anime_metadata to get titles and images
-    # We join on animeSlug = cast(anilistId as String)
+    # We join on anilist_id = cast(anilistId as String)
     query = (
         select(
             watch_history,
@@ -86,7 +86,7 @@ async def get_watch_history(user_id: str):
         .select_from(
             watch_history.outerjoin(
                 anime_metadata,
-                watch_history.c.animeSlug == func.cast(anime_metadata.c.anilistId, String),
+                watch_history.c.anilist_id == func.cast(anime_metadata.c.anilistId, String),
             )
         )
         .where(watch_history.c.userId == user_id)
@@ -99,12 +99,12 @@ async def get_watch_history(user_id: str):
 
 @router.post("/progress")
 async def update_watch_history(item: WatchProgressUpdate):
-    # Drizzle schema columns: userId, animeSlug, episode, timestampSec, durationSec, completed
+    # Drizzle schema columns: userId, anilist_id, episode, timestampSec, durationSec, completed
     stmt = (
         pg_insert(watch_history)
         .values(
             userId=item.user_id,
-            animeSlug=str(item.anilistId),
+            anilist_id=str(item.anilistId),
             episode=int(item.episodeNumber),
             timestampSec=item.progressSeconds,
             durationSec=item.durationSeconds,
@@ -112,7 +112,7 @@ async def update_watch_history(item: WatchProgressUpdate):
             updatedAt=func.now(),
         )
         .on_conflict_do_update(
-            index_elements=["userId", "animeSlug", "episode"],
+            index_elements=["userId", "anilist_id", "episode"],
             set_={
                 "timestampSec": item.progressSeconds,
                 "durationSec": item.durationSeconds,
@@ -174,7 +174,7 @@ async def record_watch_event(event: WatchEventCreate):
 async def get_anime_stats(anilistId: int, user_id: str | None = None):
     # Get internal watch stats
     watch_query = """
-    SELECT COUNT(DISTINCT user_id) as total_watchers, 
+    SELECT COUNT(DISTINCT user_id) as total_watchers,
            COUNT(DISTINCT session_id) as total_episode_views
     FROM watch_sessions
     WHERE "anilist_id" = :anilistId

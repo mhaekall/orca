@@ -79,3 +79,4 @@ scripts/playground/
 
 # Capacitor
 *.apk
+*.so

@@ -1,0 +1,22 @@
+--- apps/tele-proxy/src/index.js
++++ apps/tele-proxy/src/index.js
+@@ -48,6 +48,15 @@
+          finalStatus = 206;
+       }
+       
++      // FIX FOR CACHED LITERAL \n
++      let cachedBody = response.body;
++      if (newHeaders.get("Content-Type")?.includes("mpegurl")) {
++         let text = await response.text();
++         if (text.includes("\\n")) {
++             text = text.replace(/\\n/g, "\n");
++             newHeaders.delete("Content-Length");
++         }
++         cachedBody = text;
++      }
++
+-      return new Response(response.body, {
++      return new Response(cachedBody, {
+         status: finalStatus,
+         statusText: finalStatus === 206 ? "Partial Content" : response.statusText,
+         headers: newHeaders

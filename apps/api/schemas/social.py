@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 class WatchProgressUpdate(BaseModel):
     user_id: str
-    anilistId: int
+    anilistId: str
     episodeNumber: float
     progressSeconds: int
     durationSeconds: int
@@ -12,7 +12,7 @@ class WatchProgressUpdate(BaseModel):
 
 class WatchEventCreate(BaseModel):
     user_id: str
-    anilistId: int
+    anilistId: str
     episodeNumber: float
     event_type: str  # "start", "progress", "complete"
     timestamp_sec: int
@@ -20,7 +20,7 @@ class WatchEventCreate(BaseModel):
 
 class EpisodeLikeCreate(BaseModel):
     user_id: str
-    anilistId: int
+    anilistId: str
     episodeNumber: float
 
 

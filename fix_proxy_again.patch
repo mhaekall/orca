@@ -1,0 +1,22 @@
+--- apps/tele-proxy/src/index.js
++++ apps/tele-proxy/src/index.js
+@@ -102,6 +102,8 @@
+          text = text.replace(/\\n/g, "\n");
+       }
+       body = text;
++      // We MUST delete Content-Length since the body size changed!
++      response = new Response(body, response);
+     }
+ 
+     // 4. Rebuild headers for aggressive caching and CORS
+@@ -128,6 +130,10 @@
+          newHeaders.set("Content-Type", "video/MP2T");
+       }
+     }
++    
++    if (body !== response.body) {
++       newHeaders.delete("Content-Length");
++    }
+ 
+     let finalStatus = response.status;
+     let finalStatusText = response.statusText;

@@ -21,11 +21,12 @@ interface Props {
   rank?: number;
   variant?: 'vertical' | 'horizontal';
   isNew?: boolean;
-  badge?: 'NEW' | 'BEST' | 'MOVIE';
+  badge?: 'NEW' | 'BEST' | 'MOVIE' | 'UPDATE';
   totalEps?: number | null;
   views?: number | null;
   progressPercent?: number; 
   isCompleted?: boolean;
+  mediaType?: 'anime' | 'manga';
 }
 
 function AnimeCardInner({
@@ -44,20 +45,25 @@ function AnimeCardInner({
   views,
   progressPercent = 0,
   isCompleted = false,
+  mediaType = 'anime',
 }: Props) {
   const accent = color || '#0A84FF';
-  const href = `/anime/${id}`;
+  const href = mediaType === 'manga' ? `/manga/${id}` : `/anime/${id}`;
 
   const imageSrc = variant === 'horizontal' ? banner || img : img;
   const currentBadge = badge || (isNew ? 'NEW' : null);
 
   const handlePrefetch = () => {
-    const url = `${API_URL}/api/v2/anime/${id}`;
-    mutate(url);
+    if (mediaType === 'anime') {
+      const url = `${API_URL}/api/v2/anime/${id}`;
+      mutate(url);
+    }
   };
 
+  const chPrefix = mediaType === 'manga' ? 'CH' : 'EPS';
+
   return (
-    <Link href={href} asChild>
+    <Link href={href as any} asChild>
       <Pressable 
         onPressIn={handlePrefetch} 
 
@@ -87,6 +93,11 @@ function AnimeCardInner({
               <Text style={styles.badgeTextBlack}>NEW</Text>
             </View>
           )}
+          {!rank && currentBadge === 'UPDATE' && (
+            <View style={[styles.badgeTopLeft, styles.badgeUpdate]}>
+              <Text style={styles.badgeTextBlack}>UPDATE</Text>
+            </View>
+          )}
           {!rank && currentBadge === 'BEST' && (
             <View style={[styles.badgeTopLeft, styles.badgeBest]}>
               <Text style={styles.badgeTextBlack}>BEST</Text>
@@ -103,8 +114,8 @@ function AnimeCardInner({
               {currentBadge === 'MOVIE'
                 ? 'HD'
                 : currentBadge === 'BEST'
-                ? `${totalEps || epId || '?'} EPS`
-                : `EPS ${epId || totalEps || '?'}`}
+                ? `${totalEps || epId || '?'} ${chPrefix}`
+                : `${chPrefix} ${epId || totalEps || '?'}`}
             </Text>
           </View>
 
@@ -206,6 +217,9 @@ const styles = StyleSheet.create({
   },
   badgeNew: {
     backgroundColor: '#FF9500',
+  },
+  badgeUpdate: {
+    backgroundColor: '#30D158',
   },
   badgeBest: {
     backgroundColor: '#30D158',

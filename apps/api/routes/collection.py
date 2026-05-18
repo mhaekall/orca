@@ -12,14 +12,14 @@ router = APIRouter()
 @router.get("")
 async def get_collection(user_id: str):
     query = """
-        SELECT c.*, 
+        SELECT c.*,
                m."coverImage" as "coverImage",
                m."cleanTitle" as "cleanTitle",
                m."nativeTitle" as "nativeTitle",
                COALESCE(ca.episode_count_actual, m."totalEpisodes") as "totalEpisodes",
                (SELECT MAX("episodeNumber") FROM episodes e WHERE e."anilistId" = m."anilistId") as "latestEpisode"
         FROM collections c
-        LEFT JOIN anime_metadata m ON c."animeSlug" = CAST(m."anilistId" AS VARCHAR)
+        LEFT JOIN anime_metadata m ON c.anilist_id = CAST(m."anilistId" AS VARCHAR)
         LEFT JOIN canonical_anime ca ON m."anilistId" = ca.anilist_id
         WHERE c."userId" = :user_id
         ORDER BY c."updatedAt" DESC
@@ -34,12 +34,12 @@ async def save_collection(coll: CollectionUpdate):
         pg_insert(collections)
         .values(
             userId=coll.user_id,
-            animeSlug=coll.anilistId,
+            anilist_id=coll.anilistId,
             status=coll.status,
             progress=coll.progress,
         )
         .on_conflict_do_update(
-            index_elements=["userId", "animeSlug"],
+            index_elements=["userId", "anilist_id"],
             set_={"status": coll.status, "progress": coll.progress, "updatedAt": func.now()},
         )
     )
@@ -50,7 +50,7 @@ async def save_collection(coll: CollectionUpdate):
 @router.delete("")
 async def remove_collection(user_id: str, anilistId: str):
     stmt = delete(collections).where(
-        (collections.c.userId == user_id) & (collections.c.animeSlug == anilistId)
+        (collections.c.userId == user_id) & (collections.c.anilist_id == anilistId)
     )
     await database.execute(stmt)
     return {"success": True}

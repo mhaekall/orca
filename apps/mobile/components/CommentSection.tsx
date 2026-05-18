@@ -14,9 +14,10 @@ interface CommentProps {
   onClose: () => void;
   visible: boolean;
   isFullscreen?: boolean;
+  ListHeaderComponent?: React.ReactNode;
 }
 
-export function CommentSection({ anilistId, episode, user, onClose, visible, isFullscreen = false }: CommentProps) {
+export function CommentSection({ anilistId, episode, user, onClose, visible, isFullscreen = false, ListHeaderComponent }: CommentProps) {
   const [sortBy, setSortBy] = useState<"top" | "newest">("top");
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,169 +164,137 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
     );
   };
 
-  const content = (
-      <View 
-        pointerEvents={isFullscreen ? "box-none" : "auto"}
-        style={[
-        styles.modalOverlay, 
-        isFullscreen && StyleSheet.absoluteFillObject,
-        { paddingBottom: kbHeight },
-        isFullscreen && { justifyContent: 'flex-end', flexDirection: 'row', zIndex: 9999 }
-      ]}>
-        <View style={[styles.backdrop, { backgroundColor: 'transparent' }]} pointerEvents={isFullscreen ? "none" : "auto"}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => { if (!isFullscreen) onClose(); }} />
-        </View>
-        <Animated.View style={[
-          styles.container,
-          isFullscreen && { 
-            height: '100%', 
-            width: 320, 
-            borderTopLeftRadius: 24, 
-            borderTopRightRadius: 0,
-            borderBottomLeftRadius: 24,
-            borderLeftWidth: 1,
-            borderTopWidth: 0,
-          }
-        ]}>
-          <SafeAreaView style={styles.safeArea}>
-            {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.headerTitle}>Komentar <Text style={styles.headerCount}>{comments.length}</Text></Text>
-              <View style={styles.filterContainer}>
-                <Pressable onPress={() => setSortBy("top")} style={[styles.filterButton, sortBy === "top" && styles.filterButtonActive]}>
-                  <Text style={[styles.filterText, sortBy === "top" ? styles.filterTextActive : styles.filterTextInactive]}>Populer</Text>
-                </Pressable>
-                <Pressable onPress={() => setSortBy("newest")} style={[styles.filterButton, sortBy === "newest" && styles.filterButtonActive]}>
-                  <Text style={[styles.filterText, sortBy === "newest" ? styles.filterTextActive : styles.filterTextInactive]}>Terbaru</Text>
-                </Pressable>
-              </View>
-            </View>
-            <Pressable onPress={onClose} style={({pressed}) => [styles.closeButton, pressed && styles.closeButtonPressed]}>
-              <X color="#8e8e93" size={20} />
-            </Pressable>
-          </View>
+  if (!visible && isFullscreen) return null; // In fullscreen we might hide it entirely since we don't have modal
 
-          {/* Comment List */}
-          <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#0A84FF" style={styles.loader} />
-            ) : comments.length > 0 ? (
-              comments.map((c: any) => renderComment(c))
-            ) : (
-              <Text style={styles.emptyText}>Mulai diskusi...</Text>
-            )}
-          </ScrollView>
+  return (
+    <View style={[styles.container, isFullscreen ? styles.fullscreenContainer : { flex: 1 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+        {!isFullscreen && ListHeaderComponent}
 
-          {/* Composer */}
-          <View style={styles.composerWrapper}>
-            {/* Emoji Row */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" style={styles.emojiRow} contentContainerStyle={styles.emojiContent}>
-               {EMOJIS.map(emoji => (
-                 <Pressable key={emoji} onPress={() => setText(prev => prev + emoji)} style={styles.emojiBtn}>
-                   <Text style={styles.emojiText}>{emoji}</Text>
-                 </Pressable>
-               ))}
-            </ScrollView>
-
-            {replyingTo && (
-               <View style={styles.replyIndicator}>
-                 <Text style={styles.replyIndicatorText}>Balasan ke <Text style={{color: '#fff'}}>@{replyingTo.username.toLowerCase()}</Text></Text>
-                 <Pressable onPress={() => setReplyingTo(null)} style={styles.cancelReplyBtn}>
-                   <X color="#8e8e93" size={14} />
-                 </Pressable>
-               </View>
-            )}
-            
-            <View style={styles.composerContainer}>
-              {user && (
-                <View style={styles.composerAvatar}>
-                  {user.picture || user.image ? (
-                    <Image source={{ uri: user.picture || user.image }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
-                  ) : (
-                    <Text style={styles.composerAvatarFallback}>{(user.name || "U").charAt(0).toUpperCase()}</Text>
-                  )}
-                </View>
-              )}
-              <View style={styles.inputWrapper}>
-                <TextInput 
-                  value={text}
-                  onChangeText={setText}
-                  placeholder={user ? "Komentar..." : "Login untuk komentar..."}
-                  placeholderTextColor="#8e8e93"
-                  editable={!!user}
-                  multiline
-                  style={styles.textInput}
-                />
-                {text.trim() ? (
-                  <Pressable 
-                    onPress={handlePostComment}
-                    disabled={isSubmitting}
-                    style={styles.sendButton}
-                  >
-                    {isSubmitting ? (
-                      <ActivityIndicator size="small" color="white" />
-                    ) : (
-                      <View style={styles.sendIconContainer}>
-                         <Send color="white" size={14} />
-                      </View>
-                    )}
-                  </Pressable>
-                ) : null}
-              </View>
-              <Pressable 
-                onPress={() => Alert.alert("Segera Hadir", "Fitur dukungan/Thanks (Saweria) akan segera hadir!")} 
-                style={({pressed}) => [styles.thanksButton, pressed && styles.thanksButtonPressed]}
-              >
-                <Heart color="white" size={22} strokeWidth={2} />
-                <Text style={styles.thanksIconText}>$</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Komentar <Text style={styles.headerCount}>{comments.length}</Text></Text>
+            <View style={styles.filterContainer}>
+              <Pressable onPress={() => setSortBy("top")} style={[styles.filterButton, sortBy === "top" && styles.filterButtonActive]}>
+                <Text style={[styles.filterText, sortBy === "top" ? styles.filterTextActive : styles.filterTextInactive]}>Populer</Text>
+              </Pressable>
+              <Pressable onPress={() => setSortBy("newest")} style={[styles.filterButton, sortBy === "newest" && styles.filterButtonActive]}>
+                <Text style={[styles.filterText, sortBy === "newest" ? styles.filterTextActive : styles.filterTextInactive]}>Terbaru</Text>
               </Pressable>
             </View>
           </View>
-        </SafeAreaView>
-        </Animated.View>
+          {isFullscreen && (
+            <Pressable onPress={onClose} style={({pressed}) => [styles.closeButton, pressed && styles.closeButtonPressed]}>
+              <X color="#8e8e93" size={20} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Comment List */}
+        <View style={styles.listContainer}>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#0A84FF" style={styles.loader} />
+          ) : comments.length > 0 ? (
+            comments.map((c: any) => renderComment(c))
+          ) : (
+            <Text style={styles.emptyText}>Jadilah yang pertama berkomentar!</Text>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Composer di Bawah */}
+      <View style={[styles.composerWrapper, !isFullscreen && { paddingBottom: 16, backgroundColor: '#0a0812' }]}>
+        {replyingTo && (
+            <View style={styles.replyIndicator}>
+              <Text style={styles.replyIndicatorText}>Balasan ke <Text style={{color: '#fff'}}>@{replyingTo.username.toLowerCase()}</Text></Text>
+              <Pressable onPress={() => setReplyingTo(null)} style={styles.cancelReplyBtn}>
+                <X color="#8e8e93" size={14} />
+              </Pressable>
+            </View>
+        )}
+
+        {/* Emoji Row */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" style={styles.emojiRow} contentContainerStyle={styles.emojiContent}>
+            {EMOJIS.map(emoji => (
+              <Pressable key={emoji} onPress={() => setText(prev => prev + emoji)} style={styles.emojiBtn}>
+                <Text style={styles.emojiText}>{emoji}</Text>
+              </Pressable>
+            ))}
+        </ScrollView>
+        
+        <View style={styles.composerContainer}>
+          {user && (
+            <View style={styles.composerAvatar}>
+              {user.picture || user.image ? (
+                <Image source={{ uri: user.picture || user.image }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+              ) : (
+                <Text style={styles.composerAvatarFallback}>{(user.name || "U").charAt(0).toUpperCase()}</Text>
+              )}
+            </View>
+          )}
+          <View style={styles.inputWrapper}>
+            <TextInput 
+              value={text}
+              onChangeText={setText}
+              placeholder={user ? "Komentar..." : "Login untuk komentar..."}
+              placeholderTextColor="#8e8e93"
+              editable={!!user}
+              multiline
+              style={styles.textInput}
+            />
+            {text.trim() ? (
+              <Pressable 
+                onPress={handlePostComment}
+                disabled={isSubmitting}
+                style={styles.sendButton}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <View style={styles.sendIconContainer}>
+                     <Send color="white" size={14} />
+                  </View>
+                )}
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable 
+            onPress={() => Alert.alert("Segera Hadir", "Fitur dukungan/Thanks (Saweria) akan segera hadir!")} 
+            style={({pressed}) => [styles.thanksButton, pressed && styles.thanksButtonPressed]}
+          >
+            <Heart color="white" size={22} strokeWidth={2} />
+            <Text style={styles.thanksIconText}>$</Text>
+          </Pressable>
+        </View>
       </View>
-  );
-
-  if (!visible) return null;
-
-  if (isFullscreen) {
-    return content;
-  }
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose} supportedOrientations={['portrait', 'landscape']}>
-      {content}
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
   container: {
-    height: '60%', 
-    backgroundColor: '#0a0c10', // Web dark bg
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    // flex removed
   },
-  safeArea: {
-    flex: 1,
+  fullscreenContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 320,
+    backgroundColor: '#0a0c10',
+    borderRadius: 0,
+    borderLeftWidth: 1,
+    zIndex: 9999,
   },
   header: {
-    height: 60,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    borderBottomWidth: 0,
+    marginTop: -8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -383,7 +352,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   listContainer: {
-    flex: 1,
     padding: 16,
   },
   listContent: {
@@ -473,8 +441,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   composerWrapper: {
-    backgroundColor: '#0a0c10',
-    paddingBottom: Platform.OS === 'ios' ? 0 : 12,
+    backgroundColor: 'transparent',
+    paddingBottom: 0,
   },
   emojiRow: {
     paddingVertical: 8,

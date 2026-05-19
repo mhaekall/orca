@@ -456,7 +456,7 @@ GET_MANGA_BY_ID = """
       description(asHtml: false)
       genres
       tags { name rank }
-      staff { nodes { name primaryOccupations } }
+      staff { nodes { name { full } primaryOccupations } }
       recommendations {
         nodes {
           mediaRecommendation {
@@ -546,7 +546,7 @@ async def fetch_anilist_manga_by_id(anilist_id: int):
             media = response.json().get("data", {}).get("Media")
             if not media: return None
             
-            authors = [s["name"] for s in media.get("staff", {}).get("nodes", []) if "Story & Art" in s.get("primaryOccupations", []) or "Story" in s.get("primaryOccupations", [])]
+            authors = [s.get("name", {}).get("full", "Unknown") for s in media.get("staff", {}).get("nodes", []) if "Story & Art" in s.get("primaryOccupations", []) or "Story" in s.get("primaryOccupations", [])]
             author = authors[0] if authors else "Unknown"
 
             recs = [{"id": r["mediaRecommendation"]["id"], "title": r["mediaRecommendation"]["title"].get("english") or r["mediaRecommendation"]["title"].get("romaji"), "cover": r["mediaRecommendation"]["coverImage"]["large"]} for r in media.get("recommendations", {}).get("nodes", []) if r.get("mediaRecommendation")]

@@ -508,34 +508,44 @@ async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> tuple[
     async with sem:
         try:
             safe_title = urllib.parse.quote(title)
-            async with AsyncSession(impersonate="chrome110", timeout=8.0) as s:
-                # Cek Komikindo terlebih dahulu
+            async with AsyncSession(impersonate="chrome110", timeout=12.0) as s:
+                # 1. Cek Komikindo
                 res1 = await s.get(f"https://komikindo.ch/?s={safe_title}")
                 if res1.status_code not in [403, 503]:
                     soup1 = BeautifulSoup(res1.text, "html.parser")
                     posts = soup1.select(".animepost")
                     if posts:
-                        ch_num = 0
-                        ch_element = posts[0].select_one(".lsch a")
-                        if ch_element:
-                            match = re.search(r'\d+', ch_element.text)
-                            if match: ch_num = int(match.group())
-                        return True, ch_num
-                        
-                # Jika tidak ada, cek Bacakomik
+                        link_el = posts[0].select_one("a")
+                        if link_el and 'href' in link_el.attrs:
+                            detail_url = link_el['href']
+                            res_det = await s.get(detail_url)
+                            soup_det = BeautifulSoup(res_det.text, "html.parser")
+                            chapters = soup_det.select("#chapter_list .lchx a")
+                            if chapters:
+                                match = re.search(r'\d+', chapters[0].text)
+                                if match: return True, int(match.group())
+                        return True, 0
+                
+                # 2. Cek Bacakomik
                 res2 = await s.get(f"https://bacakomik.my/?s={safe_title}")
                 if res2.status_code not in [403, 503]:
                     soup2 = BeautifulSoup(res2.text, "html.parser")
                     posts = soup2.select(".animepost")
                     if posts:
-                        ch_num = 0
-                        ch_element = posts[0].select_one(".lsch a")
-                        if ch_element:
-                            match = re.search(r'\d+', ch_element.text)
-                            if match: ch_num = int(match.group())
-                        return True, ch_num
-                        
-                # Jika diblokir oleh dua-duanya, fallback ke True agar tidak blank
+                        link_el = posts[0].select_one("a")
+                        if link_el and 'href' in link_el.attrs:
+                            detail_url = link_el['href']
+                            res_det = await s.get(detail_url)
+                            soup_det = BeautifulSoup(res_det.text, "html.parser")
+                            chapters = soup_det.select("#chapterlist .lchx a")
+                            if not chapters:
+                                chapters = soup_det.select(".bxcl ul li .lchx a")
+                            if chapters:
+                                match = re.search(r'\d+', chapters[0].text)
+                                if match: return True, int(match.group())
+                        return True, 0
+                
+                # Fallback jika cloudflare block
                 if res1.status_code in [403, 503] and res2.status_code in [403, 503]:
                     return True, 0
                     

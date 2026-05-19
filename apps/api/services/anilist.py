@@ -499,26 +499,36 @@ GET_MANGA_SEARCH = """
   }
 """
 
-async def check_manga_availability(title: str) -> bool:
-    import httpx
+async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> bool:
+    from curl_cffi.requests import AsyncSession
     from bs4 import BeautifulSoup
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as http_client:
-            res = await http_client.get(f"https://komikindo.ch/?s={title}")
-            soup = BeautifulSoup(res.text, "html.parser")
-            return len(soup.select(".animepost")) > 0
-    except Exception:
-        return False
+    import urllib.parse
+    
+    async with sem:
+        try:
+            safe_title = urllib.parse.quote(title)
+            async with AsyncSession(impersonate="chrome110", timeout=8.0) as s:
+                res = await s.get(f"https://komikindo.ch/?s={safe_title}")
+                if res.status_code in [403, 503]:
+                    return True # Fallback to True if blocked by Cloudflare to avoid empty home
+                soup = BeautifulSoup(res.text, "html.parser")
+                return len(soup.select(".animepost")) > 0
+        except Exception as e:
+            print(f"[Manga Validation Error] {title}: {e}")
+            return True # Fallback to True on timeout/error
 
 async def filter_valid_manga(media_list: list, limit: int = 15) -> list:
     import asyncio
     valid_media = []
     
+    # Limit concurrency to 5 to avoid hammering the provider and getting blocked
+    sem = asyncio.Semaphore(5)
+    
     async def validate_and_append(m):
         title = m["title"].get("english") or m["title"].get("romaji") or m["title"].get("native")
         if not title:
             return None
-        is_valid = await check_manga_availability(title)
+        is_valid = await check_manga_availability(title, sem)
         return m if is_valid else None
         
     tasks = [validate_and_append(m) for m in media_list]

@@ -87,6 +87,7 @@ export default function ExploreScreen() {
     let url = `${baseUrl}/api/v2/${mediaType === "manga" ? "manga/search" : "browse"}?page=${pageIndex + 1}&sort=${sort}`;
     if (debouncedQuery) url += `&q=${encodeURIComponent(debouncedQuery)}`;
     if (genre && mediaType !== "manga") url += `&genre=${encodeURIComponent(genre)}`; // Manga genre filter pending backend support
+    url += `&_cb=5`; // Bypass cache
     return url;
   };
 

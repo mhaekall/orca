@@ -35,7 +35,7 @@ export function HomeContent({ scrollY, mediaType }: HomeContentProps) {
   // Endpoint switching
   const endpoint = mediaType === 'anime' 
     ? `${API_URL}/api/v2/home?v=3` 
-    : `${API_URL}/api/v2/manga/home?_cb=2`;
+    : `${API_URL}/api/v2/manga/home?_cb=5`;
 
   const { data: swrData, isLoading, isValidating, error, mutate } = useSWR(endpoint, fetcher, {
     revalidateOnFocus: false,

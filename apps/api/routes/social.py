@@ -86,7 +86,7 @@ async def get_watch_history(user_id: str):
         .select_from(
             watch_history.outerjoin(
                 anime_metadata,
-                watch_history.c.anilist_id == func.cast(anime_metadata.c.anilistId, String),
+                func.replace(watch_history.c.anilist_id, 'manga|', '') == func.cast(anime_metadata.c.anilistId, String),
             )
         )
         .where(watch_history.c.userId == user_id)
@@ -100,7 +100,7 @@ async def get_watch_history(user_id: str):
 @router.post("/progress")
 async def update_watch_history(item: WatchProgressUpdate):
     # If title and coverImage are provided (e.g. for Manga), upsert into anime_metadata
-    if item.title and item.coverImage and item.anilistId.isdigit():
+    if item.title and item.coverImage and str(item.anilistId).isdigit():
         meta_stmt = (
             pg_insert(anime_metadata)
             .values(
@@ -121,11 +121,13 @@ async def update_watch_history(item: WatchProgressUpdate):
         await database.execute(meta_stmt)
 
     # Drizzle schema columns: userId, anilist_id, episode, timestampSec, durationSec, completed
+    db_anilist_id = f"manga|{item.anilistId}" if item.mediaType == "manga" and not str(item.anilistId).startswith("manga|") else str(item.anilistId)
+    
     stmt = (
         pg_insert(watch_history)
         .values(
             userId=item.user_id,
-            anilist_id=str(item.anilistId),
+            anilist_id=db_anilist_id,
             episode=int(item.episodeNumber),
             timestampSec=item.progressSeconds,
             durationSec=item.durationSeconds,

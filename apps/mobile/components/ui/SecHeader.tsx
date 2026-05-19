@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Theme } from "../../lib/theme";
 
-const FONT_SEMIBOLD = Theme.typography.weights.semibold;
+const FONT_BLACK = Theme.typography.weights.black;
 
 export function SecHeader({ label }: { label: string }) {
   return (
@@ -15,12 +15,12 @@ export function SecHeader({ label }: { label: string }) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   text: {
     color: "#fff",
-    fontSize: 18,
-    fontWeight: FONT_SEMIBOLD,
-    letterSpacing: -0.2,
+    fontSize: 20,
+    fontWeight: FONT_BLACK,
+    letterSpacing: -0.5,
   },
 });

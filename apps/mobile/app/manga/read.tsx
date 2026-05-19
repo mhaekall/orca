@@ -165,7 +165,8 @@ export default function MangaReaderScreen() {
              durationSeconds,
              isCompleted,
              title: title,
-             coverImage: img
+             coverImage: img,
+             mediaType: 'manga'
            }),
          }).catch(() => {});
       }

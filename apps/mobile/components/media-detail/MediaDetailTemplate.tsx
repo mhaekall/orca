@@ -71,7 +71,10 @@ export function MediaDetailTemplate({ id, mediaType }: MediaDetailTemplateProps)
           user_id: userId,
           anilistId: String(id),
           status: "plan_to_watch",
-          progress: 0
+          progress: 0,
+          title: d?.title,
+          img: d?.imageUrl,
+          mediaType: mediaType
         };
         res = await fetchWithAuth(`${HF_API_URL}/api/v2/collection`, {
           method: "POST",

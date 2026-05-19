@@ -193,21 +193,21 @@ const s = StyleSheet.create({
   },
   bottomPill: {
     flexDirection: "row",
-    backgroundColor: "rgba(30, 28, 41, 0.85)", // Glassmorphism dark
-    borderRadius: 24,
-    padding: 4,
+    backgroundColor: "rgba(31, 28, 41, 0.8)", // Enhanced glassmorphism-ish
+    borderRadius: 28,
+    padding: 6,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 12,
   },
   bottomSegmentBtn: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 22,
   },
   bottomSegmentBtnActive: {
     backgroundColor: Theme.colors.primary,

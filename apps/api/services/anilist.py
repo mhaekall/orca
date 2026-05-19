@@ -420,17 +420,17 @@ async def fetch_anilist_info(title: str):
 
 GET_MANGA_HOME = """
 query {
-  trending: Page(page: 1, perPage: 15) {
+  trending: Page(page: 1, perPage: 35) {
     media(type: MANGA, sort: TRENDING_DESC, isAdult: false) {
       id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
     }
   }
-  popular: Page(page: 1, perPage: 15) {
+  popular: Page(page: 1, perPage: 35) {
     media(type: MANGA, sort: POPULARITY_DESC, isAdult: false) {
       id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
     }
   }
-  latest: Page(page: 1, perPage: 20) {
+  latest: Page(page: 1, perPage: 40) {
     media(type: MANGA, sort: UPDATED_AT_DESC, isAdult: false) {
       id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
     }
@@ -499,6 +499,39 @@ GET_MANGA_SEARCH = """
   }
 """
 
+async def check_manga_availability(title: str) -> bool:
+    import httpx
+    from bs4 import BeautifulSoup
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as http_client:
+            res = await http_client.get(f"https://komikindo.ch/?s={title}")
+            soup = BeautifulSoup(res.text, "html.parser")
+            return len(soup.select(".animepost")) > 0
+    except Exception:
+        return False
+
+async def filter_valid_manga(media_list: list, limit: int = 15) -> list:
+    import asyncio
+    valid_media = []
+    
+    async def validate_and_append(m):
+        title = m["title"].get("english") or m["title"].get("romaji") or m["title"].get("native")
+        if not title:
+            return None
+        is_valid = await check_manga_availability(title)
+        return m if is_valid else None
+        
+    tasks = [validate_and_append(m) for m in media_list]
+    results = await asyncio.gather(*tasks)
+    
+    for r in results:
+        if r is not None:
+            valid_media.append(r)
+            if len(valid_media) >= limit:
+                break
+                
+    return valid_media
+
 async def fetch_anilist_manga_home():
     cache_key = "anilist_manga_home"
     if cache_key in anilist_cache:
@@ -508,6 +541,14 @@ async def fetch_anilist_manga_home():
             response = await client.post("https://graphql.anilist.co", json={"query": GET_MANGA_HOME})
             data = response.json().get("data", {})
             if not data: return None
+            
+            trending_raw = data.get("trending", {}).get("media", [])
+            popular_raw = data.get("popular", {}).get("media", [])
+            latest_raw = data.get("latest", {}).get("media", [])
+            
+            trending_valid = await filter_valid_manga(trending_raw, 15)
+            popular_valid = await filter_valid_manga(popular_raw, 15)
+            latest_valid = await filter_valid_manga(latest_raw, 20)
             
             def format_manga(m):
                 return {
@@ -526,9 +567,9 @@ async def fetch_anilist_manga_home():
                 }
                 
             res = {
-                "trending": [format_manga(m) for m in data.get("trending", {}).get("media", [])],
-                "popular": [format_manga(m) for m in data.get("popular", {}).get("media", [])],
-                "latest": [format_manga(m) for m in data.get("latest", {}).get("media", [])]
+                "trending": [format_manga(m) for m in trending_valid],
+                "popular": [format_manga(m) for m in popular_valid],
+                "latest": [format_manga(m) for m in latest_valid]
             }
             anilist_cache[cache_key] = res
             return res
@@ -600,6 +641,9 @@ async def search_anilist_manga(q: str, page: int = 1, perPage: int = 24, sort: s
             data = response.json().get("data", {}).get("Page", {})
             media_list = data.get("media", [])
             
+            # Validasi ketersediaan di provider (Komikindo) sebelum ditampilkan
+            valid_media_list = await filter_valid_manga(media_list, limit=perPage)
+            
             def format_manga(m):
                 return {
                     "anilistId": m["id"],
@@ -615,7 +659,7 @@ async def search_anilist_manga(q: str, page: int = 1, perPage: int = 24, sort: s
                     "genres": m.get("genres", [])
                 }
             
-            res = [format_manga(m) for m in media_list]
+            res = [format_manga(m) for m in valid_media_list]
             anilist_cache[cache_key] = res
             return res
         except Exception as e:

@@ -417,3 +417,207 @@ async def fetch_anilist_info(title: str):
         except Exception as e:
             print(f"[AniList] Error fetching data for '{search_query}': {str(e)}")
             return None
+
+GET_MANGA_HOME = """
+query {
+  trending: Page(page: 1, perPage: 15) {
+    media(type: MANGA, sort: TRENDING_DESC, isAdult: false) {
+      id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
+    }
+  }
+  popular: Page(page: 1, perPage: 15) {
+    media(type: MANGA, sort: POPULARITY_DESC, isAdult: false) {
+      id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
+    }
+  }
+  latest: Page(page: 1, perPage: 20) {
+    media(type: MANGA, sort: UPDATED_AT_DESC, isAdult: false) {
+      id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
+    }
+  }
+}
+"""
+
+GET_MANGA_BY_ID = """
+  query ($id: Int) {
+    Media(id: $id, type: MANGA, isAdult: false) {
+      id
+      idMal
+      title { romaji english native }
+      synonyms
+      coverImage { extraLarge large color }
+      bannerImage
+      averageScore
+      popularity
+      trending
+      chapters
+      volumes
+      status
+      description(asHtml: false)
+      genres
+      tags { name rank }
+      staff { nodes { name primaryOccupations } }
+      recommendations {
+        nodes {
+          mediaRecommendation {
+            id
+            title { romaji english }
+            coverImage { large }
+          }
+        }
+      }
+      relations {
+        edges {
+          relationType
+          node {
+            id
+            title { romaji english }
+            coverImage { large }
+            type
+          }
+        }
+      }
+    }
+  }
+"""
+
+GET_MANGA_SEARCH = """
+  query ($search: String, $page: Int, $perPage: Int, $sort: [MediaSort]) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo { total currentPage lastPage hasNextPage perPage }
+      media(search: $search, type: MANGA, sort: $sort, isAdult: false) {
+        id
+        title { romaji english native }
+        coverImage { extraLarge large color }
+        averageScore
+        popularity
+        chapters
+        status
+        genres
+      }
+    }
+  }
+"""
+
+async def fetch_anilist_manga_home():
+    cache_key = "anilist_manga_home"
+    if cache_key in anilist_cache:
+        return anilist_cache[cache_key]
+    async with anilist_sem:
+        try:
+            response = await client.post("https://graphql.anilist.co", json={"query": GET_MANGA_HOME})
+            data = response.json().get("data", {})
+            if not data: return None
+            
+            def format_manga(m):
+                return {
+                    "anilistId": m["id"],
+                    "cleanTitle": m["title"].get("english") or m["title"].get("romaji"),
+                    "nativeTitle": m["title"].get("native"),
+                    "coverImage": m["coverImage"].get("extraLarge") or m["coverImage"].get("large"),
+                    "color": m["coverImage"].get("color"),
+                    "bannerImage": m.get("bannerImage"),
+                    "score": m.get("averageScore"),
+                    "popularity": m.get("popularity", 0),
+                    "episodes": m.get("chapters"),
+                    "latestEpisode": m.get("chapters"), # for UI compatibility
+                    "status": m.get("status"),
+                    "genres": m.get("genres", [])
+                }
+                
+            res = {
+                "trending": [format_manga(m) for m in data.get("trending", {}).get("media", [])],
+                "popular": [format_manga(m) for m in data.get("popular", {}).get("media", [])],
+                "latest": [format_manga(m) for m in data.get("latest", {}).get("media", [])]
+            }
+            anilist_cache[cache_key] = res
+            return res
+        except Exception as e:
+            print(f"[AniList] Error fetching manga home: {e}")
+            return None
+
+async def fetch_anilist_manga_by_id(anilist_id: int):
+    cache_key = f"anilist_manga_{anilist_id}"
+    if cache_key in anilist_cache:
+        return anilist_cache[cache_key]
+    async with anilist_sem:
+        try:
+            response = await client.post("https://graphql.anilist.co", json={"query": GET_MANGA_BY_ID, "variables": {"id": anilist_id}})
+            media = response.json().get("data", {}).get("Media")
+            if not media: return None
+            
+            authors = [s["name"] for s in media.get("staff", {}).get("nodes", []) if "Story & Art" in s.get("primaryOccupations", []) or "Story" in s.get("primaryOccupations", [])]
+            author = authors[0] if authors else "Unknown"
+
+            recs = [{"id": r["mediaRecommendation"]["id"], "title": r["mediaRecommendation"]["title"].get("english") or r["mediaRecommendation"]["title"].get("romaji"), "cover": r["mediaRecommendation"]["coverImage"]["large"]} for r in media.get("recommendations", {}).get("nodes", []) if r.get("mediaRecommendation")]
+
+            relations = [{"id": edge["node"]["id"], "relationType": edge["relationType"], "title": edge["node"]["title"].get("english") or edge["node"]["title"].get("romaji"), "cover": edge["node"]["coverImage"]["large"]} for edge in media.get("relations", {}).get("edges", []) if edge.get("node") and edge["node"].get("type") == "MANGA"]
+
+            genres = media.get("genres") or []
+            tags = media.get("tags") or []
+            for tag in tags:
+                if tag.get("name") and tag.get("rank", 0) >= 60 and tag.get("name") not in genres:
+                    genres.append(tag["name"])
+
+            res = {
+                "id": str(media["id"]),
+                "anilistId": media["id"],
+                "mal_id": media.get("idMal"),
+                "title": media["title"].get("english") or media["title"].get("romaji"),
+                "cleanTitle": media["title"].get("english") or media["title"].get("romaji"),
+                "romajiTitle": media["title"].get("romaji"),
+                "nativeTitle": media["title"].get("native"),
+                "synonyms": media.get("synonyms", []),
+                "img": media["coverImage"].get("extraLarge") or media["coverImage"].get("large"),
+                "color": media["coverImage"].get("color"),
+                "banner": media.get("bannerImage"),
+                "score": media.get("averageScore"),
+                "popularity": media.get("popularity", 0),
+                "trending": media.get("trending", 0),
+                "synopsis": media.get("description"),
+                "genres": genres,
+                "chapters": [], # will be filled by bridging layer
+                "totalEps": media.get("chapters"),
+                "status": media.get("status"),
+                "author": author,
+                "recommendations": recs,
+                "relations": relations
+            }
+            anilist_cache[cache_key] = res
+            return res
+        except Exception as e:
+            print(f"[AniList] Error fetching manga by ID {anilist_id}: {e}")
+            return None
+
+async def search_anilist_manga(q: str, page: int = 1, perPage: int = 24, sort: str = "POPULARITY_DESC"):
+    cache_key = f"anilist_manga_search_{q}_{page}_{sort}"
+    if cache_key in anilist_cache:
+        return anilist_cache[cache_key]
+    async with anilist_sem:
+        try:
+            variables = {"search": q if q else None, "page": page, "perPage": perPage, "sort": [sort]}
+            response = await client.post("https://graphql.anilist.co", json={"query": GET_MANGA_SEARCH, "variables": variables})
+            data = response.json().get("data", {}).get("Page", {})
+            media_list = data.get("media", [])
+            
+            def format_manga(m):
+                return {
+                    "anilistId": m["id"],
+                    "cleanTitle": m["title"].get("english") or m["title"].get("romaji"),
+                    "nativeTitle": m["title"].get("native"),
+                    "coverImage": m["coverImage"].get("extraLarge") or m["coverImage"].get("large"),
+                    "color": m["coverImage"].get("color"),
+                    "score": m.get("averageScore"),
+                    "popularity": m.get("popularity", 0),
+                    "episodes": m.get("chapters"),
+                    "latestEpisode": m.get("chapters"),
+                    "status": m.get("status"),
+                    "genres": m.get("genres", [])
+                }
+            
+            res = [format_manga(m) for m in media_list]
+            anilist_cache[cache_key] = res
+            return res
+        except Exception as e:
+            print(f"[AniList] Error searching manga: {e}")
+            return []

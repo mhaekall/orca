@@ -18,6 +18,7 @@ from routes import (
     db,
     home,
     home_v2,
+    manga,
     schedule,
     social,
     stream,
@@ -310,6 +311,7 @@ app.include_router(db.router, prefix="/api/v1/db", tags=["Database"])
 # v2 routes — use these for all new frontend code
 app.include_router(catalog.router, prefix="/api", tags=["Catalog v2"])
 app.include_router(home_v2.router, prefix="/api", tags=["Home v2"])
+app.include_router(manga.router, prefix="/api/v2", tags=["Manga v2"])
 app.include_router(stream_v2.router, prefix="/api/v2", tags=["v2"])
 app.include_router(webhook.router, prefix="/api/v2", tags=["Webhook"])
 app.include_router(social.router, prefix="/api/v2/social", tags=["Social"])

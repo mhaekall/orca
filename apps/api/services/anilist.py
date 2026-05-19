@@ -499,10 +499,11 @@ GET_MANGA_SEARCH = """
   }
 """
 
-async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> bool:
+async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> tuple[bool, int]:
     from curl_cffi.requests import AsyncSession
     from bs4 import BeautifulSoup
     import urllib.parse
+    import re
     
     async with sem:
         try:
@@ -512,24 +513,36 @@ async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> bool:
                 res1 = await s.get(f"https://komikindo.ch/?s={safe_title}")
                 if res1.status_code not in [403, 503]:
                     soup1 = BeautifulSoup(res1.text, "html.parser")
-                    if len(soup1.select(".animepost")) > 0:
-                        return True
+                    posts = soup1.select(".animepost")
+                    if posts:
+                        ch_num = 0
+                        ch_element = posts[0].select_one(".lsch a")
+                        if ch_element:
+                            match = re.search(r'\d+', ch_element.text)
+                            if match: ch_num = int(match.group())
+                        return True, ch_num
                         
                 # Jika tidak ada, cek Bacakomik
                 res2 = await s.get(f"https://bacakomik.my/?s={safe_title}")
                 if res2.status_code not in [403, 503]:
                     soup2 = BeautifulSoup(res2.text, "html.parser")
-                    if len(soup2.select(".animepost")) > 0:
-                        return True
+                    posts = soup2.select(".animepost")
+                    if posts:
+                        ch_num = 0
+                        ch_element = posts[0].select_one(".lsch a")
+                        if ch_element:
+                            match = re.search(r'\d+', ch_element.text)
+                            if match: ch_num = int(match.group())
+                        return True, ch_num
                         
                 # Jika diblokir oleh dua-duanya, fallback ke True agar tidak blank
                 if res1.status_code in [403, 503] and res2.status_code in [403, 503]:
-                    return True
+                    return True, 0
                     
-                return False
+                return False, 0
         except Exception as e:
             print(f"[Manga Validation Error] {title}: {e}")
-            return True # Fallback to True on timeout/error
+            return True, 0 # Fallback to True on timeout/error
 
 async def filter_valid_manga(media_list: list, limit: int = 15) -> list:
     import asyncio
@@ -542,8 +555,12 @@ async def filter_valid_manga(media_list: list, limit: int = 15) -> list:
         title = m["title"].get("english") or m["title"].get("romaji") or m["title"].get("native")
         if not title:
             return None
-        is_valid = await check_manga_availability(title, sem)
-        return m if is_valid else None
+        is_valid, ch_num = await check_manga_availability(title, sem)
+        if is_valid:
+            if ch_num > 0:
+                m["chapters"] = ch_num
+            return m
+        return None
         
     tasks = [validate_and_append(m) for m in media_list]
     results = await asyncio.gather(*tasks)

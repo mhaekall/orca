@@ -282,16 +282,32 @@ export class MangaEngine {
   }
 
   static async findAndGetDetail(sources: MangaSourceRule[], title: string): Promise<MangaDetail | null> {
+    if (!title) return null;
+    
+    // Create permutations of the title to increase hit rate
+    const cleanTitle = title.replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const shortTitle = cleanTitle.split(' ').slice(0, 3).join(' ');
+    
+    const titlePermutations = [title];
+    if (cleanTitle && cleanTitle.toLowerCase() !== title.toLowerCase()) {
+      titlePermutations.push(cleanTitle);
+    }
+    if (shortTitle && shortTitle.length > 3 && shortTitle.toLowerCase() !== cleanTitle.toLowerCase()) {
+      titlePermutations.push(shortTitle);
+    }
+
     for (const source of sources) {
-       try {
-           const searchResults = await this.getSearchList(source, title);
-           if (searchResults.length > 0) {
-               // Simply pick the first one for now
-               const bestMatch = searchResults[0]; 
-               return await this.getDetail(source, bestMatch.link);
+       for (const searchTitle of titlePermutations) {
+           try {
+               const searchResults = await this.getSearchList(source, searchTitle);
+               if (searchResults.length > 0) {
+                   // Pick the first result
+                   const bestMatch = searchResults[0]; 
+                   return await this.getDetail(source, bestMatch.link);
+               }
+           } catch (e) {
+               console.warn(`[MangaEngine] Search failed on ${source.id} for "${searchTitle}"`, e);
            }
-       } catch (e) {
-           console.warn(`[MangaEngine] Search failed on ${source.id} for ${title}`, e);
        }
     }
     return null;

@@ -418,20 +418,23 @@ async def fetch_anilist_info(title: str):
             print(f"[AniList] Error fetching data for '{search_query}': {str(e)}")
             return None
 
+CURATED_MANGA_IDS = [
+    # Manhwa Masterpieces
+    105398, 119257, 111243, 85933, 85934, 100231, 100230, 105951, 115255, 132216,
+    127926, 129759, 111624, 125026, 127437, 114637, 105393, 115624, 109864,
+    
+    # Manga Masterpieces
+    30013, 30002, 30656, 30001, 30025, 30736, 3642, 46649, 30003, 74347, 63397,
+    101517, 87216, 85135, 102988, 108556, 123892, 125828, 132029, 132218, 137837,
+    30012, 30011, 113138, 100128, 105399
+]
+
+BANNED_GENRES = ["Ecchi", "Hentai", "Boys Love", "Yaoi", "Girls Love", "Yuri", "Smut"]
+
 GET_MANGA_HOME = """
-query {
-  trending: Page(page: 1, perPage: 35) {
-    media(type: MANGA, sort: TRENDING_DESC, isAdult: false) {
-      id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
-    }
-  }
-  popular: Page(page: 1, perPage: 35) {
-    media(type: MANGA, sort: POPULARITY_DESC, isAdult: false) {
-      id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
-    }
-  }
-  latest: Page(page: 1, perPage: 40) {
-    media(type: MANGA, sort: UPDATED_AT_DESC, isAdult: false) {
+query ($ids: [Int]) {
+  Page(page: 1, perPage: 50) {
+    media(id_in: $ids, type: MANGA, isAdult: false, genre_not_in: ["Ecchi", "Hentai", "Boys Love", "Yaoi", "Girls Love", "Yuri", "Smut"]) {
       id title { romaji english native } coverImage { extraLarge large color } bannerImage averageScore popularity chapters status description(asHtml: false) genres
     }
   }
@@ -485,7 +488,7 @@ GET_MANGA_SEARCH = """
   query ($search: String, $page: Int, $perPage: Int, $sort: [MediaSort]) {
     Page(page: $page, perPage: $perPage) {
       pageInfo { total currentPage lastPage hasNextPage perPage }
-      media(search: $search, type: MANGA, sort: $sort, isAdult: false) {
+      media(search: $search, type: MANGA, sort: $sort, isAdult: false, genre_not_in: ["Ecchi", "Hentai", "Boys Love", "Yaoi", "Girls Love", "Yuri", "Smut"]) {
         id
         title { romaji english native }
         coverImage { extraLarge large color }
@@ -584,22 +587,20 @@ async def filter_valid_manga(media_list: list, limit: int = 15) -> list:
     return valid_media
 
 async def fetch_anilist_manga_home():
-    cache_key = "anilist_manga_home"
+    cache_key = "anilist_manga_home_curated"
     if cache_key in anilist_cache:
         return anilist_cache[cache_key]
     async with anilist_sem:
         try:
-            response = await client.post("https://graphql.anilist.co", json={"query": GET_MANGA_HOME})
-            data = response.json().get("data", {})
-            if not data: return None
+            variables = {"ids": CURATED_MANGA_IDS}
+            response = await client.post("https://graphql.anilist.co", json={"query": GET_MANGA_HOME, "variables": variables})
+            data = response.json().get("data", {}).get("Page", {})
+            media_list = data.get("media", [])
             
-            trending_raw = data.get("trending", {}).get("media", [])
-            popular_raw = data.get("popular", {}).get("media", [])
-            latest_raw = data.get("latest", {}).get("media", [])
+            if not media_list: return None
             
-            trending_valid = await filter_valid_manga(trending_raw, 15)
-            popular_valid = await filter_valid_manga(popular_raw, 15)
-            latest_valid = await filter_valid_manga(latest_raw, 20)
+            # Since we curated them, we just validate them
+            valid_media = await filter_valid_manga(media_list, limit=50)
             
             def format_manga(m):
                 return {
@@ -612,21 +613,100 @@ async def fetch_anilist_manga_home():
                     "score": m.get("averageScore"),
                     "popularity": m.get("popularity", 0),
                     "episodes": m.get("chapters"),
-                    "latestEpisode": m.get("chapters"), # for UI compatibility
+                    "latestEpisode": m.get("chapters"),
                     "status": m.get("status"),
                     "genres": m.get("genres", [])
                 }
                 
+            formatted = [format_manga(m) for m in valid_media]
+            
+            # Manually split the curated list into trending, popular, latest for the UI to consume
+            sorted_by_pop = sorted(formatted, key=lambda x: x["popularity"], reverse=True)
+            sorted_by_score = sorted(formatted, key=lambda x: x["score"] or 0, reverse=True)
+            
+            # For latest, let's just pick some releasing ones or top scored
+            releasing = [m for m in formatted if m["status"] == "RELEASING"]
+            
             res = {
-                "trending": [format_manga(m) for m in trending_valid],
-                "popular": [format_manga(m) for m in popular_valid],
-                "latest": [format_manga(m) for m in latest_valid]
+                "trending": sorted_by_score[:15],
+                "popular": sorted_by_pop[:15],
+                "latest": releasing[:20] if len(releasing) >= 10 else sorted_by_pop[15:35]
             }
             anilist_cache[cache_key] = res
             return res
         except Exception as e:
             print(f"[AniList] Error fetching manga home: {e}")
             return None
+
+async def fetch_manga_chapters_from_provider(title: str) -> list:
+    from curl_cffi.requests import AsyncSession
+    from bs4 import BeautifulSoup
+    import urllib.parse
+    import re
+    
+    chapters_data = []
+    try:
+        safe_title = urllib.parse.quote(title)
+        async with AsyncSession(impersonate="chrome110", timeout=12.0) as s:
+            # 1. Cek Komikindo
+            res1 = await s.get(f"https://komikindo.ch/?s={safe_title}")
+            if res1.status_code not in [403, 503]:
+                soup1 = BeautifulSoup(res1.text, "html.parser")
+                posts = soup1.select(".animepost")
+                if posts:
+                    link_el = posts[0].select_one("a")
+                    if link_el and 'href' in link_el.attrs:
+                        detail_url = link_el['href']
+                        res_det = await s.get(detail_url)
+                        soup_det = BeautifulSoup(res_det.text, "html.parser")
+                        chapters = soup_det.select("#chapter_list .lchx a")
+                        for ch in chapters:
+                            ch_title = ch.text.strip()
+                            ch_link = ch['href']
+                            match = re.search(r'\d+', ch_title)
+                            ch_num = match.group() if match else ch_title
+                            chapters_data.append({
+                                "id": f"komikindo|{urllib.parse.quote(ch_link)}",
+                                "number": str(ch_num),
+                                "episodeNumber": float(ch_num) if str(ch_num).replace('.','',1).isdigit() else 0,
+                                "title": ch_title,
+                                "url": ch_link
+                            })
+                        if chapters_data:
+                            return chapters_data
+                            
+            # 2. Cek Bacakomik
+            res2 = await s.get(f"https://bacakomik.my/?s={safe_title}")
+            if res2.status_code not in [403, 503]:
+                soup2 = BeautifulSoup(res2.text, "html.parser")
+                posts = soup2.select(".animepost")
+                if posts:
+                    link_el = posts[0].select_one("a")
+                    if link_el and 'href' in link_el.attrs:
+                        detail_url = link_el['href']
+                        res_det = await s.get(detail_url)
+                        soup_det = BeautifulSoup(res_det.text, "html.parser")
+                        chapters = soup_det.select("#chapterlist .lchx a")
+                        if not chapters:
+                            chapters = soup_det.select(".bxcl ul li .lchx a")
+                        for ch in chapters:
+                            ch_title = ch.text.strip()
+                            ch_link = ch['href']
+                            match = re.search(r'\d+', ch_title)
+                            ch_num = match.group() if match else ch_title
+                            chapters_data.append({
+                                "id": f"bacakomik|{urllib.parse.quote(ch_link)}",
+                                "number": str(ch_num),
+                                "episodeNumber": float(ch_num) if str(ch_num).replace('.','',1).isdigit() else 0,
+                                "title": ch_title,
+                                "url": ch_link
+                            })
+                        if chapters_data:
+                            return chapters_data
+    except Exception as e:
+        print(f"[Manga Chapter Fetch Error] {title}: {e}")
+        
+    return chapters_data
 
 async def fetch_anilist_manga_by_id(anilist_id: int):
     cache_key = f"anilist_manga_{anilist_id}"
@@ -651,6 +731,9 @@ async def fetch_anilist_manga_by_id(anilist_id: int):
                 if tag.get("name") and tag.get("rank", 0) >= 60 and tag.get("name") not in genres:
                     genres.append(tag["name"])
 
+            title_for_search = media["title"].get("english") or media["title"].get("romaji")
+            provider_chapters = await fetch_manga_chapters_from_provider(title_for_search) if title_for_search else []
+
             res = {
                 "id": str(media["id"]),
                 "anilistId": media["id"],
@@ -668,8 +751,8 @@ async def fetch_anilist_manga_by_id(anilist_id: int):
                 "trending": media.get("trending", 0),
                 "synopsis": media.get("description"),
                 "genres": genres,
-                "chapters": [], # will be filled by bridging layer
-                "totalEps": media.get("chapters"),
+                "chapters": provider_chapters,
+                "totalEps": len(provider_chapters) if provider_chapters else media.get("chapters"),
                 "status": media.get("status"),
                 "author": author,
                 "recommendations": recs,

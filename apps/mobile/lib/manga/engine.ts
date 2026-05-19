@@ -281,6 +281,20 @@ export class MangaEngine {
     return images;
   }
 
+  // A simple string similarity function (Levenshtein distance approximation)
+  static stringSimilarity(s1: string, s2: string): number {
+    const a = s1.toLowerCase();
+    const b = s2.toLowerCase();
+    if (a === b) return 1.0;
+    if (a.includes(b) || b.includes(a)) return 0.8;
+    
+    // Very basic fallback
+    const wordsA = a.split(/\s+/);
+    const wordsB = b.split(/\s+/);
+    const intersection = wordsA.filter(w => wordsB.includes(w));
+    return intersection.length / Math.max(wordsA.length, wordsB.length);
+  }
+
   static async findAndGetDetail(sources: MangaSourceRule[], title: string): Promise<MangaDetail | null> {
     if (!title) return null;
     
@@ -301,8 +315,16 @@ export class MangaEngine {
            try {
                const searchResults = await this.getSearchList(source, searchTitle);
                if (searchResults.length > 0) {
-                   // Pick the first result
-                   const bestMatch = searchResults[0]; 
+                   // Pick the best match using similarity score
+                   let bestMatch = searchResults[0];
+                   let bestScore = -1;
+                   for (const res of searchResults) {
+                     const score = this.stringSimilarity(title, res.title);
+                     if (score > bestScore) {
+                       bestScore = score;
+                       bestMatch = res;
+                     }
+                   }
                    return await this.getDetail(source, bestMatch.link);
                }
            } catch (e) {

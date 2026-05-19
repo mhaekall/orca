@@ -507,7 +507,22 @@ async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> tuple[
     from bs4 import BeautifulSoup
     import urllib.parse
     import re
+    import difflib
     
+    def get_best_post(posts, target_title):
+        best_post = None
+        best_score = -1.0
+        for p in posts:
+            title_el = p.select_one(".tt h3, .tt h4, .tt")
+            post_title = title_el.text.strip() if title_el else ""
+            score = difflib.SequenceMatcher(None, target_title.lower(), post_title.lower()).ratio()
+            if score > best_score:
+                best_score = score
+                best_post = p
+        # If the best score is too low, we might still just return the best one found, 
+        # or we could enforce a threshold. For now, returning the absolute best match.
+        return best_post
+
     async with sem:
         try:
             safe_title = urllib.parse.quote(title)
@@ -518,7 +533,8 @@ async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> tuple[
                     soup1 = BeautifulSoup(res1.text, "html.parser")
                     posts = soup1.select(".animepost")
                     if posts:
-                        link_el = posts[0].select_one("a")
+                        best_post = get_best_post(posts, title)
+                        link_el = best_post.select_one("a") if best_post else None
                         if link_el and 'href' in link_el.attrs:
                             detail_url = link_el['href']
                             res_det = await s.get(detail_url)
@@ -535,7 +551,8 @@ async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> tuple[
                     soup2 = BeautifulSoup(res2.text, "html.parser")
                     posts = soup2.select(".animepost")
                     if posts:
-                        link_el = posts[0].select_one("a")
+                        best_post = get_best_post(posts, title)
+                        link_el = best_post.select_one("a") if best_post else None
                         if link_el and 'href' in link_el.attrs:
                             detail_url = link_el['href']
                             res_det = await s.get(detail_url)

@@ -2,52 +2,48 @@ import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Star, Eye, Info } from 'lucide-react-native';
-import { formatViews } from '../../lib/utils';
+import { formatViews } from '../../../lib/utils';
+import { UnifiedMediaDetail } from '../../../lib/adapters/mediaAdapter';
 
-export const AnimeMetadata = React.memo(({ anime, epsCount }: { anime: any, epsCount: number }) => {
+export const DetailMetadata = React.memo(({ media }: { media: UnifiedMediaDetail }) => {
   const router = useRouter();
-  const realViews = anime.views || anime.popularity || 0;
 
   return (
     <View style={styles.titleArea}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metaStrip}>
-        {anime.score > 0 && (
+        {media.score > 0 && (
           <View style={styles.metaPill}>
             <Star color="#FFD60A" fill="#FFD60A" size={12} />
-            <Text style={styles.metaPillText}>{(anime.score / 10).toFixed(1)}</Text>
+            <Text style={styles.metaPillText}>{(media.score / 10).toFixed(1)}</Text>
           </View>
         )}
-        {realViews > 0 && (
+        {media.views > 0 && (
           <View style={styles.metaPill}>
             <Eye color="rgba(255,255,255,0.6)" size={12} />
-            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{formatViews(realViews)}</Text>
+            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{formatViews(media.views)}</Text>
           </View>
-        )}
-        {anime.trending > 0 && (
-          <Pressable onPress={() => router.push('/trending' as any)} style={styles.metaPill}>
-            <Text style={{ fontSize: 11, marginRight: 4 }}>🔥</Text>
-            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{anime.trending}</Text>
-          </Pressable>
         )}
         <View style={styles.metaPill}>
           <Info color="rgba(255,255,255,0.6)" size={12} />
-          <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>Eps {anime.totalEpisodes || epsCount || '?'}</Text>
+          <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>
+            {media.episodes.length || media.totalEpisodes || '?'} {media.id.includes('|') ? 'Chap' : 'Eps'}
+          </Text>
         </View>
-        {!!anime.season && !!anime.seasonYear && (
+        {!!media.season && !!media.seasonYear && (
           <View style={styles.metaPill}>
-            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)', textTransform: 'capitalize' }]}>{anime.season.toLowerCase()} {anime.seasonYear}</Text>
+            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)', textTransform: 'capitalize' }]}>{media.season.toLowerCase()} {media.seasonYear}</Text>
           </View>
         )}
-        {!!anime.studios?.[0] && (
+        {!!media.studios?.[0] && (
           <View style={styles.metaPill}>
-            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{anime.studios[0]}</Text>
+            <Text style={[styles.metaPillText, { color: 'rgba(255,255,255,0.8)' }]}>{media.studios[0]}</Text>
           </View>
         )}
       </ScrollView>
       
-      {anime.genres?.length > 0 && (
+      {media.genres?.length > 0 && (
         <View style={styles.genresContainer}>
-          {anime.genres.map((g: string) => (
+          {media.genres.map((g: string) => (
             <Pressable key={g} onPress={() => router.push(`/explore?genre=${encodeURIComponent(g)}` as any)} style={({pressed}) => [styles.genreBadge, pressed && {opacity: 0.7}]}>
               <Text style={styles.genreText}>{g}</Text>
             </Pressable>

@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import useSWR from "swr";
 import { useAuth } from "../../lib/auth";
-import { AnimeCard } from "../../components/AnimeCard";
+import { MediaCard } from "../../components/MediaCard";
 import { Skeleton } from "../../components/Skeleton";
 import { ProgressBar } from "../../components/ProgressBar";
 
@@ -23,7 +23,7 @@ const TABS = [
 
 const HistoryItem = React.memo(({ item, isLast }: { item: any, isLast: boolean }) => {
   const router = useRouter();
-  const id = String(item.animeSlug || item.anilistId);
+  const id = String(item.anilist_id || item.animeSlug || item.anilistId);
   const title = item.title || item.cleanTitle || item.nativeTitle || `Anime #${id}`;
   const img = item.img || item.coverImage || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg";
   const ep = item.episode || "?";
@@ -91,7 +91,7 @@ const CollectionGrid = React.memo(({ items, itemWidth }: { items: any[], itemWid
         const isComp = item.status === "COMPLETED";
         return (
           <View key={`${item.id}-${idx}`} style={{ width: itemWidth } as any}>
-            <AnimeCard
+            <MediaCard
               id={item.id}
               title={item.title}
               img={item.img}
@@ -126,7 +126,7 @@ const HistoryList = React.memo(({ items }: { items: any[] }) => {
   return (
     <View style={{ paddingBottom: 40 }}>
       {items.map((item, idx) => (
-        <HistoryItem key={`${item.animeSlug}-${item.episode}-${idx}`} item={item} isLast={idx === items.length - 1} />
+        <HistoryItem key={`${item.anilist_id || item.animeSlug}-${item.episode}-${idx}`} item={item} isLast={idx === items.length - 1} />
       ))}
     </View>
   );
@@ -242,8 +242,8 @@ export default function CollectionScreen() {
   const allItems = useMemo(() => {
     const raw = Array.isArray(collectionRes) ? collectionRes : (collectionRes?.data || []);
     return [...raw].map((h: any) => ({
-      id: String(h.anilistId || h.animeSlug || h.id),
-      title: h.title || h.cleanTitle || h.nativeTitle || h.animeTitle || `Anime #${h.anilistId || h.animeSlug || h.id}`,
+      id: String(h.anilist_id || h.anilistId || h.animeSlug || h.id),
+      title: h.title || h.cleanTitle || h.nativeTitle || h.animeTitle || `Anime #${h.anilist_id || h.anilistId || h.animeSlug || h.id}`,
       img: h.img || h.coverImage || h.animeCover,
       totalEps: h.totalEps || h.totalEpisodes || 0,
       status: String(h.status || "").toUpperCase(),
@@ -256,7 +256,7 @@ export default function CollectionScreen() {
     const raw = Array.isArray(historyRes) ? historyRes : [];
     const grouped = new Map();
     raw.forEach((item: any) => {
-      const id = String(item.anilistId || item.animeSlug);
+      const id = String(item.anilist_id || item.anilistId || item.animeSlug);
       const existing = grouped.get(id);
       if (!existing || new Date(item.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
         grouped.set(id, item);

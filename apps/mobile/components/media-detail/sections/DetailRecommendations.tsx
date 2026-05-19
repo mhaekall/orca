@@ -1,23 +1,19 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { AnimeCard } from '../AnimeCard';
+import { MediaCard } from '../../MediaCard';
 
-export const AnimeRecommendations = React.memo(({ relations }: { relations: any[] }) => {
+export const DetailRecommendations = React.memo(({ relations, mediaType }: { relations: any[], mediaType: 'anime' | 'manga' }) => {
   if (!relations || relations.length === 0) return null;
   return (
     <View style={styles.recommendationsSection}>
-      <Text style={[styles.sectionTitle, {marginBottom: 16}]}>Anime Terkait</Text>
+      <Text style={[styles.sectionTitle, {marginBottom: 16}]}>Konten Terkait</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recommendationsScroll} contentContainerStyle={styles.recommendationsScrollContent}>
           {relations.map((r: any, i: number) => {
-            const recId = String(r.id || r.anilistId);
-            if (!recId) return null;
             return (
               <View key={i} style={styles.recommendationItem}>
-                <AnimeCard 
-                  id={recId} 
-                  title={r.cleanTitle || r.title?.english || r.title?.romaji || r.title?.native || r.title || ''} 
-                  img={typeof r.coverImage === 'string' ? r.coverImage : (typeof r.cover === 'string' ? r.cover : (r.coverImage?.extraLarge || r.coverImage?.large || r.cover || r.poster || r.image || ''))} 
-                  totalEps={r.latestEpisode || r.totalEpisodes || r.episodes} 
+                <MediaCard 
+                  item={r}
+                  mediaType={mediaType}
                   variant="vertical"
                 />
               </View>

@@ -2,47 +2,90 @@ import React, { useMemo } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Play, Bookmark, Forward } from 'lucide-react-native';
+import { Play, Bookmark, Forward, BookOpen } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { AbstractBadge } from '../AbstractBadge';
+import { AbstractBadge } from '../../AbstractBadge';
+import { UnifiedMediaDetail } from '../../../lib/adapters/mediaAdapter';
 
-interface AnimeHeroProps {
-  anime: any;
+interface DetailHeroProps {
+  media: UnifiedMediaDetail;
+  mediaType: 'anime' | 'manga';
   isSaved: boolean;
   isToggling: boolean;
   onToggleCollection: () => void;
   onShare: () => void;
-  history: any[];
-  rawEps: any[];
+  lastWatchedEp?: string;
 }
 
-export const AnimeHero = React.memo(({ anime, isSaved, isToggling, onToggleCollection, onShare, history = [], rawEps = [] }: AnimeHeroProps) => {
+export const DetailHero = React.memo(({ 
+  media, 
+  mediaType,
+  isSaved, 
+  isToggling, 
+  onToggleCollection, 
+  onShare, 
+  lastWatchedEp 
+}: DetailHeroProps) => {
   const router = useRouter();
   
-  const isFinished = anime.status === "FINISHED";
+  const isFinished = media.status === "FINISHED";
   
-  let scheduleDay = anime.airSchedule;
-  if (!scheduleDay && anime.nextAiringEpisode?.airingAt) {
-    const utc = (anime.nextAiringEpisode.airingAt * 1000) + (new Date().getTimezoneOffset() * 60000);
-    const dt = new Date(utc + (7 * 3600000));
-    const daysArr = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-    scheduleDay = daysArr[dt.getDay()];
-  }
+  // Restore Airing Schedule Logic
+  const scheduleDay = useMemo(() => {
+    if (mediaType === 'manga') return '';
+    // @ts-ignore - raw data might have airSchedule
+    if (media.airSchedule) return media.airSchedule;
+    
+    if (media.nextAiringEpisode?.airingAt) {
+      const utc = (media.nextAiringEpisode.airingAt * 1000) + (new Date().getTimezoneOffset() * 60000);
+      const dt = new Date(utc + (7 * 3600000)); // WIB
+      const daysArr = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      return daysArr[dt.getDay()];
+    }
+    return '';
+  }, [media, mediaType]);
+  
+  const epToPlay = lastWatchedEp || (media.episodes?.[0]?.episodeNumber ?? "1");
 
-  // Prioritize resume watching
-  const epToPlay = useMemo(() => {
-    const lastWatchedEp = [...history].sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-    const absoluteFirstEp = [...rawEps].sort((a,b) => {
-       const numA = parseFloat(a.episodeNumber ?? a.number ?? a.url?.split("episode=").pop() ?? "0");
-       const numB = parseFloat(b.episodeNumber ?? b.number ?? b.url?.split("episode=").pop() ?? "0");
-       return numA - numB;
-    })[0];
-    return lastWatchedEp ? lastWatchedEp.episode : (absoluteFirstEp?.episodeNumber ?? absoluteFirstEp?.number ?? absoluteFirstEp?.url?.split("episode=").pop() ?? "1");
-  }, [history, rawEps]);
+  const title = media.title;
+  const img = media.imageUrl;
+  const hasDiffTitle = !!media.nativeTitle && media.nativeTitle !== media.title;
 
-  const title = anime.cleanTitle || anime.nativeTitle || anime.title?.english || anime.title?.romaji || anime.title;
-  const img = typeof anime.coverImage === 'string' ? anime.coverImage : (anime.coverImage?.extraLarge || anime.coverImage?.large || anime.bannerImage || anime.poster || "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/default.jpg");
-  const hasDiffTitle = !!anime.nativeTitle && anime.nativeTitle !== anime.cleanTitle;
+  const playHref = useMemo(() => {
+    if (mediaType === 'manga') {
+      const firstChapter = media.episodes?.[0];
+      if (!firstChapter) return null;
+      
+      const sourceId = (firstChapter.id && firstChapter.id.includes('|')) 
+        ? firstChapter.id.split('|')[0] 
+        : (media.id.includes('|') ? media.id.split('|')[0] : 'komikindo');
+      
+      return {
+        pathname: '/manga/read',
+        params: {
+          link: firstChapter.link || firstChapter.episodeUrl || firstChapter.url,
+          sourceId: sourceId,
+          mangaId: media.id,
+          title: media.title,
+          img: media.imageUrl,
+          chapter: firstChapter.number || firstChapter.episodeNumber || '1'
+        }
+      };
+    }
+    return `/watch/${media.id}/${epToPlay}`;
+  }, [media, mediaType, epToPlay]);
+
+  const badgeText = media.status === 'NOT_YET_RELEASED' || media.status === 'UPCOMING' 
+    ? 'Belum Rilis' 
+    : media.format === 'MOVIE' 
+    ? 'Movie' 
+    : isFinished 
+    ? 'Tamat' 
+    : scheduleDay 
+    ? `Tiap ${scheduleDay}` 
+    : 'Sedang Rilis';
+
+  const badgeColor = isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF';
 
   return (
     <View style={styles.heroSection}>
@@ -63,8 +106,8 @@ export const AnimeHero = React.memo(({ anime, isSaved, isToggling, onToggleColle
         <View style={styles.heroRow}>
            <View style={styles.heroLeft}>
               <AbstractBadge 
-                text={anime.status === 'NOT_YET_RELEASED' || anime.status === 'UPCOMING' ? 'Belum Tayang' : anime.format === 'MOVIE' ? 'Movie' : isFinished ? 'Tamat' : scheduleDay ? `Tiap ${scheduleDay}` : 'Sedang Tayang'}
-                color={isFinished ? '#30D158' : scheduleDay ? '#FFD60A' : '#0A84FF'}
+                text={badgeText}
+                color={badgeColor}
               />
               <Text style={[styles.title, { marginBottom: hasDiffTitle ? 4 : 8 }]} numberOfLines={2}>
                 {title}
@@ -72,7 +115,7 @@ export const AnimeHero = React.memo(({ anime, isSaved, isToggling, onToggleColle
               
               {hasDiffTitle && (
                 <Text style={styles.subtitle} numberOfLines={1}>
-                  {anime.nativeTitle}
+                  {media.nativeTitle}
                 </Text>
               )}
            </View>
@@ -106,12 +149,16 @@ export const AnimeHero = React.memo(({ anime, isSaved, isToggling, onToggleColle
                 )}
               </Pressable>
 
-             {rawEps.length > 0 && (
+             {media.episodes.length > 0 && playHref && (
                <Pressable 
-                 onPress={() => router.push(`/watch/${anime.anilistId || anime.id}/${epToPlay}` as any)}
+                 onPress={() => router.push(playHref as any)}
                  style={styles.heroPlayBtn}
                >
-                 <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+                 {mediaType === 'manga' ? (
+                   <BookOpen size={16} color="#fff" />
+                 ) : (
+                   <Play size={16} color="#fff" fill="#fff" style={{ marginLeft: 2 }} />
+                 )}
                </Pressable>
              )}
            </View>
@@ -190,8 +237,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: "#0A84FF",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
     elevation: 4,
     shadowColor: "#0A84FF",
     shadowOpacity: 0.3,

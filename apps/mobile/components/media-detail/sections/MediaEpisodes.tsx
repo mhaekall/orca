@@ -4,7 +4,25 @@ import { useRouter } from 'expo-router';
 import { ArrowDown, ArrowUp } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpisodePress }: { animeId: string, rawEps: any[], history?: any[], activeEpisode?: string, onEpisodePress?: (ep: string) => void }) => {
+interface MediaEpisodesProps {
+  mediaId: string;
+  mediaType: 'anime' | 'manga';
+  rawEps: any[];
+  title?: string;
+  img?: string;
+  activeEpisode?: string;
+  onEpisodePress?: (ep: string) => void;
+}
+
+export const MediaEpisodes = React.memo(({ 
+  mediaId, 
+  mediaType,
+  rawEps, 
+  title = '',
+  img = '',
+  activeEpisode, 
+  onEpisodePress 
+}: MediaEpisodesProps) => {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [epChunkIndex, setEpChunkIndex] = useState(0);
@@ -13,7 +31,7 @@ export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpi
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('animeDetailEpsSort').then((sort) => {
+    AsyncStorage.getItem('mediaDetailSort').then((sort) => {
       if (sort === 'desc' || sort === 'asc') setEpsSort(sort);
       setIsReady(true);
     });
@@ -38,14 +56,13 @@ export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpi
     const targetIndex = index * 6;
     if (flatListRef.current && eps.length > targetIndex) {
       try {
-        const offsetVal = targetIndex * 66; // 66 is approx ITEM_WIDTH (56) + gap (10)
+        const offsetVal = targetIndex * 66; 
         flatListRef.current.scrollToOffset({ offset: offsetVal, animated: true });
       } catch (e) {
         console.warn("Scroll failed:", e);
       }
     }
     
-    // Release the manual scrolling lock after animation duration
     setTimeout(() => {
       isManualScrolling.current = false;
     }, 500);
@@ -71,14 +88,17 @@ export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpi
     );
   }
 
+  const listLabel = mediaType === 'manga' ? 'Daftar Chapter' : 'Daftar Episode';
+  const countLabel = mediaType === 'manga' ? 'Chap' : 'Eps';
+
   if (!eps || eps.length === 0) {
     return (
       <View style={styles.episodesSection}>
         <View style={styles.episodesHeader}>
-          <Text style={styles.sectionTitle}>Daftar Episode</Text>
+          <Text style={styles.sectionTitle}>{listLabel}</Text>
         </View>
         <View style={styles.emptyEpisodes}>
-          <Text style={styles.emptyEpisodesText}>Belum ada episode tersedia.</Text>
+          <Text style={styles.emptyEpisodesText}>Belum ada {mediaType === 'manga' ? 'chapter' : 'episode'} tersedia.</Text>
         </View>
       </View>
     );
@@ -87,9 +107,33 @@ export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpi
   const renderItem = ({ item: ep }: { item: any, index: number }) => {
     const epNum = ep.episodeNumber ?? ep.number ?? ep.url?.split("episode=").pop() ?? "?";
     const isActive = activeEpisode === String(epNum);
+    
+    const handlePress = () => {
+      if (onEpisodePress) {
+        onEpisodePress(String(epNum));
+      } else if (mediaType === 'manga') {
+        const actualSourceId = (ep.id && ep.id.includes('|')) 
+          ? ep.id.split('|')[0] 
+          : (mediaId.includes('|') ? mediaId.split('|')[0] : 'komikindo');
+        router.push({
+          pathname: '/manga/read',
+          params: {
+            link: ep.link || ep.episodeUrl || ep.url,
+            sourceId: actualSourceId,
+            mangaId: mediaId,
+            title: title,
+            img: img,
+            chapter: epNum
+          }
+        } as any);
+      } else {
+        router.push(`/watch/${mediaId}/${epNum}` as any);
+      }
+    };
+
     return (
       <Pressable 
-        onPress={() => onEpisodePress ? onEpisodePress(String(epNum)) : router.push(`/watch/${animeId}/${epNum}` as any)}
+        onPress={handlePress}
         style={({pressed}) => [
           styles.scrollEpisodeItem,
           isActive ? styles.episodeItemActive : styles.episodeItemInactive,
@@ -107,15 +151,15 @@ export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpi
     <View style={styles.episodesSection}>
       <View style={styles.episodesHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Daftar Episode</Text>
-          <Text style={styles.episodesCountText}>{eps.length} Eps</Text>
+          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>{listLabel}</Text>
+          <Text style={styles.episodesCountText}>{eps.length} {countLabel}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable 
             onPress={() => {
               const nextSort = epsSort === 'asc' ? 'desc' : 'asc';
               setEpsSort(nextSort);
-              AsyncStorage.setItem('animeDetailEpsSort', nextSort);
+              AsyncStorage.setItem('mediaDetailSort', nextSort);
               setEpChunkIndex(0);
               flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
             }}
@@ -137,7 +181,7 @@ export const AnimeEpisodes = React.memo(({ animeId, rawEps, activeEpisode, onEpi
                 const firstNum = getNum(chunk[0]);
                 const lastNum = getNum(chunk[chunk.length - 1]);
                 
-                const label = epsSort === 'asc' ? `Eps ${firstNum} - ${lastNum}` : `Eps ${lastNum} - ${firstNum}`;
+                const label = epsSort === 'asc' ? `${countLabel} ${firstNum} - ${lastNum}` : `${countLabel} ${lastNum} - ${firstNum}`;
                 const isActive = epChunkIndex === i;
 
                 return (

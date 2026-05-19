@@ -16,7 +16,7 @@ import { fetchWithAuth } from '../../lib/fetcher';
 import { CommentSection } from '../../components/CommentSection';
 
 export default function MangaReaderScreen() {
-  const { link, sourceId, mangaId, title, chapter, nextChapterLink, nextChapterNum } = useLocalSearchParams();
+  const { link, sourceId, mangaId, title, img, chapter, nextChapterLink, nextChapterNum } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -163,7 +163,9 @@ export default function MangaReaderScreen() {
              episodeNumber: epNum,
              progressSeconds,
              durationSeconds,
-             isCompleted
+             isCompleted,
+             title: title,
+             coverImage: img
            }),
          }).catch(() => {});
       }

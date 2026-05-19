@@ -18,9 +18,9 @@ import { Search, X, Clock, ChevronRight, ArrowLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useSWRInfinite from "swr/infinite";
 
-import { AnimeCard } from "../components/AnimeCard";
+import { MediaCard } from "../components/MediaCard";
 import { Skeleton } from "../components/Skeleton";
-import { API_URL } from "../lib/config";
+import { API_URL, HF_API_URL } from "../lib/config";
 import { fetcher } from "../lib/fetcher";
 import { hasEps } from "../lib/utils";
 import { Theme } from "../lib/theme";
@@ -78,18 +78,15 @@ export default function ExploreScreen() {
 
   const isSearchActive = !!debouncedQuery || !!genre || sort !== "popularity";
 
-  // Manga Search State
-  const [mangaResults, setMangaResults] = useState<MangaItem[]>([]);
-  const [mangaLoading, setMangaLoading] = useState(false);
-
-  // SWR Infinite Pagination (For Anime)
+  // SWR Infinite Pagination
   const getKey = (pageIndex: number, previousPageData: any) => {
-    if (mediaType === "manga" || !isSearchActive) return null;
+    if (!isSearchActive) return null;
     if (previousPageData && (!previousPageData.data || previousPageData.data.length === 0)) return null;
     
-    let url = `${API}/api/v2/browse?page=${pageIndex + 1}&sort=${sort}`;
+    const baseUrl = API;
+    let url = `${baseUrl}/api/v2/${mediaType === "manga" ? "manga/search" : "browse"}?page=${pageIndex + 1}&sort=${sort}`;
     if (debouncedQuery) url += `&q=${encodeURIComponent(debouncedQuery)}`;
-    if (genre) url += `&genre=${encodeURIComponent(genre)}`;
+    if (genre && mediaType !== "manga") url += `&genre=${encodeURIComponent(genre)}`; // Manga genre filter pending backend support
     return url;
   };
 
@@ -98,33 +95,11 @@ export default function ExploreScreen() {
     revalidateFirstPage: false,
   });
 
-  useEffect(() => {
-    if (mediaType === "manga" && isSearchActive && debouncedQuery) {
-      const fetchMangaSearch = async () => {
-        setMangaLoading(true);
-        try {
-          // Fallback to first source for search. Ideally we could let user select source.
-          const source = MANGA_SOURCES[0];
-          const results = await MangaEngine.getSearchList(source, debouncedQuery);
-          setMangaResults(results);
-        } catch (e) {
-          console.error(e);
-          setMangaResults([]);
-        } finally {
-          setMangaLoading(false);
-        }
-      };
-      fetchMangaSearch();
-    } else if (mediaType === "manga") {
-      setMangaResults([]);
-    }
-  }, [debouncedQuery, mediaType, isSearchActive]);
-
-  const results = mediaType === "manga" ? mangaResults : (data ? data.flatMap(d => d.data || []).filter(hasEps) : []);
-  const isLoadingInitialData = mediaType === "manga" ? mangaLoading : (!data && !error && isSearchActive);
-  const isLoadingMore = mediaType === "anime" && (isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined"));
-  const isEmpty = mediaType === "manga" ? (mangaResults.length === 0 && !mangaLoading) : (data?.[0]?.data?.length === 0);
-  const isReachingEnd = mediaType === "manga" ? true : (isEmpty || (data && data[data.length - 1]?.data?.length < 20));
+  const results = data ? data.flatMap(d => d.data || []).filter(hasEps) : [];
+  const isLoadingInitialData = !data && !error && isSearchActive;
+  const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined");
+  const isEmpty = data?.[0]?.data?.length === 0;
+  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.data?.length < 20);
 
   useEffect(() => {
     // Add to history only on first page load of a successful new query
@@ -280,13 +255,8 @@ export default function ExploreScreen() {
             }
             renderItem={({ item }) => (
               <View style={{ width: CARD_WIDTH }}>
-                <AnimeCard 
-                  id={String(item.anilistId || item.id)} 
-                  title={item.cleanTitle || item.title?.english || item.title?.romaji || item.title || ""} 
-                  img={item.coverImage?.large || item.coverImage?.extraLarge || item.coverImage || item.img} 
-                  score={item.score || item.averageScore} 
-                  color={item.color} 
-                  totalEps={item.latestEpisode || item.totalEpisodes || item.episodes || item.latestChapter} 
+                <MediaCard 
+                  item={item}
                   mediaType={mediaType as "anime" | "manga"}
                 />
               </View>

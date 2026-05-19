@@ -9,11 +9,13 @@ import { ProgressBar } from './ProgressBar';
 
 import { API_URL } from "../lib/config";
 import { formatViews } from '../lib/utils';
+import { normalizeMediaItem } from '../lib/adapters/mediaAdapter';
 
 interface Props {
-  id: string;
-  title: string;
-  img: string | null;
+  item?: any;
+  id?: string;
+  title?: string;
+  img?: string | null;
   banner?: string | null;
   score?: number | null;
   color?: string | null;
@@ -29,24 +31,36 @@ interface Props {
   mediaType?: 'anime' | 'manga';
 }
 
-function AnimeCardInner({
-  id,
-  title,
-  img,
-  banner,
-  score,
-  color,
-  epId,
+function MediaCardInner({
+  item: rawItem,
+  id: manualId,
+  title: manualTitle,
+  img: manualImg,
+  banner: manualBanner,
+  score: manualScore,
+  color: manualColor,
+  epId: manualEpId,
   rank,
   variant = 'vertical',
   isNew,
   badge,
   totalEps,
-  views,
+  views: manualViews,
   progressPercent = 0,
   isCompleted = false,
   mediaType = 'anime',
 }: Props) {
+  const item = rawItem ? normalizeMediaItem(rawItem) : null;
+
+  const id = manualId || item?.id || '';
+  const title = manualTitle || item?.title || '';
+  const img = manualImg || item?.imageUrl || null;
+  const banner = manualBanner || item?.bannerUrl || null;
+  const score = manualScore ?? item?.score ?? null;
+  const color = manualColor || item?.color || null;
+  const epId = manualEpId || item?.episode || undefined;
+  const views = manualViews ?? item?.views ?? null;
+
   const accent = color || '#0A84FF';
   const href = mediaType === 'manga' ? `/manga/${id}` : `/anime/${id}`;
 
@@ -319,5 +333,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export const AnimeCard = memo(AnimeCardInner);
+export const MediaCard = memo(MediaCardInner);
 

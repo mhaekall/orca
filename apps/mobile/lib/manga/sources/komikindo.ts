@@ -14,7 +14,7 @@ export const KomikindoRule: MangaSourceRule = {
       score: '.score',
     },
     search: {
-      url: 'https://komikindo.tv/?s={{key}}',
+      url: 'https://komikindo.ch/?s={{key}}',
       list: '.animepost',
       title: '.tt h3',
       cover: 'img@src',
@@ -22,11 +22,13 @@ export const KomikindoRule: MangaSourceRule = {
       chapter: '.lsch a',
     },
     detail: {
-      title: '.thumb h1',
+      title: 'h1.entry-title, .thumb h1',
       cover: '.thumb img@src',
       synopsis: '.entry-content',
+      author: '.spe span:contains("Pengarang") i',
+      status: '.spe span:contains("Status")',
       genres: '.genre-info a',
-      chapterList: '.lchx a',
+      chapterList: '#chapter_list .lchx a',
       chapterNumber: '@text', // Returns the text of the <a> tag
       chapterLink: '@href',
       chapterDate: '.date@text',

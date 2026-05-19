@@ -6,11 +6,11 @@ import useSWR from 'swr';
 import { Bookmark, Forward, ArrowLeft, Heart, Eye, Flag, MessageSquare, ChevronDown } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useAuth } from '../../../lib/auth';
-import { AnimeCard } from '../../../components/AnimeCard';
+import { MediaCard } from '../../../components/MediaCard';
 import { CommentSection } from '../../../components/CommentSection';
 import { Skeleton } from '../../../components/Skeleton';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
-import { AnimeEpisodes } from '../../../components/anime-detail/AnimeEpisodes';
+import { MediaEpisodes } from '../../../components/media-detail/sections/MediaEpisodes';
 import { useWatchProgress } from '../../../lib/hooks/useWatchProgress';
 import { hasEps } from '../../../lib/utils';
 
@@ -55,7 +55,7 @@ export default function WatchScreen() {
   const episodes = anime?.episodes || [];
 
   const watchHistoryRaw = Array.isArray(progressData) ? progressData : (progressData?.data || []);
-  const animeHistory = watchHistoryRaw.filter((h: any) => String(h.animeSlug) === String(id));
+  const animeHistory = watchHistoryRaw.filter((h: any) => String(h.anilist_id || h.animeSlug) === String(id));
   
   // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
   const bestSource = sources.length > 0 ? sources[0] : null;
@@ -316,10 +316,10 @@ export default function WatchScreen() {
                   </View>
 
                   {/* List Episode Terpusat dari Komponen Detail */}
-                  <AnimeEpisodes 
-                    animeId={String(id)} 
+                  <MediaEpisodes 
+                    mediaId={String(id)} 
+                    mediaType="anime"
                     rawEps={episodes} 
-                    history={animeHistory} 
                     activeEpisode={String(episode)} 
                     onEpisodePress={handleEpisodeChange}
                   />

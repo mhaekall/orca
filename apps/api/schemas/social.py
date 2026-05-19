@@ -8,6 +8,8 @@ class WatchProgressUpdate(BaseModel):
     progressSeconds: int
     durationSeconds: int
     isCompleted: bool
+    title: str | None = None
+    coverImage: str | None = None
 
 
 class WatchEventCreate(BaseModel):

@@ -11,7 +11,7 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter, Stack } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AnimeCard } from "../components/AnimeCard";
+import { MediaCard } from "../components/MediaCard";
 
 const { width: W } = Dimensions.get("window");
 import { API_URL } from "../lib/config";
@@ -111,11 +111,8 @@ export default function TrendingScreen() {
                 }}>
                    <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold' }}>{index + 1}</Text>
                 </View>
-                <AnimeCard 
-                  id={String(item.anilistId || item.id)} 
-                  title={item.title?.english || item.title?.romaji || item.title || item.cleanTitle || item.nativeTitle} 
-                  img={item.coverImage?.extraLarge || item.coverImage?.large || item.coverImage || item.poster || item.img} 
-                  totalEps={item.totalEpisodes || item.episodes} 
+                <MediaCard 
+                  item={item}
                   variant="vertical"
                 />
              </View>

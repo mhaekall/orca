@@ -1,6 +1,13 @@
+import { mutate } from "swr";
+import { API_URL } from "./config";
+
 /**
  * Shared utility functions for formatting and filtering data across the app.
  */
+
+export const prefetchAnime = (id: string) => {
+  mutate(`${API_URL}/api/v2/anime/${id}`);
+};
 
 export function formatViews(v: number | null | undefined): string {
   if (!v) return '0';

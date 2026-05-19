@@ -30,6 +30,27 @@ async def get_collection(user_id: str):
 
 @router.post("")
 async def save_collection(coll: CollectionUpdate):
+    from db.models import anime_metadata
+    if coll.title and coll.img and coll.anilistId.isdigit():
+        meta_stmt = (
+            pg_insert(anime_metadata)
+            .values(
+                anilistId=int(coll.anilistId),
+                cleanTitle=coll.title,
+                coverImage=coll.img,
+                updatedAt=func.now(),
+            )
+            .on_conflict_do_update(
+                index_elements=["anilistId"],
+                set_={
+                    "cleanTitle": coll.title,
+                    "coverImage": coll.img,
+                    "updatedAt": func.now(),
+                },
+            )
+        )
+        await database.execute(meta_stmt)
+
     stmt = (
         pg_insert(collections)
         .values(

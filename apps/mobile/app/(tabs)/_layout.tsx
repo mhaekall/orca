@@ -3,38 +3,45 @@ import { House, Calendar, Bookmark, CircleUser } from "lucide-react-native";
 import { Platform, View } from "react-native";
 import { Image } from "expo-image";
 import { useAuth } from "../../lib/auth";
+import { Theme } from "../../lib/theme";
 
-// Helper component to handle dynamic scale and background pill
+// Refined TabIcon: Zero-scale, full opacity icons with purely pill-based focus
 function TabIcon({ IconComponent, color, focused, isProfile, userImg }: { IconComponent: any, color: string, focused: boolean, isProfile?: boolean, userImg?: string }) {
-  const size = 26; // Ukuran tetap sama (ukuran saat ada pill bg)
+  const size = 24; 
 
   return (
-    <View 
-      style={[
-        { alignItems: "center", justifyContent: "center" },
-        focused ? {
-          backgroundColor: "rgba(255, 255, 255, 0.08)", // Latar belakang (pill) saat aktif
-          paddingHorizontal: 18,
-          paddingVertical: 8,
-          borderRadius: 18,
-          marginTop: -2, // Naikkan posisi icon (kompensasi padding)
-        } : {
-          marginTop: -6, // Naikkan posisi icon saat tidak aktif
-        }
-      ]}
-    >
+    <View style={{ width: 60, height: 40, alignItems: "center", justifyContent: "center", marginTop: Theme.layout.tabBar.iconMarginTop }}>
+      {/* Absolute Pill Layer to prevent layout shifts */}
+      {focused && (
+        <View 
+          style={{
+            position: 'absolute',
+            width: Theme.layout.tabBar.pillWidth, 
+            height: Theme.layout.tabBar.pillHeight,
+            backgroundColor: "rgba(255, 255, 255, 0.08)", 
+            borderRadius: Theme.layout.tabBar.pillHeight / 2,
+          }} 
+        />
+      )}
+      
       {isProfile && userImg ? (
         <Image 
           source={{ uri: userImg }} 
-          style={{ width: size, height: size, borderRadius: size / 2, borderWidth: focused ? 1.5 : 0, borderColor: color }} 
+          style={{ 
+            width: size, 
+            height: size, 
+            borderRadius: size / 2, 
+            borderWidth: focused ? 1.5 : 0, 
+            borderColor: color 
+          }} 
           contentFit="cover"
         />
       ) : (
         <IconComponent 
           size={size} 
-          color={color} 
-          strokeWidth={focused ? 2.5 : 2} 
-          fill={focused ? color : "transparent"} 
+          color="#ffffff" // Always full white
+          strokeWidth={2} // Strictly consistent
+          fill="none" 
         />
       )}
     </View>
@@ -50,20 +57,19 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#0a0812", // Warna dasar Beranda
+          backgroundColor: "#0a0812",
           position: "absolute",
           borderTopWidth: 0,
           elevation: 0,
-          height: Platform.OS === "ios" ? 90 : 70,
-          paddingBottom: Platform.OS === "ios" ? 30 : 12,
-          paddingTop: 8, // Mengurangi padding top agar ikon lebih naik
+          height: Theme.layout.tabBar.height,
+          paddingBottom: Theme.layout.tabBar.paddingBottom,
         },
-        tabBarActiveTintColor: "#ffffff", // Web uses white for active
-        tabBarInactiveTintColor: "rgba(255,255,255,0.4)", // Web uses white/40 for inactive
+        tabBarActiveTintColor: "#ffffff",
+        tabBarInactiveTintColor: "#ffffff", // All icons "light up" fully
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "bold",
-          marginTop: 6, // Jarak teks dengan ikon tetap proporsional
+          fontSize: Theme.layout.tabBar.fontSize,
+          fontWeight: Theme.layout.tabBar.fontWeight,
+          marginTop: 14, // Lowered significantly
         },
       }}
     >

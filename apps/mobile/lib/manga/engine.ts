@@ -29,12 +29,42 @@ async function fetchHtml(url: string, customHeaders?: Record<string, string>): P
   }
 }
 
+// Custom text extractor to handle :contains pseudo-selector which is not fully supported by node-html-parser natively in all cases
+function getTextAdvanced(root: HTMLElement, selector: string): string {
+  if (!selector) return '';
+
+  if (selector.includes(':contains("')) {
+    const parts = selector.split(':contains("');
+    const baseSelector = parts[0].trim();
+    const searchStringAndRest = parts[1].split('")');
+    const searchString = searchStringAndRest[0];
+    const restSelector = searchStringAndRest[1]?.trim() || '';
+
+    const elements = root.querySelectorAll(baseSelector);
+    for (const el of elements) {
+      if (el.text.includes(searchString)) {
+        if (restSelector) {
+           const target = el.querySelector(restSelector);
+           if (target) return target.text.trim();
+        } else {
+           // We want the text after the label usually (e.g. "Status: Ongoing")
+           return el.text.replace(searchString, '').replace(/^[:\s]+/, '').replace(/\s+/g, ' ').trim();
+        }
+      }
+    }
+    return '';
+  }
+
+  // Fallback to basic getText
+  return getText(root, selector);
+}
+
 // Helper to extract text safely using node-html-parser
 function getText(el: HTMLElement, selector: string): string {
   if (!selector) return '';
   
   if (selector === '@text') {
-    return el.text.trim();
+    return el.text.replace(/\s+/g, ' ').trim();
   }
 
   const isAttr = selector.includes('@');
@@ -54,13 +84,26 @@ function getText(el: HTMLElement, selector: string): string {
     return val;
   }
   
-  const found = el.querySelector(selector);
-  return found ? found.text.trim() : '';
+  // Multiple selectors support (comma separated) for text extraction
+  const selectors = selector.split(',').map(s => s.trim());
+  for (const sel of selectors) {
+    const found = el.querySelector(sel);
+    if (found) {
+      return found.text.replace(/\s+/g, ' ').trim();
+    }
+  }
+  return '';
 }
 
 // Helper to generate a unique ID based on source and slug
 function generateId(sourceId: string, url: string): string {
   return `${sourceId}|${encodeURIComponent(url)}`;
+}
+
+// Menghapus dimensi seperti -150x200, -165x225, dsb. dari URL gambar WordPress
+function getHighResImageUrl(url: string): string {
+  if (!url) return url;
+  return url.replace(/-\d+x\d+(\.[a-zA-Z0-9]+(?:\?.*)?)$/i, '$1');
 }
 
 export class MangaEngine {
@@ -89,7 +132,7 @@ export class MangaEngine {
           sourceId: source.id,
           title: itemTitle,
           link: itemLink,
-          img: itemCover || '',
+          img: getHighResImageUrl(itemCover || ''),
           latestChapter: itemChapter,
           score: isNaN(itemScore as number) ? undefined : itemScore,
         });
@@ -129,7 +172,7 @@ export class MangaEngine {
           sourceId: source.id,
           title: itemTitle,
           link: itemLink,
-          img: itemCover || '',
+          img: getHighResImageUrl(itemCover || ''),
           latestChapter: itemChapter,
           score: isNaN(itemScore as number) ? undefined : itemScore,
         });
@@ -148,8 +191,25 @@ export class MangaEngine {
     const title = getText(root, s.title);
     let cover = getText(root, s.cover);
     const synopsis = getText(root, s.synopsis);
-    const author = s.author ? getText(root, s.author) : 'Unknown';
-    const status = s.status ? getText(root, s.status) : 'Unknown';
+    
+    // Multiple selectors support (comma separated)
+    let author = 'Unknown';
+    if (s.author) {
+       const authorSelectors = s.author.split(',').map(s => s.trim());
+       for (const sel of authorSelectors) {
+          const val = getTextAdvanced(root, sel);
+          if (val && val !== 'Unknown') { author = val; break; }
+       }
+    }
+
+    let status = 'Unknown';
+    if (s.status) {
+       const statusSelectors = s.status.split(',').map(s => s.trim());
+       for (const sel of statusSelectors) {
+          const val = getTextAdvanced(root, sel);
+          if (val && val !== 'Unknown') { status = val; break; }
+       }
+    }
     
     if (cover && cover.startsWith('/')) cover = `${source.domain}${cover}`;
 
@@ -161,7 +221,16 @@ export class MangaEngine {
     }
 
     const chapters: MangaChapter[] = [];
-    root.querySelectorAll(s.chapterList).forEach((el) => {
+    
+    // Chapter List multiple selectors support
+    const chapterSelectors = s.chapterList.split(',').map(sel => sel.trim());
+    let elements: HTMLElement[] = [];
+    for (const sel of chapterSelectors) {
+      elements = root.querySelectorAll(sel);
+      if (elements.length > 0) break;
+    }
+
+    elements.forEach((el) => {
        const chNum = getText(el, s.chapterNumber);
        let chLink = getText(el, s.chapterLink);
        const chDate = s.chapterDate ? getText(el, s.chapterDate) : undefined;
@@ -182,7 +251,7 @@ export class MangaEngine {
       id: generateId(source.id, mangaUrl),
       sourceId: source.id,
       title,
-      img: cover || '',
+      img: getHighResImageUrl(cover || ''),
       link: mangaUrl,
       synopsis,
       author,
@@ -211,5 +280,20 @@ export class MangaEngine {
 
     return images;
   }
-}
 
+  static async findAndGetDetail(sources: MangaSourceRule[], title: string): Promise<MangaDetail | null> {
+    for (const source of sources) {
+       try {
+           const searchResults = await this.getSearchList(source, title);
+           if (searchResults.length > 0) {
+               // Simply pick the first one for now
+               const bestMatch = searchResults[0]; 
+               return await this.getDetail(source, bestMatch.link);
+           }
+       } catch (e) {
+           console.warn(`[MangaEngine] Search failed on ${source.id} for ${title}`, e);
+       }
+    }
+    return null;
+  }
+}

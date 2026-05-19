@@ -6,3 +6,5 @@ class CollectionUpdate(BaseModel):
     anilistId: str
     status: str
     progress: float = 0
+    title: str | None = None
+    img: str | None = None

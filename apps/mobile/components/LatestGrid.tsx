@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { AnimeCard } from './AnimeCard';
+import { MediaCard } from './MediaCard';
 
 interface Props {
   title: string;
@@ -26,29 +26,16 @@ export function LatestGrid({ title, items, badge, mediaType = 'anime' }: Props) 
       ) : null}
 
       <View style={styles.grid}>
-        {visibleItems.map((a, i) => {
-          const id = String(a.anilistId || a.id || '');
-          if (!id) return null;
-          
-          return (
-            <View key={`${id}-${i}`} style={styles.gridItem}>
-              <AnimeCard
-                id={id}
-                title={a.title?.english || a.title?.romaji || a.title || ''}
-                img={a.img || a.coverImage?.extraLarge || a.coverImage?.large || null}
-                banner={a.banner || a.bannerImage || null}
-                score={a.score || a.averageScore}
-                views={a.views}
-                color={a.color || a.coverImage?.color}
-                epId={a.latestChapter ? String(a.latestChapter) : (a.latestEpisode ? String(a.latestEpisode) : (a.episodes ? String(a.episodes) : undefined))}
-                totalEps={a.episodes}
-                variant="vertical"
-                badge={badge}
-                mediaType={mediaType}
-              />
-            </View>
-          );
-        })}
+        {visibleItems.map((a, i) => (
+          <View key={`${a.anilistId || a.id || i}-${i}`} style={styles.gridItem}>
+            <MediaCard
+              item={a}
+              variant="vertical"
+              badge={badge}
+              mediaType={mediaType}
+            />
+          </View>
+        ))}
       </View>
 
       <View style={styles.footer}>

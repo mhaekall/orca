@@ -5,20 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
 import { fetcher } from './fetcher';
 
-const CACHE_KEY = '@app-swr-cache';
-const MAX_CACHE_KEYS = 30; // Limit cache keys to avoid JSON stringify bloat
+const CACHE_KEY = '@app-swr-cache-v2';
+const MAX_CACHE_KEYS = 50; 
 
 export function SWRProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProvider] = useState<any>(null);
+  const isHydrating = useRef(true);
 
   useEffect(() => {
-    let appState = AppState.currentState;
-    
-    // Function to handle app state changes for background revalidation
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {};
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
     const initCache = async () => {
       try {
         const storedCache = await AsyncStorage.getItem(CACHE_KEY);
@@ -26,30 +20,16 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
         
         let saveTimeout: NodeJS.Timeout;
         const saveCache = () => {
+          if (isHydrating.current) return;
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
-            // Convert to array, slice to keep latest, to avoid massive JSON limits
             const entries = Array.from(map.entries()).slice(-MAX_CACHE_KEYS);
             
-            const getCircularReplacer = () => {
-              const seen = new WeakSet();
-              return (key: string, value: any) => {
-                if (typeof value === "object" && value !== null) {
-                  if (seen.has(value)) return; // Discard circular reference
-                  seen.add(value);
-                }
-                if (value instanceof Error) return value.message;
-                return value;
-              };
-            };
-
             try {
-              const data = JSON.stringify(entries, getCircularReplacer());
-              AsyncStorage.setItem(CACHE_KEY, data).catch(console.error);
-            } catch (err) {
-              console.warn('Failed to serialize SWR cache:', err);
-            }
-          }, 1000);
+              const data = JSON.stringify(entries);
+              AsyncStorage.setItem(CACHE_KEY, data).catch(() => {});
+            } catch (err) {}
+          }, 2000);
         };
 
         const customProvider = {
@@ -66,19 +46,16 @@ export function SWRProvider({ children }: { children: React.ReactNode }) {
         };
         
         setProvider(() => customProvider);
+        isHydrating.current = false;
       } catch (e) {
-        console.error('Failed to init SWR cache', e);
-        setProvider(() => new Map()); // Fallback to memory
+        setProvider(() => new Map());
+        isHydrating.current = false;
       } finally {
         await SplashScreen.hideAsync().catch(() => {});
       }
     };
 
     initCache();
-
-    return () => {
-      subscription.remove();
-    };
   }, []);
 
   if (!provider) {

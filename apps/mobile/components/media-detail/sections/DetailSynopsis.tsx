@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { formatSynopsis } from '../../lib/utils';
+import { formatSynopsis } from '../../../lib/utils';
 
-export const AnimeSynopsis = React.memo(({ synopsis }: { synopsis: string }) => {
+export const DetailSynopsis = React.memo(({ synopsis }: { synopsis: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const desc = formatSynopsis(synopsis || "");
 

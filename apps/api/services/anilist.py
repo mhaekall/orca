@@ -508,11 +508,25 @@ async def check_manga_availability(title: str, sem: asyncio.Semaphore) -> bool:
         try:
             safe_title = urllib.parse.quote(title)
             async with AsyncSession(impersonate="chrome110", timeout=8.0) as s:
-                res = await s.get(f"https://komikindo.ch/?s={safe_title}")
-                if res.status_code in [403, 503]:
-                    return True # Fallback to True if blocked by Cloudflare to avoid empty home
-                soup = BeautifulSoup(res.text, "html.parser")
-                return len(soup.select(".animepost")) > 0
+                # Cek Komikindo terlebih dahulu
+                res1 = await s.get(f"https://komikindo.ch/?s={safe_title}")
+                if res1.status_code not in [403, 503]:
+                    soup1 = BeautifulSoup(res1.text, "html.parser")
+                    if len(soup1.select(".animepost")) > 0:
+                        return True
+                        
+                # Jika tidak ada, cek Bacakomik
+                res2 = await s.get(f"https://bacakomik.my/?s={safe_title}")
+                if res2.status_code not in [403, 503]:
+                    soup2 = BeautifulSoup(res2.text, "html.parser")
+                    if len(soup2.select(".animepost")) > 0:
+                        return True
+                        
+                # Jika diblokir oleh dua-duanya, fallback ke True agar tidak blank
+                if res1.status_code in [403, 503] and res2.status_code in [403, 503]:
+                    return True
+                    
+                return False
         except Exception as e:
             print(f"[Manga Validation Error] {title}: {e}")
             return True # Fallback to True on timeout/error

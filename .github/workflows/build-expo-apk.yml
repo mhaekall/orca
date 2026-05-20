@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload APK to Temporary File Host (Bypass GitHub Quota)
         run: |
-          echo "Uploading APK to bashupload.com..."
-          curl -T apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk bashupload.com > upload_link.txt
+          echo "Uploading APK to file.io..."
+          curl -F "file=@apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk" https://file.io > upload_link.json
           echo "DOWNLOAD LINK:"
-          cat upload_link.txt
+          cat upload_link.json | grep -o '"link":"[^"]*"' || cat upload_link.json

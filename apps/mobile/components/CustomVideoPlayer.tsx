@@ -152,8 +152,8 @@ export function CustomVideoPlayer({
           setIsBuffering(true);
         }
         
-        // AUTO-FALLBACK: If stuck for ~12 seconds, try next source for this quality
-        if (stuckCountRef.current >= 12 && activeQuality) {
+        // AUTO-FALLBACK: Jika macet selama ~30 detik (agar Wibufile/Pixeldrain 1080p punya waktu untuk buffering), coba source berikutnya
+        if (stuckCountRef.current >= 30 && activeQuality) {
            const qSources = sources.filter(s => s.quality === activeQuality);
            if (sourceIndex + 1 < qSources.length) {
               const nextSource = qSources[sourceIndex + 1];
@@ -170,10 +170,10 @@ export function CustomVideoPlayer({
         setIsBuffering(false);
       }
       
-      // Also fallback if duration is 0 for 15 seconds (dead link from the start)
+      // Also fallback if duration is 0 for 35 seconds (dead link from the start)
       if (timeNow === 0 && durationRef.current === 0) {
         stuckCountRef.current += 1;
-        if (stuckCountRef.current >= 15 && activeQuality) {
+        if (stuckCountRef.current >= 35 && activeQuality) {
            const qSources = sources.filter(s => s.quality === activeQuality);
            if (sourceIndex + 1 < qSources.length) {
               const nextSource = qSources[sourceIndex + 1];

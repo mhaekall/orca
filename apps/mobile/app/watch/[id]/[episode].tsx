@@ -17,6 +17,8 @@ import { hasEps } from '../../../lib/utils';
 const { width: W } = Dimensions.get('window');
 import { API_URL, HF_API_URL } from "../../../lib/config";
 import { fetcher, fetchWithAuth } from "../../../lib/fetcher";
+import { AnimeEngine } from '../../../lib/anime/engine';
+import { AnimeSource } from '../../../lib/anime/types';
 
 export default function WatchScreen() {
   const { id, episode } = useLocalSearchParams();
@@ -25,6 +27,8 @@ export default function WatchScreen() {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [clientSources, setClientSources] = useState<AnimeSource[]>([]);
+  const [isClientScraping, setIsClientScraping] = useState(false);
   
   const { data: animeData } = useSWR(`${HF_API_URL}/api/v2/anime/${id}?_cb=5`, fetcher);
   
@@ -51,14 +55,102 @@ export default function WatchScreen() {
   const realViews = animeStatsData?.total_episode_views || animeData?.data?.views || animeData?.data?.popularity || 0;
 
   const anime = animeData?.data;
-  const sources = streamData?.sources || [];
   const episodes = anime?.episodes || [];
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchClientSources = async () => {
+      const currentEpData = episodes.find((e: any) => String(e.episodeNumber || e.number) === String(episode));
+      let epUrl = currentEpData?.url || currentEpData?.link || currentEpData?.episodeUrl;
+      
+      if (!epUrl) return;
+
+      setIsClientScraping(true);
+      setClientSources([]);
+      try {
+        let sc: AnimeSource[] = [];
+        
+        // --- INJECTION FOR TELE PROXY DEMO ---
+        // If it's a Tele Proxy link, we forcefully inject a Kuronime URL 
+        // (Frieren Ep 5) to demonstrate how the client unifies multiple providers.
+        if (epUrl.includes("tele-proxy") || epUrl.includes("moehamadhkl.workers.dev")) {
+            console.log("Tele Proxy detected, injecting Kuronime source for demo...");
+            const kuroSources = await AnimeEngine.getKuronimeSources("https://kuronime.sbs/nonton-sousou-no-frieren-episode-5/");
+            sc = [...kuroSources];
+        } 
+        // -------------------------------------
+
+        if (epUrl.includes("kuronime") || epUrl.includes("animeku")) {
+           const kuroSrc = await AnimeEngine.getKuronimeSources(epUrl);
+           sc = [...sc, ...kuroSrc];
+        } else if (epUrl.includes("samehadaku")) {
+           const sameSrc = await AnimeEngine.getSamehadakuSources(epUrl);
+           sc = [...sc, ...sameSrc];
+        }
+        
+        if (isMounted && sc && sc.length > 0) {
+           setClientSources(sc);
+        }
+      } catch (e) {
+        console.warn("Client scraping failed:", e);
+      } finally {
+        if (isMounted) setIsClientScraping(false);
+      }
+    };
+    
+    if (episodes.length > 0) {
+      fetchClientSources();
+    }
+    return () => { isMounted = false; };
+  }, [episode, episodes]);
+
+  // Fix Tele Proxy labels and inject fallback qualities
+  const sources = React.useMemo(() => {
+    // Merge backend sources (like Tele Proxy) with client sources (like injected Kuronime)
+    const backendSources = streamData?.sources || [];
+    let rawSources = [...backendSources, ...clientSources];
+    
+    // Deduplicate by URL
+    rawSources = rawSources.filter((v, i, a) => a.findIndex(t => (t.url === v.url)) === i);
+    
+    let processedSources: AnimeSource[] = [];
+    rawSources.forEach((s: any) => {
+      if (s.url && (s.url.includes("tele-proxy") || s.url.includes("moehamadhkl.workers.dev"))) {
+        const base = s.url;
+        const separator = base.includes("?") ? "&" : "?";
+        
+        // Teleproxy is actually 720p
+        processedSources.push({ ...s, quality: "720p", provider: "Tele Proxy", url: `${base}${separator}mock=720p` });
+        // Inject other resolutions that fallback to the same URL (but unique string) to trigger player reload
+        processedSources.push({ ...s, quality: "1080p", provider: "Tele Proxy (Upscale)", url: `${base}${separator}mock=1080p` });
+        processedSources.push({ ...s, quality: "480p", provider: "Tele Proxy (Downscale)", url: `${base}${separator}mock=480p` });
+        processedSources.push({ ...s, quality: "360p", provider: "Tele Proxy (Downscale)", url: `${base}${separator}mock=360p` });
+      } else {
+        processedSources.push(s);
+      }
+    });
+
+    return processedSources;
+  }, [clientSources, streamData]);
+
+  const combinedLoading = isClientScraping || (clientSources.length === 0 && streamLoading);
 
   const watchHistoryRaw = Array.isArray(progressData) ? progressData : (progressData?.data || []);
   const animeHistory = watchHistoryRaw.filter((h: any) => String(h.anilist_id || h.animeSlug) === String(id));
   
-  // 1. Ambil source video (Backend sudah meresolve iframe ke direct URL)
-  const bestSource = sources.length > 0 ? sources[0] : null;
+  // 1. Ambil source video (Backend/Client sudah meresolve iframe ke direct URL)
+  // Prioritaskan: 1) Direct Stream (HLS/MP4), 2) Resolusi 720p/480p
+  const directSources = sources.filter((s: any) => s.type !== "iframe");
+  const fallbackSources = sources.filter((s: any) => s.type === "iframe");
+
+  const bestSource = 
+    directSources.find((s: any) => s.quality === "720p") || 
+    directSources.find((s: any) => s.quality === "480p") || 
+    directSources.find((s: any) => s.quality === "1080p") ||
+    (directSources.length > 0 ? directSources[0] : null) ||
+    fallbackSources.find((s: any) => s.quality === "720p") ||
+    (fallbackSources.length > 0 ? fallbackSources[0] : null);
+    
   const videoUrl = bestSource?.url || null;
 
   const userId = user?.id || user?.email;
@@ -214,7 +306,7 @@ export default function WatchScreen() {
         isFullscreen && showComments && { right: 320 }
       ]}>
 
-        {streamLoading ? (
+        {combinedLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0A84FF" />
             <Text style={styles.loadingText}>Mencari sumber video...</Text>
@@ -222,11 +314,12 @@ export default function WatchScreen() {
         ) : videoUrl ? (
           <CustomVideoPlayer 
             videoUrl={videoUrl}
+            sources={sources}
             title={`${displayTitle} - Eps ${episode}`}
             onBack={() => router.back()}
             onNext={nextEp ? () => handleEpisodeChange(String(getEpNumStr(nextEp))) : undefined}
             onPrevious={prevEp ? () => handleEpisodeChange(String(getEpNumStr(prevEp))) : undefined}
-            isLoading={streamLoading}
+            isLoading={combinedLoading}
             onFullscreenChange={setIsFullscreen}
             views={realViews}
             likes={likesCount}

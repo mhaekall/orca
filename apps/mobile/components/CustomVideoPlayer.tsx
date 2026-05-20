@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, Dimensions, ActivityIndicator, Alert, PanResponder, BackHandler, ScrollView } from 'react-native';
 import NativeVideoPlayer, { NativeVideoPlayerRef } from '../modules/native-video-player/src/index';
 import { Play, Pause, SkipForward, SkipBack, Maximize, Minimize, Settings, Heart, MessageSquare, Eye, RotateCcw, RotateCw, ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { resolveProxyUrl } from '../lib/utils';
 
 interface Props {
   videoUrl: string | null;
+  sources?: { quality: string, url: string, provider: string }[];
   sourceType?: string;
   title?: string;
   headers?: Record<string, string>;
@@ -39,7 +40,8 @@ function formatTime(seconds: number) {
 }
 
 export function CustomVideoPlayer({ 
-  videoUrl, 
+  videoUrl: initialVideoUrl, 
+  sources = [],
   sourceType,
   title,
   headers,
@@ -56,8 +58,16 @@ export function CustomVideoPlayer({
   onEnd,
   onBack
 }: Props) {
+  const [activeUrl, setActiveUrl] = useState(initialVideoUrl);
+  
+  useEffect(() => {
+    if (initialVideoUrl) {
+      setActiveUrl(initialVideoUrl);
+    }
+  }, [initialVideoUrl]);
+
   // Bypass stale Cloudflare Edge Cache for proxy URLs & ensure it doesn't trigger re-renders
-  const finalUrl = React.useMemo(() => resolveProxyUrl(videoUrl), [videoUrl]);
+  const finalUrl = React.useMemo(() => resolveProxyUrl(activeUrl), [activeUrl]);
 
   const playerRef = useRef<NativeVideoPlayerRef>(null);
 
@@ -82,13 +92,50 @@ export function CustomVideoPlayer({
   const currentTimeRef = useRef(currentTime);
   const lastTimeRef = useRef(0);
   const stuckCountRef = useRef(0);
-  
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeQuality, setActiveQuality] = useState<string | null>(null);
+  const [sourceIndex, setSourceIndex] = useState(0);
+
+  // Group sources by quality
+  const availableQualities = React.useMemo(() => {
+    const qualities = ["1080p", "720p", "480p", "360p", "Auto"];
+    return qualities.filter(q => sources.some(s => s.quality === q));
+  }, [sources]);
+
+  useEffect(() => {
+    if (sources.length > 0 && !activeQuality && !activeUrl) {
+      // Prioritize 720p, then 480p
+      const defaultQ = availableQualities.includes("720p") ? "720p" : availableQualities.includes("480p") ? "480p" : availableQualities[0];
+      setActiveQuality(defaultQ);
+      setSourceIndex(0);
+      const qSources = sources.filter(s => s.quality === defaultQ);
+      if (qSources.length > 0) setActiveUrl(qSources[0].url);
+    }
+  }, [sources, activeQuality, activeUrl, availableQualities]);
+
+  const previousUrlRef = useRef(finalUrl);
+
+  useEffect(() => {
+    // When URL changes dynamically via Settings or Fallback, seek to saved time
+    if (finalUrl && finalUrl !== previousUrlRef.current) {
+      previousUrlRef.current = finalUrl;
+      setIsBuffering(true);
+      const savedTime = currentTimeRef.current;
+      if (savedTime > 0) {
+        setTimeout(() => {
+          playerRef.current?.seekTo(savedTime);
+        }, 500);
+      }
+    }
+  }, [finalUrl]);
+
   useEffect(() => {
     durationRef.current = duration;
     currentTimeRef.current = currentTime;
   }, [duration, currentTime]);
 
-  // Frontend-only buffering detection interval
+  // Frontend-only buffering detection and Auto-Fallback Watchdog
   useEffect(() => {
     if (!isPlaying) {
       setIsBuffering(false);
@@ -99,21 +146,52 @@ export function CustomVideoPlayer({
       if (isDragging.current) return;
       
       const timeNow = currentTimeRef.current;
-      // If we haven't reached the end and time is stuck
       if (timeNow > 0 && timeNow === lastTimeRef.current && timeNow < durationRef.current - 1) {
         stuckCountRef.current += 1;
         if (stuckCountRef.current >= 2) {
           setIsBuffering(true);
         }
+        
+        // AUTO-FALLBACK: If stuck for ~12 seconds, try next source for this quality
+        if (stuckCountRef.current >= 12 && activeQuality) {
+           const qSources = sources.filter(s => s.quality === activeQuality);
+           if (sourceIndex + 1 < qSources.length) {
+              const nextSource = qSources[sourceIndex + 1];
+              console.warn(`[Auto-Fallback] Stream stuck. Switching to alternative ${activeQuality} source...`);
+              console.log(`[Auto-Fallback] 🔄 Provider Baru: ${nextSource.provider}`);
+              console.log(`[Auto-Fallback] 🔗 URL Baru     : ${nextSource.url}`);
+              stuckCountRef.current = 0;
+              setSourceIndex(prev => prev + 1);
+              setActiveUrl(nextSource.url);
+           }
+        }
       } else {
         stuckCountRef.current = 0;
         setIsBuffering(false);
       }
+      
+      // Also fallback if duration is 0 for 15 seconds (dead link from the start)
+      if (timeNow === 0 && durationRef.current === 0) {
+        stuckCountRef.current += 1;
+        if (stuckCountRef.current >= 15 && activeQuality) {
+           const qSources = sources.filter(s => s.quality === activeQuality);
+           if (sourceIndex + 1 < qSources.length) {
+              const nextSource = qSources[sourceIndex + 1];
+              console.warn(`[Auto-Fallback] Dead link detected. Switching to alternative ${activeQuality} source...`);
+              console.log(`[Auto-Fallback] 🔄 Provider Baru: ${nextSource.provider}`);
+              console.log(`[Auto-Fallback] 🔗 URL Baru     : ${nextSource.url}`);
+              stuckCountRef.current = 0;
+              setSourceIndex(prev => prev + 1);
+              setActiveUrl(nextSource.url);
+           }
+        }
+      }
+
       lastTimeRef.current = timeNow;
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, activeQuality, sourceIndex, sources]);
 
   useEffect(() => {
     setIsBuffering(true);
@@ -410,13 +488,25 @@ export function CustomVideoPlayer({
 
           {/* Top Bar Content */}
           <View style={styles.topBarContentWrapper} pointerEvents="box-none">
-            {!isFullscreen && onBack ? (
-              <Pressable onPress={onBack} style={styles.backButton}>
-                <ArrowLeft color="white" size={24} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              {!isFullscreen && onBack ? (
+                <Pressable onPress={onBack} style={styles.backButton}>
+                  <ArrowLeft color="white" size={24} />
+                </Pressable>
+              ) : isFullscreen && title ? (
+                <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
+              ) : <View style={{ width: 40 }} />}
+            </View>
+
+            {sources.length > 0 && (
+              <Pressable onPress={() => {
+                setShowSettings(true);
+                // Pause automatically while settings is open (optional, but good UX)
+                if (isPlaying) handlePlayPause();
+              }} style={[styles.iconButton, { marginLeft: 16 }]}>
+                <Settings color="white" size={24} />
               </Pressable>
-            ) : isFullscreen && title ? (
-              <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
-            ) : <View style={{ width: 40 }} />}
+            )}
           </View>
 
           {/* Center Play/Pause & Skip Controls */}
@@ -514,6 +604,59 @@ export function CustomVideoPlayer({
 
         </Animated.View>
       </View>
+
+      {/* Settings / Resolution Bottom Sheet Overlay */}
+      {showSettings && (
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="auto">
+          {/* Blur Background */}
+          <Pressable 
+            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 40 }]} 
+            onPress={() => setShowSettings(false)} 
+          />
+          
+          <Animated.View style={[styles.settingsSheet, isFullscreen && styles.settingsSheetFullscreen]}>
+            <View style={styles.settingsHeader}>
+              <Text style={styles.settingsTitle}>Kualitas Video</Text>
+            </View>
+            <ScrollView style={styles.settingsContent} showsVerticalScrollIndicator={false}>
+              {availableQualities.map((quality, i) => {
+                const isSelected = quality === activeQuality;
+                return (
+                  <Pressable 
+                    key={`${quality}-${i}`}
+                    onPress={() => {
+                        const qSources = sources.filter(s => s.quality === quality);
+                        if (qSources.length > 0) {
+                          console.log(`\n📺 [VIDEO PLAYER] Mengganti resolusi ke: ${quality}`);
+                          console.log(`Provider: ${qSources[0].provider}`);
+                          console.log(`URL     : ${qSources[0].url}\n`);
+                          setActiveQuality(quality);
+                          setSourceIndex(0);
+                          setActiveUrl(qSources[0].url);
+                      }
+                      setShowSettings(false);
+                      if (!isPlaying) handlePlayPause(); // Resume
+                    }}
+                    style={({pressed}) => [
+                      styles.settingsOption,
+                      isSelected && styles.settingsOptionSelected,
+                      pressed && { backgroundColor: 'rgba(255,255,255,0.1)' }
+                    ]}
+                  >
+                    <View style={styles.settingsOptionLeft}>
+                      <Text style={[styles.settingsOptionQuality, isSelected && { color: '#0A84FF' }]}>{quality}</Text>
+                    </View>
+                    {isSelected && (
+                       <View style={styles.settingsOptionDot} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -740,5 +883,88 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 3,
+  },
+  settingsSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(20, 18, 25, 0.95)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    zIndex: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  settingsSheetFullscreen: {
+    right: 0,
+    left: 'auto',
+    width: 300,
+    top: 0,
+    bottom: 0,
+    borderTopLeftRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderTopRightRadius: 0,
+    paddingTop: 40,
+    paddingBottom: 20,
+  },
+  settingsHeader: {
+    marginBottom: 16,
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  settingsTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  settingsContent: {
+    gap: 8,
+  },
+  settingsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  settingsOptionSelected: {
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+    borderColor: 'rgba(10, 132, 255, 0.3)',
+    borderWidth: 1,
+  },
+  settingsOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingsOptionQuality: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  settingsOptionProviderBadge: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  settingsOptionProviderText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  settingsOptionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0A84FF',
   },
 });

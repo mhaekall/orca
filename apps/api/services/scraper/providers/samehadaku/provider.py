@@ -68,7 +68,17 @@ class SamehadakuProvider(BaseProvider):
             else:
                 resolved.append(src)
 
-        return resolved
+        # Blacklist mirror yang berupa iframe mati/obfuscated atau landing page downloader (bukan direct mp4)
+        BLACKLIST = ['mega', 'filedon', 'doodstream', 'streamtape', 'mediafire', 'pucuk', 'gofile', 'kraken', 'acefile', 'vidhide']
+        usable_sources = []
+        for s in resolved:
+            provider_str = str(s.get('provider', '')).lower()
+            url_str = str(s.get('url', '')).lower()
+            if any(b in provider_str or b in url_str for b in BLACKLIST):
+                continue
+            usable_sources.append(s)
+
+        return usable_sources
 
     async def search(self, query: str) -> list[dict]:
         """Search for anime on Samehadaku."""

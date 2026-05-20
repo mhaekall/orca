@@ -63,7 +63,18 @@ class OploverzProvider(BaseProvider):
             return src
 
         resolved_sources = await asyncio.gather(*(enrich(dict(s)) for s in sources))
-        return list(resolved_sources)
+        
+        # Blacklist mirror Nonton Online (iframe proteksi) yang gagal diekstrak
+        BLACKLIST = ['nonton online', 'mega', 'filedon', 'vidhide', 'pucuk', 'gofile', 'kraken', 'acefile', 'mediafire', 'doodstream']
+        usable_sources = []
+        for s in resolved_sources:
+            provider_str = str(s.get('provider', '')).lower()
+            url_str = str(s.get('url', '')).lower()
+            if any(b in provider_str or b in url_str for b in BLACKLIST):
+                continue
+            usable_sources.append(s)
+            
+        return usable_sources
 
     async def search(self, query: str) -> list[dict]:
         """Search for anime on Oploverz."""

@@ -42,7 +42,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
   }, []);
 
   const { data: allComments = [], isLoading, mutate } = useSWR(
-    visible ? `${HF_API_URL}/api/v2/comments?anilistId=${anilistId}&episodeNumber=${episode}&sort_by=${sortBy}${user ? `&user_id=${user.id}` : ''}` : null,
+    visible ? `${HF_API_URL}/api/v2/comments?anilistId=${encodeURIComponent(anilistId)}&episodeNumber=${encodeURIComponent(episode)}&sort_by=${sortBy}${user ? `&user_id=${user.id}` : ''}` : null,
     fetcher
   );
 
@@ -57,7 +57,7 @@ export function CommentSection({ anilistId, episode, user, onClose, visible, isF
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: user.id,
-          anilistId: parseInt(anilistId),
+          anilistId: String(anilistId),
           episodeNumber: parseFloat(episode),
           text: text.trim(),
           timestamp_sec: 0,

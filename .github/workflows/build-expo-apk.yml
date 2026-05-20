@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload APK to Temporary File Host (Bypass GitHub Quota)
         run: |
-          echo "Uploading APK to file.io..."
-          curl -F "file=@apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk" https://file.io > upload_link.json
-          echo "DOWNLOAD LINK:"
-          cat upload_link.json | grep -o '"link":"[^"]*"' || cat upload_link.json
+          echo "Uploading APK to tmpfiles.org..."
+          RES=$(curl -s -F "file=@apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk" https://tmpfiles.org/api/v1/upload)
+          echo "DOWNLOAD LINK (Please copy and paste to browser):"
+          echo $RES | grep -o '"url":"[^"]*"' | cut -d'"' -f4 | sed 's/tmpfiles.org\//tmpfiles.org\/dl\//'

@@ -116,6 +116,54 @@ export function CustomVideoPlayer({
 
   const previousUrlRef = useRef(finalUrl);
 
+  // FAST-FAIL CHECK: Verifikasi link secara instan di background
+  useEffect(() => {
+    if (!activeUrl || activeUrl.includes('m3u8')) return; // m3u8 is usually fast to fail anyway, focus on heavy mp4
+
+    let isCancelled = false;
+
+    const verifyStream = async () => {
+      try {
+        console.log(`\n⚡ [Fast-Check] Menguji validitas link: ${activeUrl.substring(0, 60)}...`);
+        
+        // Gunakan AbortController untuk timeout 5 detik
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        // Lakukan request cuplikan (Range) agar tidak mendownload file penuh
+        const res = await fetch(activeUrl, { 
+            method: 'GET', 
+            headers: { 'Range': 'bytes=0-10' },
+            signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+
+        if (isCancelled) return;
+
+        const contentType = res.headers.get('content-type') || '';
+        
+        // Jika server mengembalikan error 4xx/5xx, atau malah mengembalikan HTML (halaman mati / error provider)
+        if (!res.ok || contentType.includes('text/html')) {
+           console.warn(`⚡ [Fast-Check] ❌ Link Mati/Diperbaiki (Status: ${res.status}, Type: ${contentType}). Memicu Fallback Instan!`);
+           stuckCountRef.current = 100; // Force trigger fallback on next tick
+        } else {
+           console.log(`⚡ [Fast-Check] ✅ Link Valid (Status: ${res.status}). Mengizinkan buffering penuh...`);
+        }
+      } catch (err) {
+        if (isCancelled) return;
+        console.warn(`⚡ [Fast-Check] ❌ Link Gagal Diakses (Timeout/CORS). Memicu Fallback Instan!`);
+        stuckCountRef.current = 100; // Force trigger fallback
+      }
+    };
+
+    verifyStream();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeUrl]);
+
   useEffect(() => {
     // When URL changes dynamically via Settings or Fallback, seek to saved time
     if (finalUrl && finalUrl !== previousUrlRef.current) {

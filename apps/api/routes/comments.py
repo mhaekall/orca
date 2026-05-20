@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.get("")
-async def get_comments(anilistId: int, episodeNumber: float, user_id: str | None = None):
+async def get_comments(anilistId: str, episodeNumber: float, user_id: str | None = None):
     # Fetch comments for an episode
     query = """
     SELECT 

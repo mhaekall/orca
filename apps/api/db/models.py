@@ -161,7 +161,7 @@ comments = Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("user_id", String, ForeignKey("user.id", ondelete="CASCADE"), nullable=False),
-    Column("anilistId", Integer, nullable=False),
+    Column("anilistId", String, nullable=False),
     Column("episodeNumber", Float, nullable=False),
     Column("parent_id", Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True),
     Column("text", Text, nullable=False),

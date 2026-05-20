@@ -69,7 +69,7 @@ class SamehadakuProvider(BaseProvider):
                 resolved.append(src)
 
         # Blacklist mirror yang berupa iframe mati/obfuscated atau landing page downloader (bukan direct mp4)
-        BLACKLIST = ['mega', 'filedon', 'doodstream', 'streamtape', 'mediafire', 'pucuk', 'gofile', 'kraken', 'acefile', 'vidhide']
+        BLACKLIST = ['mega', 'filedon', 'doodstream', 'streamtape', 'mediafire', 'pucuk', 'gofile', 'kraken', 'acefile', 'vidhide', 'zippyshare', 'solidfiles']
         usable_sources = []
         for s in resolved:
             provider_str = str(s.get('provider', '')).lower()

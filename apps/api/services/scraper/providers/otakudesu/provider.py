@@ -131,7 +131,7 @@ class OtakudesuProvider(BaseProvider):
         resolved_sources = await asyncio.gather(*(enrich(dict(s)) for s in sources))
         
         # Blacklist mirror yang tidak bisa diekstrak/di-play secara native (membutuhkan browser nyata)
-        BLACKLIST = ['vidhide', 'filedon', 'mega', 'ondesu', 'doodstream', 'streamtape', 'pucuk', 'gofile', 'kraken', 'acefile', 'mediafire']
+        BLACKLIST = ['vidhide', 'filedon', 'mega', 'ondesu', 'doodstream', 'streamtape', 'pucuk', 'gofile', 'kraken', 'acefile', 'mediafire', 'zippyshare', 'solidfiles']
         usable_sources = []
         for s in resolved_sources:
             provider_str = str(s.get('provider', '')).lower()

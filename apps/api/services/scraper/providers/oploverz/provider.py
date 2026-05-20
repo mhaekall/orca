@@ -65,7 +65,7 @@ class OploverzProvider(BaseProvider):
         resolved_sources = await asyncio.gather(*(enrich(dict(s)) for s in sources))
         
         # Blacklist mirror Nonton Online (iframe proteksi) yang gagal diekstrak
-        BLACKLIST = ['nonton online', 'mega', 'filedon', 'vidhide', 'pucuk', 'gofile', 'kraken', 'acefile', 'mediafire', 'doodstream']
+        BLACKLIST = ['nonton online', 'mega', 'filedon', 'vidhide', 'pucuk', 'gofile', 'kraken', 'acefile', 'mediafire', 'doodstream', 'zippyshare', 'solidfiles']
         usable_sources = []
         for s in resolved_sources:
             provider_str = str(s.get('provider', '')).lower()

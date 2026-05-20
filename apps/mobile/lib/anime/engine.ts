@@ -141,6 +141,34 @@ export class AnimeEngine {
   }
 
   /**
+   * Process Tele Proxy URLs (Demo/Mock logic)
+   */
+  static async processTeleProxy(epUrl: string): Promise<AnimeSource[]> {
+    console.log("Tele Proxy detected, processing mock sources...");
+    let sources: AnimeSource[] = [];
+    
+    // Inject fallback Kuronime source for demo
+    try {
+        const kuroSources = await this.getKuronimeSources("https://kuronime.sbs/nonton-sousou-no-frieren-episode-5/");
+        sources = [...kuroSources];
+    } catch (e) {
+        console.warn("Failed to inject Kuronime fallback for Tele Proxy", e);
+    }
+
+    // Map mock resolutions based on the base URL
+    const separator = epUrl.includes("?") ? "&" : "?";
+    
+    // Teleproxy is actually 720p
+    sources.push({ quality: "720p", provider: "Tele Proxy", url: `${epUrl}${separator}mock=720p`, type: "mp4" });
+    // Inject other resolutions that fallback to the same URL to trigger player reload
+    sources.push({ quality: "1080p", provider: "Tele Proxy (Upscale)", url: `${epUrl}${separator}mock=1080p`, type: "mp4" });
+    sources.push({ quality: "480p", provider: "Tele Proxy (Downscale)", url: `${epUrl}${separator}mock=480p`, type: "mp4" });
+    sources.push({ quality: "360p", provider: "Tele Proxy (Downscale)", url: `${epUrl}${separator}mock=360p`, type: "mp4" });
+
+    return sources;
+  }
+
+  /**
    * Scrape Kuronime episode
    */
   static async getKuronimeSources(episodeUrl: string): Promise<AnimeSource[]> {
@@ -323,7 +351,7 @@ export class AnimeEngine {
                const urlLower = url.toLowerCase();
                
                // Blacklist mirror mati/landing page
-               const BLACKLIST = ['mega', 'filedon', 'doodstream', 'streamtape', 'mediafire', 'pucuk', 'gofile', 'kraken', 'acefile', 'vidhide'];
+               const BLACKLIST = ['mega', 'filedon', 'doodstream', 'streamtape', 'mediafire', 'pucuk', 'gofile', 'kraken', 'acefile', 'vidhide', 'zippyshare', 'solidfiles'];
                if (BLACKLIST.some(b => urlLower.includes(b))) {
                  continue; // Skip this trash mirror
                }

@@ -1,7 +1,7 @@
 import { parse, HTMLElement } from 'node-html-parser';
 import CryptoJS from 'crypto-js';
 import { AnimeSource, AnimeSourceRule } from './types';
-import { API_URL } from '../config';
+import { API_URL, HF_API_URL } from '../config';
 
 // Helper to fetch HTML using mobile fetch (bypasses simple bot protections)
 async function fetchHtml(url: string, customHeaders?: Record<string, string>): Promise<string> {
@@ -37,8 +37,11 @@ export class AnimeEngine {
   static async getConfig() {
     if (this.configCache) return this.configCache;
     try {
-      // HF_API_URL should be available from config, importing it...
-      const res = await fetch(`${API_URL.replace('/api/v2', '')}/api/v2/config/app`);
+      const targetUrl = HF_API_URL.endsWith('/') 
+        ? `${HF_API_URL}api/v2/config/app` 
+        : `${HF_API_URL}/api/v2/config/app`;
+        
+      const res = await fetch(targetUrl);
       const data = await res.json();
       if (data && data.scraper_rules) {
         this.configCache = data.scraper_rules;
@@ -68,7 +71,11 @@ export class AnimeEngine {
 
   static async reportError(provider: string, url: string, error: any) {
     try {
-      await fetch(`${API_URL.replace('/api/v2', '')}/api/v2/telemetry/scraper-error`, {
+      const targetUrl = HF_API_URL.endsWith('/') 
+        ? `${HF_API_URL}api/v2/telemetry/scraper-error` 
+        : `${HF_API_URL}/api/v2/telemetry/scraper-error`;
+        
+      await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -33,6 +33,10 @@ class NativeVideoPlayerModule : Module() {
             AsyncFunction("seekTo") { view: NativeVideoPlayerView, timeSeconds: Double ->
                 view.seekTo(timeSeconds)
             }
+
+            OnViewDestroys { view: NativeVideoPlayerView ->
+                view.destroy()
+            }
         }
     }
 }

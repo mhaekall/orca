@@ -101,14 +101,15 @@ class NativeVideoPlayerView(
             .setUpstreamDataSourceFactory(httpFactory)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-        // INJECTION: DefaultLoadControl for 5-minute buffer hack
+        // INJECTION: DefaultLoadControl for Ultra-Fast Start
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                5000,    // minBufferMs
-                300000,  // maxBufferMs (5 minutes)
-                2500,    // bufferForPlaybackMs
-                5000     // bufferForPlaybackAfterRebufferMs
+                15000,   // minBufferMs (minimal buffer sebelum berhenti minta data)
+                300000,  // maxBufferMs (5 minutes max buffer)
+                500,     // bufferForPlaybackMs (Mulai putar JAUH LEBIH CEPAT: 0.5 detik saja)
+                1500     // bufferForPlaybackAfterRebufferMs (Cukup tunggu 1.5 detik jika buffering)
             )
+            .setPrioritizeTimeOverSizeThresholds(true) // Fokus utama ke kecepatan mulai
             .build()
 
         val newPlayer = ExoPlayer.Builder(context)
@@ -176,5 +177,9 @@ class NativeVideoPlayerView(
             Log.d(TAG, "ExoPlayer released.")
         }
         player = null
+    }
+
+    fun destroy() {
+        releasePlayer()
     }
 }

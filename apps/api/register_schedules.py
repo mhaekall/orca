@@ -20,12 +20,13 @@ schedules = [
         "cron": "*/15 * * * *",
         "method": "POST",
     },
-    {
-        "name": "trigger-auto-ingest-15m",
-        "url": f"https://jonyyyyyyyu-anime-ingestion-worker.hf.space/api/v2/admin/trigger-auto-ingest?key={admin_key}&shard_id=0&total_shards=1",
-        "cron": "*/15 * * * *",
-        "method": "GET",
-    },
+    # Ingestion is temporarily disabled due to client-side scraping transition
+    # {
+    #     "name": "trigger-auto-ingest-15m",
+    #     "url": f"https://jonyyyyyyyu-anime-ingestion-worker.hf.space/api/v2/admin/trigger-auto-ingest?key={admin_key}&shard_id=0&total_shards=1",
+    #     "cron": "*/15 * * * *",
+    #     "method": "GET",
+    # },
 ]
 
 for s in schedules:

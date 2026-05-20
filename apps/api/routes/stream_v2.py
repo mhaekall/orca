@@ -475,23 +475,23 @@ async def get_sources_v2(
 
     all_sources.sort(key=lambda x: QUALITY_RANK.get(x.get("quality", "Auto"), 1), reverse=True)
 
-    # Ingestion Trigger: Jika ditemukan direct link, masukkan ke antrean Telegram Swarm
-    if all_sources and anilist_id:
-        best = all_sources[0]
-        raw_url = best.get("url", "")
-        if raw_url and "workers.dev" not in raw_url and "tg-proxy" not in raw_url:
-            try:
-                # Dapatkan episode_id dari database untuk update URL nantinya
-                row = await database.fetch_one(
-                    'SELECT id FROM episodes WHERE "anilistId" = :aid AND "episodeNumber" = :ep LIMIT 1',
-                    values={"aid": anilist_id, "ep": float(ep)},
-                )
-                if row:
-                    from services.queue import enqueue_ingest_batch
-
-                    asyncio.create_task(enqueue_ingest_batch())
-            except Exception as e:
-                print(f"[StreamV2] Ingestion Trigger Error: {e}")
+    # Ingestion Trigger: Temporarily disabled for client-side scraping transition
+    # if all_sources and anilist_id:
+    #     best = all_sources[0]
+    #     raw_url = best.get("url", "")
+    #     if raw_url and "workers.dev" not in raw_url and "tg-proxy" not in raw_url:
+    #         try:
+    #             # Dapatkan episode_id dari database untuk update URL nantinya
+    #             row = await database.fetch_one(
+    #                 'SELECT id FROM episodes WHERE "anilistId" = :aid AND "episodeNumber" = :ep LIMIT 1',
+    #                 values={"aid": anilist_id, "ep": float(ep)},
+    #             )
+    #             if row:
+    #                 from services.queue import enqueue_ingest_batch
+    #
+    #                 asyncio.create_task(enqueue_ingest_batch())
+    #         except Exception as e:
+    #             print(f"[StreamV2] Ingestion Trigger Error: {e}")
 
     return {
         "success": len(all_sources) > 0,

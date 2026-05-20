@@ -53,6 +53,9 @@ class QStashPublisher:
         direct_url: str,
         delay: str = None,
     ):
+        print(f"[Queue] Ingestion disabled by architecture transition. Skipping task for {anilist_id} Ep {episode_number}")
+        return
+
         if not QSTASH_TOKEN:
             print(f"[QStash] Token missing, cannot queue ingest for Ep {episode_number}")
             return

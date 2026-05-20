@@ -587,12 +587,12 @@ async def get_anime_detail(anilist_id: int) -> dict | None:
         ORDER  BY
                "episodeNumber" DESC,
                CASE "providerId"
-                WHEN 'samehadaku' THEN 1
                 WHEN 'kuronime'   THEN 1
-                WHEN 'oploverz'   THEN 2
-                WHEN 'doronime'   THEN 3
-                WHEN 'otakudesu'  THEN 4
-                ELSE 5
+                WHEN 'samehadaku' THEN 2
+                WHEN 'oploverz'   THEN 3
+                WHEN 'doronime'   THEN 4
+                WHEN 'otakudesu'  THEN 5
+                ELSE 6
                END ASC
         """,
         values={"id": anilist_id},

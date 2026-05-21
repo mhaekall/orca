@@ -2,36 +2,10 @@ import { parse, HTMLElement } from 'node-html-parser';
 import CryptoJS from 'crypto-js';
 import { AnimeSource, AnimeSourceRule } from './types';
 import { API_URL, HF_API_URL } from '../config';
-
-// Helper to fetch HTML using mobile fetch (bypasses simple bot protections)
-async function fetchHtml(url: string, customHeaders?: Record<string, string>): Promise<string> {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-    ...customHeaders,
-  };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
-
-  try {
-    const response = await fetch(url, { headers, signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${url}: ${response.status}`);
-    }
-    return await response.text();
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      throw new Error('Connection to anime server timed out.');
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
+import { fetchHtml } from '../network';
 
 export class AnimeEngine {
+
   private static configCache: any = null;
 
   static async getConfig() {
@@ -376,5 +350,32 @@ export class AnimeEngine {
     }
 
     return sources;
+  }
+
+  /**
+   * Encapsulates the logic for sorting and picking the best source.
+   * Prevents UI components from handling complex business logic.
+   */
+  static getBestSource(sources: AnimeSource[]): AnimeSource | null {
+    if (!sources || sources.length === 0) return null;
+
+    // Tier 0: Direct Stream ASLI (Kuronime/Samehadaku/Pixeldrain)
+    // Tier 3: Tele Proxy (Fallback jika scraper mati)
+    // Tier 4: Iframe 
+    const pureDirectSources = sources.filter((s: any) => s.type !== "iframe" && !s.provider.toLowerCase().includes("tele proxy") && !s.provider.toLowerCase().includes("swarm"));
+    const teleProxySources = sources.filter((s: any) => s.provider.toLowerCase().includes("tele proxy") || s.provider.toLowerCase().includes("swarm"));
+    const fallbackSources = sources.filter((s: any) => s.type === "iframe");
+
+    return (
+      pureDirectSources.find((s: any) => s.quality === "1080p") ||
+      pureDirectSources.find((s: any) => s.quality === "720p") || 
+      pureDirectSources.find((s: any) => s.quality === "480p") || 
+      (pureDirectSources.length > 0 ? pureDirectSources[0] : null) ||
+      teleProxySources.find((s: any) => s.quality === "1080p") ||
+      teleProxySources.find((s: any) => s.quality === "720p") ||
+      (teleProxySources.length > 0 ? teleProxySources[0] : null) ||
+      fallbackSources.find((s: any) => s.quality === "720p") ||
+      (fallbackSources.length > 0 ? fallbackSources[0] : null)
+    );
   }
 }

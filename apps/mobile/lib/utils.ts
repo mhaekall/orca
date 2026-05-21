@@ -68,10 +68,18 @@ export function resolveProxyUrl(videoUrl: string | null): string | null {
     if (match) {
       const proxyDomain = match[1] || '';
       const fileId = match[2];
-      let fallbackToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_1 || '8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE';
-      if (proxyDomain === '-4') fallbackToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_4 || '7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8';
-      else if (proxyDomain === '-2') fallbackToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_2 || '8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8';
-      urlStr = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot${fallbackToken}/${fileId}`;
+      
+      // Keamanan Ditingkatkan (Tech Debt Resolved):
+      // Token tidak lagi di-hardcode di kode klien, melainkan wajib disuplai via Environment Variables (.env)
+      let botToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_1;
+      if (proxyDomain === '-4') botToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_4;
+      else if (proxyDomain === '-2') botToken = process.env.EXPO_PUBLIC_TG_PROXY_TOKEN_2;
+      
+      if (botToken) {
+         urlStr = `https://tele-proxy.moehamadhkl.workers.dev/stream/bot${botToken}/${fileId}`;
+      } else {
+         console.warn(`[Proxy] Token tidak ditemukan untuk domain ${proxyDomain}. Melewatkan fallback.`);
+      }
     }
   }
 
@@ -93,4 +101,48 @@ export function resolveProxyUrl(videoUrl: string | null): string | null {
     }
   }
   return urlStr;
+}
+
+/**
+ * Calculate dates of the current week starting from Monday.
+ * Uses WIB (+7) for consistent date boundaries.
+ */
+export function getWeekDates() {
+  const realNow = new Date();
+  const utc = realNow.getTime() + (realNow.getTimezoneOffset() * 60000);
+  const today = new Date(utc + (7 * 3600000)); // Shift +7 hours for WIB
+  
+  const currentDay = today.getDay(); // 0 = Sunday
+  const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+  
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - distanceToMonday);
+  monday.setHours(0,0,0,0);
+  
+  const todayStart = new Date(today);
+  todayStart.setHours(0,0,0,0);
+
+  const week = [];
+  const daysArr = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+  const shortDaysArr = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+  
+  let initialActive = "Senin";
+  
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth();
+    if (isToday) {
+      initialActive = daysArr[i];
+    }
+    week.push({
+      fullDay: daysArr[i],
+      shortDay: shortDaysArr[i],
+      dateNum: d.getDate(),
+      isToday,
+      isPast: d.getTime() < todayStart.getTime()
+    });
+  }
+
+  return { week, initialActive };
 }

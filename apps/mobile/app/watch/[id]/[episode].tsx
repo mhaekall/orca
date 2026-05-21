@@ -108,25 +108,8 @@ export default function WatchScreen() {
   const watchHistoryRaw = Array.isArray(progressData) ? progressData : (progressData?.data || []);
   const animeHistory = watchHistoryRaw.filter((h: any) => String(h.anilist_id || h.animeSlug) === String(id));
   
-  // 1. Ambil source video (Backend/Client sudah meresolve iframe ke direct URL)
-  // Tier 0: Direct Stream ASLI (Kuronime/Samehadaku/Pixeldrain)
-  // Tier 3: Tele Proxy (Fallback jika scraper mati)
-  // Tier 4: Iframe 
-  const pureDirectSources = sources.filter((s: any) => s.type !== "iframe" && !s.provider.toLowerCase().includes("tele proxy") && !s.provider.toLowerCase().includes("swarm"));
-  const teleProxySources = sources.filter((s: any) => s.provider.toLowerCase().includes("tele proxy") || s.provider.toLowerCase().includes("swarm"));
-  const fallbackSources = sources.filter((s: any) => s.type === "iframe");
-
-  const bestSource = 
-    pureDirectSources.find((s: any) => s.quality === "1080p") ||
-    pureDirectSources.find((s: any) => s.quality === "720p") || 
-    pureDirectSources.find((s: any) => s.quality === "480p") || 
-    (pureDirectSources.length > 0 ? pureDirectSources[0] : null) ||
-    teleProxySources.find((s: any) => s.quality === "1080p") ||
-    teleProxySources.find((s: any) => s.quality === "720p") ||
-    (teleProxySources.length > 0 ? teleProxySources[0] : null) ||
-    fallbackSources.find((s: any) => s.quality === "720p") ||
-    (fallbackSources.length > 0 ? fallbackSources[0] : null);
-    
+  // 1. Ambil source video terbaik (Didelegasikan ke Engine Adapter untuk menghindari Tech Debt)
+  const bestSource = AnimeEngine.getBestSource(sources);
   const videoUrl = bestSource?.url || null;
 
   const userId = user?.id || user?.email;

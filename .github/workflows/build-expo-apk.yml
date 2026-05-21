@@ -9,7 +9,7 @@ jobs:
     env:
       EXPO_PUBLIC_API_URL: "https://orcanime.pages.dev"
       EXPO_PUBLIC_HF_API_URL: "https://jonyyyyyyyu-anime-scraper-api.hf.space"
-      EXPO_PUBLIC_GOOGLE_CLIENT_ID: "475749423464-e2dq5kmtgdehbbb369f0nvr86f73gpl0.apps.googleusercontent.com"
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: "475749423464-4eqtfgbmjfvj7jsi999vcap2mcug5lip.apps.googleusercontent.com"
       EXPO_PUBLIC_TG_PROXY_TOKEN_1: "8782570865:AAFlGrid6H-XFPu-jAbE26dHD_DgXHhRBpE"
       EXPO_PUBLIC_TG_PROXY_TOKEN_4: "7745690828:AAH3AS4ruQkNHLUp2osiVy_riIAAi4SrXB8"
       EXPO_PUBLIC_TG_PROXY_TOKEN_2: "8425258072:AAGmF_XGG2K0HnM7lmvEMq-gvf_-E0EMbd8"

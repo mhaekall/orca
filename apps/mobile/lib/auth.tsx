@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Configure Google Sign-In with your Web Client ID for the backend
     GoogleSignin.configure({
-      webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "475749423464-4eqtfgbmjfvj7jsi999vcap2mcug5lip.apps.googleusercontent.com",
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "475749423464-e2dq5kmtgdehbbb369f0nvr86f73gpl0.apps.googleusercontent.com",
       offlineAccess: true,
       forceCodeForRefreshToken: true,
     });

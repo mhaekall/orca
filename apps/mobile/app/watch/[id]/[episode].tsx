@@ -12,6 +12,7 @@ import { Skeleton } from '../../../components/Skeleton';
 import { CustomVideoPlayer } from '../../../components/CustomVideoPlayer';
 import { MediaEpisodes } from '../../../components/media-detail/sections/MediaEpisodes';
 import { useWatchProgress } from '../../../lib/hooks/useWatchProgress';
+import { useUserProgress } from '../../../lib/hooks/useUserProgress';
 import { hasEps } from '../../../lib/utils';
 
 const { width: W } = Dimensions.get('window');
@@ -32,10 +33,7 @@ export default function WatchScreen() {
   
   const { data: animeData } = useSWR(`${HF_API_URL}/api/v2/anime/${id}?_cb=5`, fetcher);
   
-  const { data: progressData } = useSWR(
-    user?.id || user?.email ? `${HF_API_URL}/api/v2/social/progress?user_id=${user?.id || user?.email}` : null,
-    fetcher
-  );
+  const { progressData } = useUserProgress(user?.id || user?.email);
   const { data: streamData, isLoading: streamLoading } = useSWR(
     `${API_URL}/api/v2/anime/${id}/episodes/${episode}/stream`,
     fetcher
@@ -70,17 +68,9 @@ export default function WatchScreen() {
       try {
         let sc: AnimeSource[] = [];
         
-        // --- INJECTION FOR TELE PROXY DEMO ---
-        // If it's a Tele Proxy link, we forcefully inject a Kuronime URL 
-        // (Frieren Ep 5) to demonstrate how the client unifies multiple providers.
         if (epUrl.includes("tele-proxy") || epUrl.includes("moehamadhkl.workers.dev")) {
-            console.log("Tele Proxy detected, injecting Kuronime source for demo...");
-            const kuroSources = await AnimeEngine.getKuronimeSources("https://kuronime.sbs/nonton-sousou-no-frieren-episode-5/");
-            sc = [...kuroSources];
-        } 
-        // -------------------------------------
-
-        if (epUrl.includes("kuronime") || epUrl.includes("animeku")) {
+            sc = await AnimeEngine.processTeleProxy(epUrl);
+        } else if (epUrl.includes("kuronime") || epUrl.includes("animeku")) {
            const kuroSrc = await AnimeEngine.getKuronimeSources(epUrl);
            sc = [...sc, ...kuroSrc];
         } else if (epUrl.includes("samehadaku")) {
@@ -104,33 +94,13 @@ export default function WatchScreen() {
     return () => { isMounted = false; };
   }, [episode, episodes]);
 
-  // Fix Tele Proxy labels and inject fallback qualities
+  // Merge backend sources with client sources and deduplicate
   const sources = React.useMemo(() => {
-    // Merge backend sources (like Tele Proxy) with client sources (like injected Kuronime)
     const backendSources = streamData?.sources || [];
     let rawSources = [...backendSources, ...clientSources];
     
     // Deduplicate by URL
-    rawSources = rawSources.filter((v, i, a) => a.findIndex(t => (t.url === v.url)) === i);
-    
-    let processedSources: AnimeSource[] = [];
-    rawSources.forEach((s: any) => {
-      if (s.url && (s.url.includes("tele-proxy") || s.url.includes("moehamadhkl.workers.dev"))) {
-        const base = s.url;
-        const separator = base.includes("?") ? "&" : "?";
-        
-        // Teleproxy is actually 720p
-        processedSources.push({ ...s, quality: "720p", provider: "Tele Proxy", url: `${base}${separator}mock=720p` });
-        // Inject other resolutions that fallback to the same URL (but unique string) to trigger player reload
-        processedSources.push({ ...s, quality: "1080p", provider: "Tele Proxy (Upscale)", url: `${base}${separator}mock=1080p` });
-        processedSources.push({ ...s, quality: "480p", provider: "Tele Proxy (Downscale)", url: `${base}${separator}mock=480p` });
-        processedSources.push({ ...s, quality: "360p", provider: "Tele Proxy (Downscale)", url: `${base}${separator}mock=360p` });
-      } else {
-        processedSources.push(s);
-      }
-    });
-
-    return processedSources;
+    return rawSources.filter((v, i, a) => a.findIndex(t => (t.url === v.url)) === i);
   }, [clientSources, streamData]);
 
   const combinedLoading = isClientScraping || (clientSources.length === 0 && streamLoading);
@@ -139,15 +109,21 @@ export default function WatchScreen() {
   const animeHistory = watchHistoryRaw.filter((h: any) => String(h.anilist_id || h.animeSlug) === String(id));
   
   // 1. Ambil source video (Backend/Client sudah meresolve iframe ke direct URL)
-  // Prioritaskan: 1) Direct Stream (HLS/MP4), 2) Resolusi 720p/480p
-  const directSources = sources.filter((s: any) => s.type !== "iframe");
+  // Tier 0: Direct Stream ASLI (Kuronime/Samehadaku/Pixeldrain)
+  // Tier 3: Tele Proxy (Fallback jika scraper mati)
+  // Tier 4: Iframe 
+  const pureDirectSources = sources.filter((s: any) => s.type !== "iframe" && !s.provider.toLowerCase().includes("tele proxy") && !s.provider.toLowerCase().includes("swarm"));
+  const teleProxySources = sources.filter((s: any) => s.provider.toLowerCase().includes("tele proxy") || s.provider.toLowerCase().includes("swarm"));
   const fallbackSources = sources.filter((s: any) => s.type === "iframe");
 
   const bestSource = 
-    directSources.find((s: any) => s.quality === "720p") || 
-    directSources.find((s: any) => s.quality === "480p") || 
-    directSources.find((s: any) => s.quality === "1080p") ||
-    (directSources.length > 0 ? directSources[0] : null) ||
+    pureDirectSources.find((s: any) => s.quality === "1080p") ||
+    pureDirectSources.find((s: any) => s.quality === "720p") || 
+    pureDirectSources.find((s: any) => s.quality === "480p") || 
+    (pureDirectSources.length > 0 ? pureDirectSources[0] : null) ||
+    teleProxySources.find((s: any) => s.quality === "1080p") ||
+    teleProxySources.find((s: any) => s.quality === "720p") ||
+    (teleProxySources.length > 0 ? teleProxySources[0] : null) ||
     fallbackSources.find((s: any) => s.quality === "720p") ||
     (fallbackSources.length > 0 ? fallbackSources[0] : null);
     

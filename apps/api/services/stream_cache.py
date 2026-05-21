@@ -948,40 +948,7 @@ async def get_cached_stream(
     Tambahkan ke main.py lifespan warmup dengan memanggil
     stream_cache.warmup_from_db() setelah DB connect.
     """
-    # Tier 0: Telegram Swarm Storage (URL sudah di-ingest)
-    try:
-        row = await database.fetch_one(
-            """
-            SELECT id, "episodeUrl", "providerId"
-            FROM   episodes
-            WHERE  "anilistId" = :aid AND "episodeNumber" = :ep
-            AND ("episodeUrl" LIKE '%tg-proxy%' OR "episodeUrl" LIKE '%workers.dev%')
-            LIMIT 1
-            """,
-            values={"aid": anilist_id, "ep": ep_num},
-        )
-        if row:
-            ep_url = row["episodeUrl"]
-            return {
-                "sources": [
-                    {
-                        "provider": "Swarm Storage (Telegram)",
-                        "quality": "1080p",
-                        "url": ep_url,
-                        "type": "hls"
-                        if ("tg-proxy" in ep_url or ep_url.endswith(".m3u8"))
-                        else "mp4",
-                        "source": "telegram_swarm",
-                    }
-                ],
-                "downloads": [],
-                "cache_layer": "L0-Telegram",
-                "latency_ms": 0,
-            }
-    except Exception:
-        pass
-
-    # Ambil semua candidate episodes dari DB, sorted by provider priority
+    # Ambil semua candidate episodes dari DB, sorted by provider priority (CS Scraping / Direct Links now Tier 0)
     rows = await database.fetch_all(
         """
         SELECT id, "episodeUrl", "providerId", "episodeNumber"
@@ -999,45 +966,83 @@ async def get_cached_stream(
         """,
         values={"aid": anilist_id, "ep": ep_num},
     )
-    if not rows:
-        return None
+    
+    fallback_iframe_result = None
 
-    for row in rows:
-        result = await stream_cache.get_stream(row["episodeUrl"], row["providerId"])
-        if result.get("sources"):
-            result["episodeUrl"] = row["episodeUrl"]
-            result["usedProvider"] = row["providerId"]
+    if rows:
+        for row in rows:
+            result = await stream_cache.get_stream(row["episodeUrl"], row["providerId"])
+            if result.get("sources"):
+                result["episodeUrl"] = row["episodeUrl"]
+                result["usedProvider"] = row["providerId"]
 
-            # Trigger ingestion ke Telegram jika ada direct link (fire-and-forget)
-            direct = [
-                s
-                for s in result["sources"]
-                if s.get("type") in ("hls", "mp4", "direct", "mp4 (direct)", "hls (direct)")
-            ]
-            if direct:
-                raw_url = direct[0].get("raw_url") or direct[0].get("url", "")
-                if raw_url and "workers.dev" not in raw_url and "tg-proxy" not in raw_url:
-                    # Ingestion is now handled manually or by cron, avoiding background stampedes
-                    pass
-            else:
-                # TASK A: Thin Client Architecture - Resolve iframe on the backend
-                if result.get("sources"):
-                    iframe_source = result["sources"][0]
-                    embed_url = iframe_source.get("url")
-                    if embed_url:
-                        try:
-                            import urllib.parse
+                # Cek apakah ini direct link murni
+                direct = [
+                    s
+                    for s in result["sources"]
+                    if s.get("type") in ("hls", "mp4", "direct", "mp4 (direct)", "hls (direct)")
+                ]
+                if direct:
+                    # Tier 0: Direct Stream dari Scraper! (Super Fast)
+                    return result
+                else:
+                    # Simpan sebagai fallback jika tidak ada direct stream sama sekali
+                    if not fallback_iframe_result:
+                        fallback_iframe_result = result
 
-                            import httpx
+    # Tier 3: Telegram Swarm Storage (Fallback jika scraper mati atau hanya menghasilkan iframe)
+    try:
+        row = await database.fetch_one(
+            """
+            SELECT id, "episodeUrl", "providerId"
+            FROM   episodes
+            WHERE  "anilistId" = :aid AND "episodeNumber" = :ep
+            AND ("episodeUrl" LIKE '%tg-proxy%' OR "episodeUrl" LIKE '%workers.dev%')
+            LIMIT 1
+            """,
+            values={"aid": anilist_id, "ep": ep_num},
+        )
+        if row:
+            ep_url = row["episodeUrl"]
+            return {
+                "sources": [
+                    {
+                        "provider": "Swarm Storage (Telegram Fallback)",
+                        "quality": "1080p",
+                        "url": ep_url,
+                        "type": "hls"
+                        if ("tg-proxy" in ep_url or ep_url.endswith(".m3u8"))
+                        else "mp4",
+                        "source": "telegram_swarm",
+                    }
+                ],
+                "downloads": [],
+                "cache_layer": "L3-Telegram-Fallback",
+                "latency_ms": 0,
+                "usedProvider": row["providerId"],
+                "episodeUrl": ep_url,
+            }
+    except Exception:
+        pass
 
-                            cf_worker = "https://video-proxy.moehamadhkl.workers.dev"
-                            encoded_url = urllib.parse.quote_plus(embed_url)
-                            proxy_req_url = f"{cf_worker}/proxy?url={encoded_url}&extract=mp4"
-                            async with httpx.AsyncClient(timeout=8.0) as client:
-                                resp = await client.get(proxy_req_url)
-                                if resp.status_code == 200:
-                                    resolved_data = resp.json()
-                                    if resolved_data and resolved_data.get("videoUrl"):
+    # Tier Terakhir: Kembalikan Iframe jika bahkan Telegram pun kosong
+    if fallback_iframe_result:
+        # TASK A: Thin Client Architecture - Resolve iframe on the backend
+        iframe_source = fallback_iframe_result["sources"][0]
+        embed_url = iframe_source.get("url")
+        if embed_url:
+            try:
+                import urllib.parse
+                import httpx
+
+                cf_worker = "https://video-proxy.moehamadhkl.workers.dev"
+                encoded_url = urllib.parse.quote_plus(embed_url)
+                proxy_req_url = f"{cf_worker}/proxy?url={encoded_url}&extract=mp4"
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(proxy_req_url)
+                    if resp.status_code == 200:
+                        resolved_data = resp.json()
+                        if resolved_data and resolved_data.get("videoUrl"):
                                         result["sources"].insert(
                                             0,
                                             {

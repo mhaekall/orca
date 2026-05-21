@@ -1,1 +1,12 @@
+#!/usr/bin/env bash
+# Husky pre-commit hook
+
+echo "🚀 Menjalankan pengecekan higienitas root direktori & secrets..."
+bash scripts/pre-commit
+if [ $? -ne 0 ]; then
+  echo "❌ Pre-commit checks failed."
+  exit 1
+fi
+
+echo "✨ Menjalankan lint-staged..."
 pnpm exec lint-staged
